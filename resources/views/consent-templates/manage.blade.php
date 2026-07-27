@@ -7,7 +7,7 @@
 
             <div class="flex flex-wrap gap-2">
                 <a
-                    href="{{ route('consent-templates.index') }}"
+                    href="{{ route('consent-templates.new') }}"
                     class="inline-flex justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                     New Consent
@@ -59,10 +59,10 @@
                     </div>
 
                     <a
-                        href="{{ route('consent-templates.index') }}"
+                        href="{{ route('consent-templates.new') }}"
                         class="inline-flex justify-center rounded-lg bg-blue-600 px-5 py-3 text-white hover:bg-blue-700"
                     >
-                        + New Consent
+                        + Create Consent Template
                     </a>
                 </div>
 
@@ -77,7 +77,7 @@
                         </p>
 
                         <a
-                            href="{{ route('consent-templates.index') }}"
+                            href="{{ route('consent-templates.new') }}"
                             class="inline-flex rounded-lg bg-blue-600 px-6 py-3 text-white hover:bg-blue-700"
                         >
                             Create Your First Consent
