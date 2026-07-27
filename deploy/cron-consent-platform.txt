@@ -1,0 +1,4 @@
+# Run Laravel's scheduler every minute.
+# Replace /var/www/consent-platform with the real server path.
+
+* * * * * cd /var/www/consent-platform && /usr/bin/php artisan schedule:run >> /dev/null 2>&1

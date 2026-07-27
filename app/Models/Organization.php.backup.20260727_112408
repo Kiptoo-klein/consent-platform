@@ -1,0 +1,43 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Organization extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'name',
+        'slug',
+        'email',
+        'phone',
+        'website',
+        'logo',
+        'primary_color',
+        'secondary_color',
+        'accent_color',
+        'support_email',
+        'address',
+        'footer_text',
+    ];
+
+    /**
+     * Organization users.
+     */
+    public function users(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
+
+    /**
+     * Organization consent templates.
+     */
+    public function consentTemplates(): HasMany
+    {
+        return $this->hasMany(ConsentTemplate::class);
+    }
+}

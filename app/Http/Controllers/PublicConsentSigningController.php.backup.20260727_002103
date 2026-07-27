@@ -1,0 +1,565 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Jobs\GenerateConsentPdfJob;
+use App\Models\ConsentSession;
+use App\Models\ConsentSignature;
+use App\Services\ConsentAuditService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
+
+class PublicConsentSigningController extends Controller
+{
+    /**
+     * Display the public consent review page.
+     */
+    public function show(string $accessToken): View
+    {
+        $consentSession = $this->findSession($accessToken);
+
+        $consentSession->load([
+            'organization',
+            'consentTemplate',
+            'consentTemplateVersion',
+            'signature',
+        ]);
+
+        return view('public-consent.show', [
+            'consentSession' => $consentSession,
+            'publishedVersion' => $consentSession->consentTemplateVersion,
+            'additionalFields' => $this->additionalFields(
+                $consentSession
+            ),
+        ]);
+    }
+
+    /**
+     * Save consent responses and move the record into progress.
+     */
+    public function update(
+        Request $request,
+        string $accessToken
+    ): RedirectResponse {
+        $consentSession = $this->findSession($accessToken);
+
+        if ($consentSession->isCompleted()) {
+            return redirect()
+                ->route(
+                    'public-consent.completed',
+                    $consentSession->access_token
+                );
+        }
+
+        if ($consentSession->isCancelled()) {
+            return redirect()
+                ->route(
+                    'public-consent.show',
+                    $consentSession->access_token
+                )
+                ->withErrors([
+                    'record' =>
+                        'This consent record has been cancelled.',
+                ]);
+        }
+
+        $additionalFields = $this->additionalFields(
+            $consentSession
+        );
+
+        $validationRules = $this->buildValidationRules(
+            $additionalFields
+        );
+
+        $validated = $request->validate($validationRules);
+
+        DB::transaction(function () use (
+            $consentSession,
+            $validated
+        ): void {
+            $lockedSession = ConsentSession::query()
+                ->whereKey($consentSession->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedSession->isCompleted()) {
+                throw ValidationException::withMessages([
+                    'record' =>
+                        'This consent record has already been completed.',
+                ]);
+            }
+
+            if ($lockedSession->isCancelled()) {
+                throw ValidationException::withMessages([
+                    'record' =>
+                        'This consent record has been cancelled.',
+                ]);
+            }
+
+            $lockedSession->update([
+                'responses' =>
+                    $validated['responses'] ?? [],
+
+                'status' =>
+                    ConsentSession::STATUS_IN_PROGRESS,
+
+                'started_at' =>
+                    $lockedSession->started_at ?? now(),
+            ]);
+        });
+
+        return redirect()
+            ->route(
+                'public-consent.signature',
+                $consentSession->access_token
+            );
+    }
+
+    /**
+     * Display the signature page.
+     */
+    public function signature(string $accessToken): View|RedirectResponse
+    {
+        $consentSession = $this->findSession($accessToken);
+
+        if ($consentSession->isCompleted()) {
+            return redirect()
+                ->route(
+                    'public-consent.completed',
+                    $consentSession->access_token
+                );
+        }
+
+        $consentSession->load([
+            'organization',
+            'consentTemplate',
+            'consentTemplateVersion',
+            'signature',
+        ]);
+
+        return view('public-consent.signature', [
+            'consentSession' => $consentSession,
+        ]);
+    }
+
+    /**
+     * Save the signature and complete the consent record.
+     */
+    public function complete(
+        Request $request,
+        string $accessToken,
+        ConsentAuditService $consentAuditService
+    ): RedirectResponse {
+        $consentSession = $this->findSession($accessToken);
+
+        if ($consentSession->isCompleted()) {
+            return redirect()
+                ->route(
+                    'public-consent.completed',
+                    $consentSession->access_token
+                );
+        }
+
+        if ($consentSession->isCancelled()) {
+            return redirect()
+                ->route(
+                    'public-consent.show',
+                    $consentSession->access_token
+                )
+                ->withErrors([
+                    'record' =>
+                        'This consent record has been cancelled.',
+                ]);
+        }
+
+        $validated = $request->validate([
+            'signature_data' => [
+                'required',
+                'string',
+                'max:2500000',
+            ],
+
+            'confirmation' => [
+                'accepted',
+            ],
+        ], [
+            'signature_data.required' =>
+                'Please draw your signature before submitting.',
+
+            'signature_data.max' =>
+                'The signature image is too large. Please clear it and sign again.',
+
+            'confirmation.accepted' =>
+                'You must confirm that the signature is yours.',
+        ]);
+
+        $signatureData = $validated['signature_data'];
+
+        if (! str_starts_with(
+            $signatureData,
+            'data:image/png;base64,'
+        )) {
+            throw ValidationException::withMessages([
+                'signature_data' =>
+                    'The signature image format is invalid.',
+            ]);
+        }
+
+        $encodedImage = substr(
+            $signatureData,
+            strlen('data:image/png;base64,')
+        );
+
+        $decodedImage = base64_decode(
+            $encodedImage,
+            true
+        );
+
+        if ($decodedImage === false) {
+            throw ValidationException::withMessages([
+                'signature_data' =>
+                    'The signature image could not be processed.',
+            ]);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Signature size protection
+        |--------------------------------------------------------------------------
+        */
+        if (strlen($decodedImage) > 1500000) {
+            throw ValidationException::withMessages([
+                'signature_data' =>
+                    'The signature image is too large. Please clear it and sign again.',
+            ]);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | PNG validation
+        |--------------------------------------------------------------------------
+        */
+        $pngSignature = "\x89PNG\r\n\x1a\n";
+
+        if (! str_starts_with($decodedImage, $pngSignature)) {
+            throw ValidationException::withMessages([
+                'signature_data' =>
+                    'The submitted signature is not a valid PNG image.',
+            ]);
+        }
+
+        DB::transaction(function () use (
+            $consentSession,
+            $signatureData,
+            $request,
+            $consentAuditService
+        ): void {
+            $lockedSession = ConsentSession::query()
+                ->whereKey($consentSession->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedSession->isCompleted()) {
+                throw ValidationException::withMessages([
+                    'record' =>
+                        'This consent record has already been completed.',
+                ]);
+            }
+
+            if ($lockedSession->isCancelled()) {
+                throw ValidationException::withMessages([
+                    'record' =>
+                        'This consent record has been cancelled.',
+                ]);
+            }
+
+            $signedAt = now();
+            $completedAt = now();
+
+            ConsentSignature::query()->updateOrCreate(
+                [
+                    'consent_session_id' =>
+                        $lockedSession->id,
+                ],
+                [
+                    'signer_name' =>
+                        $lockedSession->signer_name,
+
+                    'signature_data' =>
+                        $signatureData,
+
+                    'signature_type' =>
+                        ConsentSignature::TYPE_DRAWN,
+
+                    'signed_at' =>
+                        $signedAt,
+
+                    'ip_address' =>
+                        $request->ip(),
+
+                    'user_agent' =>
+                        $request->userAgent(),
+                ]
+            );
+
+            $lockedSession->update([
+                'status' =>
+                    ConsentSession::STATUS_COMPLETED,
+
+                'started_at' =>
+                    $lockedSession->started_at ?? $completedAt,
+
+                'completed_at' =>
+                    $completedAt,
+
+                'cancelled_at' =>
+                    null,
+            ]);
+
+            $consentAuditService->record(
+                consentSession: $lockedSession,
+                eventType: 'consent.completed',
+                description:
+                    'The signer completed the consent record.',
+                metadata: [
+                    'signer_name' =>
+                        $lockedSession->signer_name,
+
+                    'signature_type' =>
+                        ConsentSignature::TYPE_DRAWN,
+
+                    'signed_at' =>
+                        $signedAt->toIso8601String(),
+
+                    'completed_at' =>
+                        $completedAt->toIso8601String(),
+                ],
+                request: $request
+            );
+        });
+
+        GenerateConsentPdfJob::dispatch(
+            $consentSession->id
+        )->afterCommit();
+
+        return redirect()
+            ->route(
+                'public-consent.completed',
+                $consentSession->access_token
+            );
+    }
+
+    /**
+     * Cancel an incomplete consent record and reset the signing station.
+     */
+    public function cancel(
+        Request $request,
+        string $accessToken
+    ): RedirectResponse {
+        $consentSession = $this->findSession($accessToken);
+
+        DB::transaction(function () use ($consentSession): void {
+            $lockedSession = ConsentSession::query()
+                ->whereKey($consentSession->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (
+                ! $lockedSession->isCompleted()
+                && ! $lockedSession->isCancelled()
+            ) {
+                $lockedSession->update([
+                    'status' => ConsentSession::STATUS_CANCELLED,
+                    'cancelled_at' => now(),
+                ]);
+            }
+        });
+
+        $consentSession->loadMissing('signingStation');
+
+        if ($consentSession->signingStation) {
+            $request->session()->forget(
+                'signing_station_reviewed_'.$consentSession->signingStation->id
+            );
+
+            return redirect()->route(
+                'public-signing-stations.show',
+                [
+                    'stationToken' =>
+                        $consentSession->signingStation->station_token,
+                ]
+            );
+        }
+
+        return redirect('/');
+    }
+
+    /**
+     * Display the completion confirmation page.
+     */
+    public function completed(
+        string $accessToken
+    ): View|RedirectResponse {
+        $consentSession = $this->findSession($accessToken);
+
+        if (! $consentSession->isCompleted()) {
+            return redirect()
+                ->route(
+                    'public-consent.show',
+                    $consentSession->access_token
+                );
+        }
+
+        $consentSession->load([
+            'organization',
+            'consentTemplate',
+            'consentTemplateVersion',
+            'signature',
+        ]);
+
+        return view('public-consent.completed', [
+            'consentSession' => $consentSession,
+        ]);
+    }
+
+    /**
+     * Locate a consent record using its secure access token.
+     */
+    private function findSession(
+        string $accessToken
+    ): ConsentSession {
+        return ConsentSession::query()
+            ->where('access_token', $accessToken)
+            ->firstOrFail();
+    }
+
+    /**
+     * Read dynamic fields from the published template version.
+     */
+    private function additionalFields(
+        ConsentSession $consentSession
+    ): array {
+        $version = $consentSession->consentTemplateVersion;
+
+        $fields = data_get(
+            $version,
+            'template_schema.additional_fields',
+            []
+        );
+
+        if (! is_array($fields)) {
+            return [];
+        }
+
+        return array_values(
+            array_filter(
+                $fields,
+                fn ($field) => is_array($field)
+            )
+        );
+    }
+
+    /**
+     * Build response validation rules dynamically.
+     */
+    private function buildValidationRules(
+        array $additionalFields
+    ): array {
+        $rules = [
+            'responses' => [
+                'nullable',
+                'array',
+            ],
+        ];
+
+        foreach ($additionalFields as $index => $field) {
+            $key = $this->fieldKey(
+                $field,
+                $index
+            );
+
+            $fieldRules = [];
+
+            if ($field['required'] ?? false) {
+                $fieldRules[] = 'required';
+            } else {
+                $fieldRules[] = 'nullable';
+            }
+
+            $type = $field['type'] ?? 'text';
+
+            switch ($type) {
+                case 'email':
+                    $fieldRules[] = 'email';
+                    $fieldRules[] = 'max:255';
+                    break;
+
+                case 'number':
+                    $fieldRules[] = 'numeric';
+                    break;
+
+                case 'date':
+                    $fieldRules[] = 'date';
+                    break;
+
+                case 'checkbox':
+                    $fieldRules[] = 'boolean';
+                    break;
+
+                case 'select':
+                case 'radio':
+                    $fieldRules[] = 'string';
+
+                    $options = $field['options'] ?? [];
+
+                    if (
+                        is_array($options)
+                        && count($options) > 0
+                    ) {
+                        $fieldRules[] = 'in:'.implode(
+                            ',',
+                            array_map(
+                                'strval',
+                                $options
+                            )
+                        );
+                    }
+
+                    break;
+
+                case 'textarea':
+                    $fieldRules[] = 'string';
+                    $fieldRules[] = 'max:5000';
+                    break;
+
+                default:
+                    $fieldRules[] = 'string';
+                    $fieldRules[] = 'max:1000';
+                    break;
+            }
+
+            $rules["responses.{$key}"] =
+                $fieldRules;
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Determine the storage key for a dynamic field.
+     */
+    private function fieldKey(
+        array $field,
+        int $index
+    ): string {
+        return (string) (
+            $field['name']
+            ?? $field['key']
+            ?? $field['id']
+            ?? 'field_'.$index
+        );
+    }
+}

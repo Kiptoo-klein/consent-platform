@@ -1,0 +1,81 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
+class ConsentTemplate extends Model
+{
+    protected $fillable = [
+        'organization_id',
+        'title',
+        'description',
+        'template_schema',
+        'active_version_id',
+        'has_unpublished_changes',
+        'status',
+    ];
+
+    protected $casts = [
+        'template_schema' => 'array',
+        'has_unpublished_changes' => 'boolean',
+    ];
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(
+            Organization::class
+        );
+    }
+
+    public function versions(): HasMany
+    {
+        return $this->hasMany(
+            ConsentTemplateVersion::class
+        )->orderByDesc('version_number');
+    }
+
+    public function consentSessions(): HasMany
+    {
+        return $this->hasMany(
+            ConsentSession::class
+        );
+    }
+
+    public function signingStations(): HasMany
+    {
+        return $this->hasMany(
+            SigningStation::class
+        );
+    }
+
+    public function latestVersion(): HasOne
+    {
+        return $this->hasOne(
+            ConsentTemplateVersion::class
+        )->ofMany('version_number', 'max');
+    }
+
+    public function activeVersion(): BelongsTo
+    {
+        return $this->belongsTo(
+            ConsentTemplateVersion::class,
+            'active_version_id'
+        );
+    }
+
+    public function isLive(): bool
+    {
+        return $this->active_version_id !== null
+            && $this->status === 'published';
+    }
+
+    public function canPublish(): bool
+    {
+        return $this->status !== 'archived'
+            && $this->has_unpublished_changes;
+    }
+}

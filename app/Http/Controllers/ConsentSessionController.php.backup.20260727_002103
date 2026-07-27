@@ -1,0 +1,468 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\ConsentSession;
+use App\Models\ConsentTemplate;
+use App\Services\ConsentAuditService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
+
+class ConsentSessionController extends Controller
+{
+    /**
+     * Display consent records belonging to the current organization.
+     */
+    public function index(): View
+    {
+        $consentSessions = ConsentSession::query()
+            ->where(
+                'organization_id',
+                Auth::user()->organization_id
+            )
+            ->with([
+                'consentTemplate',
+                'consentTemplateVersion',
+                'creator',
+                'signingStation',
+                'signature',
+            ])
+            ->latest()
+            ->paginate(15);
+
+        return view('consent-sessions.index', [
+            'consentSessions' => $consentSessions,
+        ]);
+    }
+
+    /**
+     * Display one consent record and its signing evidence.
+     */
+    public function show(
+        ConsentSession $consentSession
+    ): View {
+        $this->ensureSessionBelongsToOrganization(
+            $consentSession
+        );
+
+        $consentSession->load([
+            'organization',
+            'consentTemplate',
+            'consentTemplateVersion.publisher',
+            'creator',
+            'signingStation',
+            'signature',
+        ]);
+
+        $publishedVersion =
+            $consentSession->consentTemplateVersion;
+
+        $additionalFields = $this->additionalFields(
+            $consentSession
+        );
+
+        $responseEvidence = $this->responseEvidence(
+            $consentSession,
+            $additionalFields
+        );
+
+        $consentText =
+            data_get(
+                $publishedVersion,
+                'consent_text'
+            )
+            ?? data_get(
+                $publishedVersion,
+                'template_schema.consent_text'
+            )
+            ?? data_get(
+                $publishedVersion,
+                'template_schema.content'
+            )
+            ?? data_get(
+                $publishedVersion,
+                'content'
+            );
+
+        return view('consent-sessions.show', [
+            'consentSession' => $consentSession,
+            'publishedVersion' => $publishedVersion,
+            'additionalFields' => $additionalFields,
+            'responseEvidence' => $responseEvidence,
+            'consentText' => $consentText,
+        ]);
+    }
+
+    /**
+     * Show the form for creating a consent record.
+     */
+    public function create(
+        ConsentTemplate $consentTemplate
+    ): View|RedirectResponse {
+        $this->ensureTemplateBelongsToOrganization(
+            $consentTemplate
+        );
+
+        $consentTemplate->load([
+            'activeVersion.publisher',
+        ]);
+
+        if ($consentTemplate->activeVersion === null) {
+            return redirect()
+                ->route('consent-templates.index')
+                ->withErrors([
+                    'template' =>
+                        'A consent record can only be created from a published template.',
+                ]);
+        }
+
+        if ($consentTemplate->status === 'archived') {
+            return redirect()
+                ->route('consent-templates.index')
+                ->withErrors([
+                    'template' =>
+                        'A consent record cannot be created from an archived template.',
+                ]);
+        }
+
+        return view('consent-sessions.create', [
+            'consentTemplate' => $consentTemplate,
+            'publishedVersion' =>
+                $consentTemplate->activeVersion,
+        ]);
+    }
+
+    /**
+     * Store a new consent record.
+     */
+    public function store(
+        Request $request,
+        ConsentTemplate $consentTemplate,
+        ConsentAuditService $consentAuditService
+    ): RedirectResponse {
+        $this->ensureTemplateBelongsToOrganization(
+            $consentTemplate
+        );
+
+        $validated = $request->validate([
+            'signer_name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'signer_email' => [
+                'nullable',
+                'email',
+                'max:255',
+            ],
+
+            'signer_reference' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+        ]);
+
+        $consentSession = DB::transaction(
+            function () use (
+                $consentTemplate,
+                $validated,
+                $request,
+                $consentAuditService
+            ): ConsentSession {
+                /*
+                |--------------------------------------------------------------------------
+                | Lock the template during record creation
+                |--------------------------------------------------------------------------
+                |
+                | This prevents the active version from changing while the
+                | consent record is being created.
+                */
+
+                $lockedTemplate = ConsentTemplate::query()
+                    ->whereKey($consentTemplate->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $this->ensureTemplateBelongsToOrganization(
+                    $lockedTemplate
+                );
+
+                if (
+                    $lockedTemplate->active_version_id === null
+                ) {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'This template no longer has an active published version.',
+                    ]);
+                }
+
+                if (
+                    $lockedTemplate->status === 'archived'
+                ) {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'A consent record cannot be created from an archived template.',
+                    ]);
+                }
+
+                $consentSession = ConsentSession::query()->create([
+                    'organization_id' =>
+                        Auth::user()->organization_id,
+
+                    'consent_template_id' =>
+                        $lockedTemplate->id,
+
+                    'consent_template_version_id' =>
+                        $lockedTemplate->active_version_id,
+
+                    'created_by' =>
+                        Auth::id(),
+
+                    'signer_name' =>
+                        $validated['signer_name'],
+
+                    'signer_email' =>
+                        $validated['signer_email'] ?? null,
+
+                    'signer_reference' =>
+                        $validated['signer_reference'] ?? null,
+
+                    'access_token' =>
+                        (string) Str::uuid(),
+
+                    'status' =>
+                        ConsentSession::STATUS_PENDING,
+
+                    'responses' =>
+                        [],
+                ]);
+
+                $consentAuditService->record(
+                    consentSession: $consentSession,
+                    eventType: 'consent.created',
+                    description:
+                        'The consent record was created by an organization user.',
+                    metadata: [
+                        'creation_source' =>
+                            'organization_user',
+
+                        'consent_template_id' =>
+                            $lockedTemplate->id,
+
+                        'consent_template_version_id' =>
+                            $lockedTemplate->active_version_id,
+
+                        'initial_status' =>
+                            ConsentSession::STATUS_PENDING,
+                    ],
+                    request: $request
+                );
+
+                return $consentSession;
+            },
+            3
+        );
+
+        return redirect()
+            ->route(
+                'consent-sessions.show',
+                $consentSession
+            )
+            ->with(
+                'success',
+                "Consent record for {$consentSession->signer_name} created successfully."
+            );
+    }
+
+    /**
+     * Cancel an unfinished consent record.
+     */
+    public function cancel(
+        ConsentSession $consentSession
+    ): RedirectResponse {
+        $this->ensureSessionBelongsToOrganization(
+            $consentSession
+        );
+
+        if ($consentSession->isCompleted()) {
+            return back()->withErrors([
+                'record' =>
+                    'A completed consent record cannot be cancelled.',
+            ]);
+        }
+
+        if ($consentSession->isCancelled()) {
+            return back()->withErrors([
+                'record' =>
+                    'This consent record has already been cancelled.',
+            ]);
+        }
+
+        $consentSession->update([
+            'status' =>
+                ConsentSession::STATUS_CANCELLED,
+
+            'cancelled_at' =>
+                now(),
+        ]);
+
+        return redirect()
+            ->route(
+                'consent-sessions.show',
+                $consentSession
+            )
+            ->with(
+                'success',
+                'The consent record was cancelled successfully.'
+            );
+    }
+
+    /**
+     * Read dynamic fields from the exact version
+     * linked to this consent record.
+     */
+    private function additionalFields(
+        ConsentSession $consentSession
+    ): array {
+        $fields = data_get(
+            $consentSession->consentTemplateVersion,
+            'template_schema.additional_fields',
+            []
+        );
+
+        if (! is_array($fields)) {
+            return [];
+        }
+
+        return array_values(
+            array_filter(
+                $fields,
+                fn ($field): bool => is_array($field)
+            )
+        );
+    }
+
+    /**
+     * Match stored response keys to their original field
+     * labels and types from the published version.
+     */
+    private function responseEvidence(
+        ConsentSession $consentSession,
+        array $additionalFields
+    ): array {
+        $responses = $consentSession->responses ?? [];
+
+        if (! is_array($responses)) {
+            return [];
+        }
+
+        $fieldDefinitions = [];
+
+        foreach ($additionalFields as $index => $field) {
+            $key = $this->fieldKey(
+                $field,
+                $index
+            );
+
+            $fieldDefinitions[$key] = [
+                'label' =>
+                    $field['label']
+                    ?? $this->humanizeKey($key),
+
+                'type' =>
+                    $field['type'] ?? 'text',
+            ];
+        }
+
+        $evidence = [];
+
+        foreach ($responses as $key => $value) {
+            $stringKey = (string) $key;
+
+            $definition =
+                $fieldDefinitions[$stringKey] ?? null;
+
+            $evidence[] = [
+                'key' =>
+                    $stringKey,
+
+                'label' =>
+                    $definition['label']
+                    ?? $this->humanizeKey($stringKey),
+
+                'type' =>
+                    $definition['type']
+                    ?? 'text',
+
+                'value' =>
+                    $value,
+            ];
+        }
+
+        return $evidence;
+    }
+
+    /**
+     * Determine the request/storage key for a dynamic field.
+     */
+    private function fieldKey(
+        array $field,
+        int $index
+    ): string {
+        return (string) (
+            $field['name']
+            ?? $field['key']
+            ?? $field['id']
+            ?? 'field_'.$index
+        );
+    }
+
+    /**
+     * Turn a response key into a readable fallback label.
+     */
+    private function humanizeKey(
+        string $key
+    ): string {
+        return Str::of($key)
+            ->replace([
+                '_',
+                '-',
+            ], ' ')
+            ->squish()
+            ->title()
+            ->toString();
+    }
+
+    /**
+     * Prevent access to another organization's template.
+     */
+    private function ensureTemplateBelongsToOrganization(
+        ConsentTemplate $consentTemplate
+    ): void {
+        abort_unless(
+            (int) $consentTemplate->organization_id ===
+                (int) Auth::user()->organization_id,
+            403
+        );
+    }
+
+    /**
+     * Prevent access to another organization's consent record.
+     */
+    private function ensureSessionBelongsToOrganization(
+        ConsentSession $consentSession
+    ): void {
+        abort_unless(
+            (int) $consentSession->organization_id ===
+                (int) Auth::user()->organization_id,
+            403
+        );
+    }
+}

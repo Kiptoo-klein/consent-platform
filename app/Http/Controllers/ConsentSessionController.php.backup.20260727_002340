@@ -1,0 +1,2500 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\ConsentSession;
+use App\Models\ConsentTemplate;
+use App\Services\ConsentAuditService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
+
+class ConsentSessionController extends Controller
+{
+    /**
+     * Display consent records belonging to the current organization.
+     */
+    public function index(): View
+    {
+        $consentSessions = ConsentSession::query()
+            ->where(
+                'organization_id',
+                Auth::user()->organization_id
+            )
+            ->with([
+                'consentTemplate',
+                'consentTemplateVersion',
+                'creator',
+                'signingStation',
+                'signature',
+            ])
+            ->latest()
+            ->paginate(15);
+
+        return view('consent-sessions.index', [
+            'consentSessions' => $consentSessions,
+        ]);
+    }
+
+    /**
+     * Display one consent record and its signing evidence.
+     */
+    public function show(
+        ConsentSession $consentSession
+    ): View {
+        $this->ensureSessionBelongsToOrganization(
+            $consentSession
+        );
+
+        $consentSession->load([
+            'organization',
+            'consentTemplate',
+            'consentTemplateVersion.publisher',
+            'creator',
+            'signingStation',
+            'signature',
+        ]);
+
+        $publishedVersion =
+            $consentSession->consentTemplateVersion;
+
+        $additionalFields = $this->additionalFields(
+            $consentSession
+        );
+
+        $responseEvidence = $this->responseEvidence(
+            $consentSession,
+            $additionalFields
+        );
+
+        $consentText =
+            data_get(
+                $publishedVersion,
+                'consent_text'
+            )
+            ?? data_get(
+                $publishedVersion,
+                'template_schema.consent_text'
+            )
+            ?? data_get(
+                $publishedVersion,
+                'template_schema.content'
+            )
+            ?? data_get(
+                $publishedVersion,
+                'content'
+            );
+
+        return view('consent-sessions.show', [
+            'consentSession' => $consentSession,
+            'publishedVersion' => $publishedVersion,
+            'additionalFields' => $additionalFields,
+            'responseEvidence' => $responseEvidence,
+            'consentText' => $consentText,
+        ]);
+    }
+
+    /**
+     * Show the form for creating a consent record.
+     */
+    public function create(
+        ConsentTemplate $consentTemplate
+    ): View|RedirectResponse {
+        $this->ensureTemplateBelongsToOrganization(
+            $consentTemplate
+        );
+
+        $consentTemplate->load([
+            'activeVersion.publisher',
+        ]);
+
+        if ($consentTemplate->activeVersion === null) {
+            return redirect()
+                ->route('consent-templates.index')
+                ->withErrors([
+                    'template' =>
+                        'A consent record can only be created from a published template.',
+                ]);
+        }
+
+        if ($consentTemplate->status === 'archived') {
+            return redirect()
+                ->route('consent-templates.index')
+                ->withErrors([
+                    'template' =>
+                        'A consent record cannot be created from an archived template.',
+                ]);
+        }
+
+        return view('consent-sessions.create', [
+            'consentTemplate' => $consentTemplate,
+            'publishedVersion' =>
+                $consentTemplate->activeVersion,
+        ]);
+    }
+
+    /**
+     * Store a new consent record.
+     */
+    public function store(
+        Request $request,
+        ConsentTemplate $consentTemplate,
+        ConsentAuditService $consentAuditService
+    ): RedirectResponse {
+        $this->ensureTemplateBelongsToOrganization(
+            $consentTemplate
+        );
+
+        $validated = $request->validate([
+            'signer_name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'signer_email' => [
+                'nullable',
+                'email',
+                'max:255',
+            ],
+
+            'signer_reference' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+        ]);
+
+        $consentSession = DB::transaction(
+            function () use (
+                $consentTemplate,
+                $validated,
+                $request,
+                $consentAuditService
+            ): ConsentSession {
+                /*
+                |--------------------------------------------------------------------------
+                | Lock the template during record creation
+                |--------------------------------------------------------------------------
+                |
+                | This prevents the active version from changing while the
+                | consent record is being created.
+                */
+
+                $lockedTemplate = ConsentTemplate::query()
+                    ->whereKey($consentTemplate->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $this->ensureTemplateBelongsToOrganization(
+                    $lockedTemplate
+                );
+
+                if (
+                    $lockedTemplate->active_version_id === null
+                ) {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'This template no longer has an active published version.',
+                    ]);
+                }
+
+                if (
+                    $lockedTemplate->status === 'archived'
+                ) {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'A consent record cannot be created from an archived template.',
+                    ]);
+                }
+
+                $consentSession = ConsentSession::query()->create([
+                    'organization_id' =>
+                        Auth::user()->organization_id,
+
+                    'consent_template_id' =>
+                        $lockedTemplate->id,
+
+                    'consent_template_version_id' =>
+                        $lockedTemplate->active_version_id,
+
+                    'created_by' =>
+                        Auth::id(),
+
+                    'signer_name' =>
+                        $validated['signer_name'],
+
+                    'signer_email' =>
+                        $validated['signer_email'] ?? null,
+
+                    'signer_reference' =>
+                        $validated['signer_reference'] ?? null,
+
+                    'access_token' =>
+                        (string) Str::uuid(),
+
+                    'status' =>
+                        ConsentSession::STATUS_PENDING,
+
+                    'responses' =>
+                        [],
+                ]);
+
+                $consentAuditService->record(
+                    consentSession: $consentSession,
+                    eventType: 'consent.created',
+                    description:
+                        'The consent record was created by an organization user.',
+                    metadata: [
+                        'creation_source' =>
+                            'organization_user',
+
+                        'consent_template_id' =>
+                            $lockedTemplate->id,
+
+                        'consent_template_version_id' =>
+                            $lockedTemplate->active_version_id,
+
+                        'initial_status' =>
+                            ConsentSession::STATUS_PENDING,
+                    ],
+                    request: $request
+                );
+
+                return $consentSession;
+            },
+            3
+        );
+
+        return redirect()
+            ->route(
+                'consent-sessions.show',
+                $consentSession
+            )
+            ->with(
+                'success',
+                "Consent record for {$consentSession->signer_name} created successfully."
+            );
+    }
+
+    /**
+     * Cancel an unfinished consent record.
+     */
+    public function cancel(
+        Request $request,
+        ConsentSession $consentSession,
+        ConsentAuditService $consentAuditService
+    ): RedirectResponse {
+        $this->ensureSessionBelongsToOrganization(
+            $consentSession
+        );
+
+        if ($consentSession->isCompleted()) {
+            return back()->withErrors([
+                'record' =>
+                    'A completed consent record cannot be cancelled.',
+            ]);
+        }
+
+        if ($consentSession->isCancelled()) {
+            return back()->withErrors([
+                'record' =>
+                    'This consent record has already been cancelled.',
+            ]);
+        }
+
+
+Pasted text.txt
+Document
+
+Pasted text(1).txt
+Document
+
+Pasted text(2).txt
+Document
+
+┌──(outsider㉿kali)-[~/Projects/consent-platform]
+└─$ public function downloadQrCode(...)
+bash: syntax error near unexpected token 
+
+Pasted text(3).txt
+Document
+
+Ive already updated the code on show.blade.php and it still looks like this
+
+Pasted text(4).txt
+Document
+
+Pasted text(5).txt
+Document
+
+Pasted text(6).txt
+Document
+
+Pasted text(7).txt
+Document
+
+Pasted text.txt
+Document
+
+Pasted text(1).txt
+Document
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
+class ConsentSession extends Model
+{
+    use HasFactory;
+
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_IN_PROGRESS = 'in_progress';
+
+    public const STATUS_COMPLETED = 'completed';
+
+    public const STATUS_CANCELLED = 'cancelled';
+
+    protected $fillable = [
+        'organization_id',
+        'consent_template_id',
+        'consent_template_version_id',
+        'signing_station_id',
+        'created_by',
+        'signer_name',
+        'signer_email',
+        'signer_reference',
+        'access_token',
+        'status',
+        'responses',
+        'started_at',
+        'completed_at',
+        'cancelled_at',
+    ];
+
+    protected $casts = [
+        'responses' => 'array',
+        'started_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+    ];
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(
+            Organization::class
+        );
+    }
+
+    public function consentTemplate(): BelongsTo
+    {
+        return $this->belongsTo(
+            ConsentTemplate::class
+        );
+    }
+
+    public function consentTemplateVersion(): BelongsTo
+    {
+        return $this->belongsTo(
+            ConsentTemplateVersion::class
+        );
+    }
+
+    public function signingStation(): BelongsTo
+    {
+        return $this->belongsTo(
+            SigningStation::class
+        );
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'created_by'
+        );
+    }
+
+    public function signature(): HasOne
+    {
+        return $this->hasOne(
+            ConsentSignature::class
+        );
+    }
+
+    public function signatures(): HasMany
+    {
+        return $this->hasMany(
+            ConsentSignature::class
+        );
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status === self::STATUS_PENDING;
+    }
+
+    public function isInProgress(): bool
+    {
+        return $this->status === self::STATUS_IN_PROGRESS;
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->status === self::STATUS_COMPLETED;
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === self::STATUS_CANCELLED;
+    }
+
+    public function cameFromSigningStation(): bool
+    {
+        return $this->signing_station_id !== null;
+    }
+}
+
+Pasted text(2).txt
+Document
+please send full code for simplicity
+
+Pasted text(3).txt
+Document
+the review button works but not your details button, also  everything else checks out  but I cant verify the web.php check because the lines are too many and here are the bash code results you wanted 
+
+Pasted text(4).txt
+Document
+it already opens the signature page and automatically goes to the next signer but I'll send you the code for confirmation 
+
+Pasted text(5).txt
+Document
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\ConsentSession;
+use App\Models\ConsentTemplate;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
+
+class ConsentSessionController extends Controller
+{
+    /**
+     * Display consent records belonging to the current organization.
+     */
+    public function index(): View
+    {
+        $consentSessions = ConsentSession::query()
+            ->where(
+                'organization_id',
+                Auth::user()->organization_id
+            )
+            ->with([
+                'consentTemplate',
+                'consentTemplateVersion',
+                'creator',
+            ])
+            ->latest()
+            ->paginate(15);
+
+        return view('consent-sessions.index', [
+            'consentSessions' => $consentSessions,
+        ]);
+    }
+
+    /**
+     * Display one consent record.
+     */
+    public function show(
+        ConsentSession $consentSession
+    ): View {
+        $this->ensureSessionBelongsToOrganization(
+            $consentSession
+        );
+
+        $consentSession->load([
+            'consentTemplate',
+            'consentTemplateVersion.publisher',
+            'creator',
+        ]);
+
+        return view('consent-sessions.show', [
+            'consentSession' => $consentSession,
+        ]);
+    }
+
+    /**
+     * Show the form for creating a consent record.
+     */
+    public function create(
+        ConsentTemplate $consentTemplate
+    ): View|RedirectResponse {
+        $this->ensureTemplateBelongsToOrganization(
+            $consentTemplate
+        );
+
+        $consentTemplate->load([
+            'activeVersion.publisher',
+        ]);
+
+        if ($consentTemplate->activeVersion === null) {
+            return redirect()
+                ->route('consent-templates.index')
+                ->withErrors([
+                    'template' =>
+                        'A consent record can only be created from a published template.',
+                ]);
+        }
+
+        if ($consentTemplate->status === 'archived') {
+            return redirect()
+                ->route('consent-templates.index')
+                ->withErrors([
+                    'template' =>
+                        'A consent record cannot be created from an archived template.',
+                ]);
+        }
+
+        return view('consent-sessions.create', [
+            'consentTemplate' => $consentTemplate,
+            'publishedVersion' => $consentTemplate->activeVersion,
+        ]);
+    }
+
+    /**
+     * Store a new consent record.
+     */
+    public function store(
+        Request $request,
+        ConsentTemplate $consentTemplate
+    ): RedirectResponse {
+        $this->ensureTemplateBelongsToOrganization(
+            $consentTemplate
+        );
+
+        $validated = $request->validate([
+            'signer_name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'signer_email' => [
+                'nullable',
+                'email',
+                'max:255',
+            ],
+
+            'signer_reference' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+        ]);
+
+        $consentSession = DB::transaction(
+            function () use (
+                $consentTemplate,
+                $validated
+            ): ConsentSession {
+                /*
+                |--------------------------------------------------------------------------
+                | Lock the template during record creation
+                |--------------------------------------------------------------------------
+                |
+                | This prevents the active version from changing while the
+                | consent record is being created.
+                */
+
+                $lockedTemplate = ConsentTemplate::query()
+                    ->whereKey($consentTemplate->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $this->ensureTemplateBelongsToOrganization(
+                    $lockedTemplate
+                );
+
+                if ($lockedTemplate->active_version_id === null) {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'This template no longer has an active published version.',
+                    ]);
+                }
+
+                if ($lockedTemplate->status === 'archived') {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'A consent record cannot be created from an archived template.',
+                    ]);
+                }
+
+                return ConsentSession::create([
+                    'organization_id' =>
+                        Auth::user()->organization_id,
+
+                    'consent_template_id' =>
+                        $lockedTemplate->id,
+
+                    'consent_template_version_id' =>
+                        $lockedTemplate->active_version_id,
+
+                    'created_by' =>
+                        Auth::id(),
+
+                    'signer_name' =>
+                        $validated['signer_name'],
+
+                    'signer_email' =>
+                        $validated['signer_email'] ?? null,
+
+                    'signer_reference' =>
+                        $validated['signer_reference'] ?? null,
+
+                    'access_token' =>
+                        (string) Str::uuid(),
+
+                    'status' =>
+                        ConsentSession::STATUS_PENDING,
+
+                    'responses' =>
+                        [],
+                ]);
+            },
+            3
+        );
+
+        return redirect()
+            ->route(
+                'consent-sessions.show',
+                $consentSession
+            )
+            ->with(
+                'success',
+                "Consent record for {$consentSession->signer_name} created successfully."
+            );
+    }
+
+    /**
+     * Cancel an unfinished consent record.
+     */
+    public function cancel(
+        ConsentSession $consentSession
+    ): RedirectResponse {
+        $this->ensureSessionBelongsToOrganization(
+            $consentSession
+        );
+
+        if ($consentSession->isCompleted()) {
+            return back()->withErrors([
+                'record' =>
+                    'A completed consent record cannot be cancelled.',
+            ]);
+        }
+
+        if ($consentSession->isCancelled()) {
+            return back()->withErrors([
+                'record' =>
+                    'This consent record has already been cancelled.',
+            ]);
+        }
+
+        $consentSession->update([
+            'status' =>
+                ConsentSession::STATUS_CANCELLED,
+
+            'cancelled_at' =>
+                now(),
+        ]);
+
+        return redirect()
+            ->route(
+                'consent-sessions.show',
+                $consentSession
+            )
+            ->with(
+                'success',
+                'The consent record was cancelled successfully.'
+            );
+    }
+
+    /**
+     * Prevent access to another organization's template.
+     */
+    private function ensureTemplateBelongsToOrganization(
+        ConsentTemplate $consentTemplate
+    ): void {
+        abort_unless(
+            (int) $consentTemplate->organization_id ===
+                (int) Auth::user()->organization_id,
+            403
+        );
+    }
+
+    /**
+     * Prevent access to another organization's consent record.
+     */
+    private function ensureSessionBelongsToOrganization(
+        ConsentSession $consentSession
+    ): void {
+        abort_unless(
+            (int) $consentSession->organization_id ===
+                (int) Auth::user()->organization_id,
+            403
+        );
+    }
+}<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
+class ConsentSession extends Model
+{
+    use HasFactory;
+
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_IN_PROGRESS = 'in_progress';
+
+    public const STATUS_COMPLETED = 'completed';
+
+    public const STATUS_CANCELLED = 'cancelled';
+
+    protected $fillable = [
+        'organization_id',
+        'consent_template_id',
+        'consent_template_version_id',
+        'signing_station_id',
+        'created_by',
+        'signer_name',
+        'signer_email',
+        'signer_reference',
+        'access_token',
+        'status',
+        'responses',
+        'started_at',
+        'completed_at',
+        'cancelled_at',
+    ];
+
+    protected $casts = [
+        'responses' => 'array',
+        'started_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+    ];
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(
+            Organization::class
+        );
+    }
+
+    public function consentTemplate(): BelongsTo
+    {
+        return $this->belongsTo(
+            ConsentTemplate::class
+        );
+    }
+
+    public function consentTemplateVersion(): BelongsTo
+    {
+        return $this->belongsTo(
+            ConsentTemplateVersion::class
+        );
+    }
+
+    public function signingStation(): BelongsTo
+    {
+        return $this->belongsTo(
+            SigningStation::class
+        );
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'created_by'
+        );
+    }
+
+    public function signature(): HasOne
+    {
+        return $this->hasOne(
+            ConsentSignature::class
+        );
+    }
+
+    public function signatures(): HasMany
+    {
+        return $this->hasMany(
+            ConsentSignature::class
+        );
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status === self::STATUS_PENDING;
+    }
+
+    public function isInProgress(): bool
+    {
+        return $this->status === self::STATUS_IN_PROGRESS;
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->status === self::STATUS_COMPLETED;
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === self::STATUS_CANCELLED;
+    }
+
+    public function cameFromSigningStation(): bool
+    {
+        return $this->signing_station_id !== null;
+    }
+}<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class ConsentSignature extends Model
+{
+    use HasFactory;
+
+    public const TYPE_DRAWN = 'drawn';
+
+    public const TYPE_TYPED = 'typed';
+
+    protected $fillable = [
+        'consent_session_id',
+        'signer_name',
+        'signature_data',
+        'signature_type',
+        'signed_at',
+        'ip_address',
+        'user_agent',
+    ];
+
+    protected $casts = [
+        'signed_at' => 'datetime',
+    ];
+
+    public function consentSession(): BelongsTo
+    {
+        return $this->belongsTo(
+            ConsentSession::class
+        );
+    }
+
+    public function isSigned(): bool
+    {
+        return $this->signed_at !== null
+            && filled($this->signature_data);
+    }
+}──(outsider㉿kali)-[~/Projects/consent-platform]
+└─$ grep -n -A 20 -B 5 "consent-records" routes/web.php                                                             
+231-    |--------------------------------------------------------------------------
+232-    | Consent Records
+233-    |--------------------------------------------------------------------------
+234-    */
+235-
+236:    Route::get('/consent-records', [
+237-        ConsentSessionController::class,
+238-        'index',
+239-    ])->name('consent-sessions.index');
+240-
+241:    Route::get('/consent-records/create', [
+242-        ConsentSessionController::class,
+243-        'create',
+244-    ])->name('consent-sessions.create');
+245-
+246:    Route::post('/consent-records', [
+247-        ConsentSessionController::class,
+248-        'store',
+249-    ])->name('consent-sessions.store');
+250-
+251:    Route::get('/consent-records/{consentSession}', [
+252-        ConsentSessionController::class,
+253-        'show',
+254-    ])->name('consent-sessions.show');
+255-
+256-    /*
+257-    |--------------------------------------------------------------------------
+258-    | Signing Stations
+259-    |--------------------------------------------------------------------------
+260-    */
+261-
+262-    Route::get('/signing-stations', [
+263-        SigningStationController::class,
+264-        'index',
+265-    ])->name('signing-stations.index');
+266-
+267-    Route::get('/signing-stations/create', [
+268-        SigningStationController::class,
+269-        'create',
+270-    ])->name('signing-stations.create');
+271-
+
+Pasted text(6).txt
+Document
+Pasted text (2).txt
+Document
+Pasted text (3).txt
+Document
+
+Pasted text(7).txt
+Document
+Pasted text (2)(1).txt
+Document
+<x-layouts.signing-station
+    :organization="$station->organization"
+    :station="$station"
+    :title="$station->consentTemplate?->title ?? 'Review Consent'"
+>
+    @php
+        $consentText =
+            data_get($publishedVersion, 'consent_text')
+            ?? data_get(
+                $publishedVersion,
+                'template_schema.consent_text'
+            )
+            ?? data_get(
+                $publishedVersion,
+                'template_schema.content'
+            );
+    @endphp
+
+    <div class="w-full max-w-5xl">
+        <div class="overflow-hidden rounded-[2rem] border border-white/10 bg-white shadow-2xl shadow-black/40">
+            {{-- Page heading --}}
+            <header class="station-brand-panel relative overflow-hidden px-6 py-8 text-white sm:px-10 sm:py-10">
+                <div
+                    class="pointer-events-none absolute inset-0"
+                    aria-hidden="true"
+                >
+                    <div class="absolute -right-16 -top-16 h-56 w-56 rounded-full border border-white/10"></div>
+
+                    <div class="absolute -right-4 -top-4 h-32 w-32 rounded-full border border-white/10"></div>
+                </div>
+
+                <div class="relative">
+                    <div class="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-[0.2em] text-white/70">
+                                Step 1 of 3
+                            </p>
+
+                            <h1 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+                                Review the consent document
+                            </h1>
+
+                            <p class="mt-3 max-w-2xl text-base leading-7 text-white/80">
+                                Read the information carefully. You will provide your personal details on the next step.
+                            </p>
+                        </div>
+
+                        <div class="shrink-0 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-white/60">
+                                Document
+                            </p>
+
+                            <p class="mt-1 max-w-xs font-bold text-white">
+                                {{ $station->consentTemplate?->title ?? 'Consent form' }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 grid grid-cols-3 gap-2">
+                        <div class="h-1.5 rounded-full bg-white"></div>
+                        <div class="h-1.5 rounded-full bg-white/20"></div>
+                        <div class="h-1.5 rounded-full bg-white/20"></div>
+                    </div>
+
+                    <div class="mt-3 grid grid-cols-3 gap-3 text-center text-xs font-semibold text-white/60">
+                        <div class="text-white">
+                            Review
+                        </div>
+
+                        <div>
+                            Details
+                        </div>
+
+                        <div>
+                            Sign
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="bg-slate-50 px-4 py-5 sm:px-8 sm:py-8">
+                @if ($errors->any())
+                    <div class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4">
+                        <div class="flex items-start gap-3">
+                            <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
+                                <svg
+                                    class="h-4 w-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M12 9v3.75m9-1.5A9 9 0 1 1 3 11.25a9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12V16.5Z"
+                                    />
+                                </svg>
+                            </div>
+
+                            <div>
+                                <h2 class="text-sm font-bold text-red-900">
+                                    Please confirm your review
+                                </h2>
+
+                                <ul class="mt-2 list-inside list-disc space-y-1 text-sm text-red-700">
+                                    @foreach ($errors->all() as $error)
+                                        <li>
+                                            {{ $error }}
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Consent document --}}
+                <article class="rounded-3xl border border-slate-200 bg-white shadow-sm">
+                    <div class="border-b border-slate-200 px-6 py-5 sm:px-8">
+                        <p class="station-primary-text text-xs font-bold uppercase tracking-[0.18em]">
+                            Consent information
+                        </p>
+
+                        <h2 class="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+                            {{ $station->consentTemplate?->title ?? 'Consent form' }}
+                        </h2>
+
+                        @if ($station->consentTemplate?->description)
+                            <p class="mt-2 text-sm leading-6 text-slate-600">
+                                {{ $station->consentTemplate->description }}
+                            </p>
+                        @endif
+                    </div>
+
+                    <div class="px-6 py-7 sm:px-8 sm:py-9">
+                        @if ($consentText)
+                            <div class="prose prose-slate max-w-none whitespace-pre-line text-base leading-8 text-slate-700">
+                                {{ $consentText }}
+                            </div>
+                        @else
+                            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                                <div class="flex items-start gap-3">
+                                    <svg
+                                        class="mt-0.5 h-5 w-5 shrink-0 text-amber-700"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        aria-hidden="true"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="1.8"
+                                            d="M12 9v3.75m9-1.5A9 9 0 1 1 3 11.25a9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12V16.5Z"
+                                        />
+                                    </svg>
+
+                                    <div>
+                                        <p class="font-bold text-amber-900">
+                                            Document unavailable
+                                        </p>
+
+                                        <p class="mt-1 text-sm leading-6 text-amber-800">
+                                            The published consent content could not be displayed. Please contact a staff member.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+                </article>
+
+                {{-- Review confirmation --}}
+              <form
+    method="POST"
+    action="{{ route('public-signing-stations.continue', [
+        'stationToken' => $station->station_token,
+    ]) }}"
+>
+    @csrf
+
+    <label class="flex items-start gap-3">
+        <input
+            type="checkbox"
+            name="review_confirmed"
+            value="1"
+            required
+            class="mt-1 rounded border-gray-300"
+        >
+
+        <span class="text-sm text-gray-700">
+            I confirm that I have reviewed and understood this consent document.
+        </span>
+    </label>
+
+    @error('review_confirmed')
+        <p class="mt-2 text-sm text-red-600">
+            {{ $message }}
+        </p>
+    @enderror
+
+    <button
+        type="submit"
+        class="mt-6 inline-flex w-full items-center justify-center rounded-lg px-5 py-3 font-semibold text-white"
+        style="background-color: {{ $organization->primary_color ?? '#2563eb' }}"
+    >
+        Continue to your details
+    </button>
+</form>
+            </div>
+        </div>
+    </div>
+</x-layouts.signing-station>                 
+
+Pasted text(8).txt
+Document
+
+Pasted text(9).txt
+Document
+
+403
+Your account is not connected to an organization.
+
+Pasted text(10).txt
+Document
+<?php
+
+namespace App\Http\Controllers\Platform;
+
+use App\Http\Controllers\Controller;
+use App\Models\Organization;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+
+/**
+ * Handles platform-level organization administration.
+ *
+ * These actions belong to the central platform administration area rather
+ * than an individual organization's dashboard. Access is protected by the
+ * platform role middleware configured in the platform route group.
+ */
+class OrganizationController extends Controller
+{
+    /**
+     * Display a paginated list of all organizations.
+     */
+    public function index(): View
+    {
+        $organizations = Organization::query()
+            ->withCount([
+                'users',
+                'consentTemplates',
+            ])
+            ->latest()
+            ->paginate(15);
+
+        return view('platform.organizations.index', compact('organizations'));
+    }
+
+    /**
+     * Display a single organization and its summary statistics.
+     */
+    public function show(Organization $organization): View
+    {
+        $organization->loadCount([
+            'users',
+            'consentTemplates',
+        ]);
+
+        return view('platform.organizations.show', compact('organization'));
+    }
+
+    /**
+     * Display the organization edit form.
+     */
+    public function edit(Organization $organization): View
+    {
+        return view('platform.organizations.edit', compact('organization'));
+    }
+
+    /**
+     * Update an organization's profile, contact information, and branding.
+     */
+    public function update(
+        Request $request,
+        Organization $organization
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'slug' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('organizations', 'slug')
+                    ->ignore($organization->id),
+            ],
+
+            'email' => [
+                'nullable',
+                'email',
+                'max:255',
+            ],
+
+            'phone' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
+
+            'website' => [
+                'nullable',
+                'url',
+                'max:255',
+            ],
+
+            'support_email' => [
+                'nullable',
+                'email',
+                'max:255',
+            ],
+
+            'address' => [
+                'nullable',
+                'string',
+                'max:2000',
+            ],
+
+            'footer_text' => [
+                'nullable',
+                'string',
+                'max:2000',
+            ],
+
+            'primary_color' => [
+                'nullable',
+                'regex:/^#[0-9A-Fa-f]{6}$/',
+            ],
+
+            'secondary_color' => [
+                'nullable',
+                'regex:/^#[0-9A-Fa-f]{6}$/',
+            ],
+
+            'accent_color' => [
+                'nullable',
+                'regex:/^#[0-9A-Fa-f]{6}$/',
+            ],
+        ]);
+
+        $organization->update($validated);
+
+        return redirect()
+            ->route('platform.organizations.show', $organization)
+            ->with('success', 'Organization updated successfully.');
+    }
+
+    /**
+     * Display users belonging to a specific organization.
+     *
+     * The relationship is paginated so the page remains efficient when an
+     * organization eventually contains hundreds or thousands of users.
+     */
+    public function users(Organization $organization): View
+    {
+        $users = $organization
+            ->users()
+            ->orderBy('name')
+            ->paginate(15);
+
+        return view(
+            'platform.organizations.users.index',
+            compact('organization', 'users')
+        );
+    }
+}
+
+Pasted text(11).txt
+Document
+
+Pasted text(12).txt
+Document
+
+Pasted text(13).txt
+Document
+there are errors of unexpected 'public' 
+
+Pasted text(14).txt
+Document
+tours is different, correct mine 
+
+Pasted text(15).txt
+Document
+Pasted text (2)(2).txt
+Document
+fisrt one is index, second one is show
+
+Pasted text(16).txt
+Document
+
+Pasted text(17).txt
+Document
+Pasted text (2)(3).txt
+Document
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
+class ConsentTemplate extends Model
+{
+    protected $fillable = [
+        'organization_id',
+        'title',
+        'description',
+        'template_schema',
+        'active_version_id',
+        'has_unpublished_changes',
+        'status',
+    ];
+
+    protected $casts = [
+        'template_schema' => 'array',
+        'has_unpublished_changes' => 'boolean',
+    ];
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(
+            Organization::class
+        );
+    }
+
+    public function versions(): HasMany
+    {
+        return $this->hasMany(
+            ConsentTemplateVersion::class
+        )->orderByDesc('version_number');
+    }
+
+    public function consentSessions(): HasMany
+    {
+        return $this->hasMany(
+            ConsentSession::class
+        );
+    }
+
+    public function signingStations(): HasMany
+    {
+        return $this->hasMany(
+            SigningStation::class
+        );
+    }
+
+    public function latestVersion(): HasOne
+    {
+        return $this->hasOne(
+            ConsentTemplateVersion::class
+        )->ofMany('version_number', 'max');
+    }
+
+    public function activeVersion(): BelongsTo
+    {
+        return $this->belongsTo(
+            ConsentTemplateVersion::class,
+            'active_version_id'
+        );
+    }
+
+    public function isLive(): bool
+    {
+        return $this->active_version_id !== null
+            && $this->status === 'published';
+    }
+
+    public function canPublish(): bool
+    {
+        return $this->status !== 'archived'
+            && $this->has_unpublished_changes;
+    }
+} <?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('consent_templates', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('organization_id')
+                ->constrained()
+                ->cascadeOnDelete();
+
+            $table->string('title');
+
+            $table->text('description')
+                ->nullable();
+
+            $table->json('template_schema');
+
+            $table->string('status')
+                ->default('draft');
+
+            $table->timestamps();
+
+            $table->index([
+                'organization_id',
+                'status',
+            ]);
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('consent_templates');
+    }
+};
+
+Pasted text(18).txt
+Document
+Pasted text (2)(4).txt
+Document
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
+class ConsentSession extends Model
+{
+    use HasFactory;
+
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_IN_PROGRESS = 'in_progress';
+
+    public const STATUS_COMPLETED = 'completed';
+
+    public const STATUS_CANCELLED = 'cancelled';
+
+    protected $fillable = [
+        'organization_id',
+        'consent_template_id',
+        'consent_template_version_id',
+        'signing_station_id',
+        'created_by',
+        'signer_name',
+        'signer_email',
+        'signer_reference',
+        'access_token',
+        'status',
+        'responses',
+        'started_at',
+        'completed_at',
+        'cancelled_at',
+    ];
+
+    protected $casts = [
+        'responses' => 'array',
+        'started_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+    ];
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(
+            Organization::class
+        );
+    }
+
+    public function consentTemplate(): BelongsTo
+    {
+        return $this->belongsTo(
+            ConsentTemplate::class
+        );
+    }
+
+    public function consentTemplateVersion(): BelongsTo
+    {
+        return $this->belongsTo(
+            ConsentTemplateVersion::class
+        );
+    }
+
+    public function signingStation(): BelongsTo
+    {
+        return $this->belongsTo(
+            SigningStation::class
+        );
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'created_by'
+        );
+    }
+
+    public function signature(): HasOne
+    {
+        return $this->hasOne(
+            ConsentSignature::class
+        );
+    }
+
+    public function signatures(): HasMany
+    {
+        return $this->hasMany(
+            ConsentSignature::class
+        );
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status === self::STATUS_PENDING;
+    }
+
+    public function isInProgress(): bool
+    {
+        return $this->status === self::STATUS_IN_PROGRESS;
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->status === self::STATUS_COMPLETED;
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === self::STATUS_CANCELLED;
+    }
+
+    public function cameFromSigningStation(): bool
+    {
+        return $this->signing_station_id !== null;
+    }
+}  <?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class ConsentSignature extends Model
+{
+    use HasFactory;
+
+    public const TYPE_DRAWN = 'drawn';
+
+    public const TYPE_TYPED = 'typed';
+
+    protected $fillable = [
+        'consent_session_id',
+        'signer_name',
+        'signature_data',
+        'signature_type',
+        'signed_at',
+        'ip_address',
+        'user_agent',
+    ];
+
+    protected $casts = [
+        'signed_at' => 'datetime',
+    ];
+
+    public function consentSession(): BelongsTo
+    {
+        return $this->belongsTo(
+            ConsentSession::class
+        );
+    }
+
+    public function isSigned(): bool
+    {
+        return $this->signed_at !== null
+            && filled($this->signature_data);
+    }
+}There is no PDF related service because we did not start on it at all
+
+Pasted text(19).txt
+Document
+no errors
+
+Pasted text(20).txt
+Document
+
+Pasted text(21).txt
+Document
+Pasted text (2)(5).txt
+Document
+
+Pasted text(22).txt
+Document
+└─$ php artisan tinker
+Psy Shell v0.12.24 (PHP 8.4.23 — cli) by Justin Hileman
+New PHP manual is available (latest: 3.1.1). Update with doc --update-manual
+> config('mail.default')
+
+= "log"
+
+> config('mail.mailers.log')
+
+= [
+    "transport" => "log",
+    "channel" => null,
+  ]
+
+> 
+<?php
+
+namespace App\Jobs;
+
+use App\Mail\ConsentCompletedMail;
+use App\Models\ConsentSession;
+use App\Services\ConsentPdfService;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Mail;
+use Throwable;
+
+class GenerateConsentPdfJob implements ShouldQueue
+{
+    use Queueable;
+
+    /**
+     * Number of times Laravel may attempt this job.
+     */
+    public int $tries = 3;
+
+    /**
+     * Maximum number of seconds the job may run.
+     */
+    public int $timeout = 120;
+
+    /**
+     * Create a new job instance.
+     */
+    public function __construct(
+        public int $consentSessionId
+    ) {
+        $this->onQueue('default');
+    }
+
+    /**
+     * Generate, store and optionally email
+     * the completed consent PDF.
+     */
+    public function handle(
+        ConsentPdfService $consentPdfService
+    ): void {
+        $consentSession = ConsentSession::query()
+            ->with([
+                'organization',
+                'consentTemplate',
+                'consentTemplateVersion',
+                'signature',
+                'creator',
+                'signingStation',
+            ])
+            ->find($this->consentSessionId);
+
+        if (! $consentSession) {
+            return;
+        }
+
+        if (! $consentSession->isCompleted()) {
+            return;
+        }
+
+        /*
+         * Generate the immutable PDF once.
+         */
+        if (
+            empty($consentSession->pdf_path)
+            || empty($consentSession->pdf_generated_at)
+        ) {
+            $consentPdfService->generateAndStore(
+                $consentSession
+            );
+
+            $consentSession->refresh();
+        }
+
+        /*
+         * Email the completed consent record
+         * if an email address exists and it
+         * hasn't already been sent.
+         */
+        if (
+            filled($consentSession->signer_email)
+            && empty($consentSession->pdf_emailed_at)
+        ) {
+            Mail::to(
+                $consentSession->signer_email
+            )->send(
+                new ConsentCompletedMail(
+                    $consentSession
+                )
+            );
+
+            $consentSession->forceFill([
+                'pdf_emailed_at' => now(),
+            ])->save();
+        }
+    }
+
+    /**
+     * Retry delays.
+     *
+     * @return array<int,int>
+     */
+    public function backoff(): array
+    {
+        return [10, 30, 60];
+    }
+
+    /**
+     * Called if the job permanently fails.
+     */
+    public function failed(
+        Throwable $exception
+    ): void {
+        report($exception);
+    }
+}
+
+Pasted text(23).txt
+Document
+
+Pasted text(24).txt
+Document
+
+Pasted text(25).txt
+Document
+
+Pasted text(26).txt
+Document
+Pasted text (2)(6).txt
+Document
+
+Pasted text(27).txt
+Document
+
+Pasted text(28).txt
+Document
+
+Pasted text(29).txt
+Document
+
+Pasted text(31).txt
+Document
+Pasted text (2)(7).txt
+Document
+
+Great — that confirms the privacy change is working correctly.
+
+New PDFs and emailed copies now exclude:
+
+    IP address
+
+    browser/user-agent details
+
+    phone or device information
+
+Those technical details remain available only inside the protected internal audit trail. Previously generated PDFs remain unchanged because they are immutable.
+
+s o the audit trail is done?
+
+The core audit trail is complete and working.
+
+It currently records:
+
+    consent.created
+
+    consent.completed
+
+    consent.pdf_generated
+
+    consent.pdf_emailed
+
+    consent.email_skipped
+
+    consent.pdf_downloaded
+
+It also has:
+
+    a protected Audit Trail page;
+
+    organization-level access control;
+
+    append-only audit records;
+
+    actor, timestamp, IP address, device information, and metadata where applicable;
+
+    sensitive technical details kept out of signer PDFs.
+
+For a fully exhaustive production audit trail, these events are still optional additions:
+
+    consent.opened
+
+    consent.review_confirmed
+
+    consent.responses_saved
+
+    consent.cancelled
+
+    consent.pdf_failed
+
+    consent.email_failed
+
+    future withdrawal or revocation events
+
+So the audit trail is ready for the current consent lifecycle, but the next sensible addition is consent.cancelled.
+
+lets add that 
+
+I added consent.cancelled to both cancellation paths:
+
+    cancellation by an authenticated organization user;
+
+    cancellation by the signer through the public consent page.
+
+The status change and audit event are saved in the same database transaction, so they cannot become inconsistent. The public cancellation records the signer source, IP address, and device details internally in the protected audit trail—not in the PDF. The changes preserve the existing creation and completion audit logic in both controllers.
+Easiest installation
+
+Run it from your Laravel project directory:
+
+bash ~/Downloads/install_consent_cancelled_audit_update.sh
+
+It will back up both existing controllers, install the replacements, run syntax checks, and clear Laravel caches.
+
+You can also download the files directly:
+
+After installation, create and cancel a new consent, then verify:
+
+php artisan tinker --execute='$s=App\Models\ConsentSession::latest("id")->first(); dump(["id"=>$s->id,"status"=>$s->status,"events"=>$s->auditEvents()->orderBy("created_at")->pluck("event_type")->toArray()]);'
+
+You should see:
+
+status: cancelled
+
+consent.created
+consent.cancelled
+
+Existing cancelled records will not be changed retroactively.
+
+
+install_consent_cancelled_audit_update.sh
+
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ ! -f artisan ]; then
+    echo "Run this script from the Laravel project root."
+    exit 1
+fi
+
+STAMP="$(date +%Y%m%d_%H%M%S)"
+TARGET_ONE="app/Http/Controllers/ConsentSessionController.php"
+TARGET_TWO="app/Http/Controllers/PublicConsentSigningController.php"
+
+mkdir -p "$(dirname "$TARGET_ONE")"
+
+[ -f "$TARGET_ONE" ] && cp "$TARGET_ONE" "${TARGET_ONE}.backup.${STAMP}"
+[ -f "$TARGET_TWO" ] && cp "$TARGET_TWO" "${TARGET_TWO}.backup.${STAMP}"
+
+cat > "$TARGET_ONE" <<'PHP_ONE'
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\ConsentSession;
+use App\Models\ConsentTemplate;
+use App\Services\ConsentAuditService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
+
+class ConsentSessionController extends Controller
+{
+    /**
+     * Display consent records belonging to the current organization.
+     */
+    public function index(): View
+    {
+        $consentSessions = ConsentSession::query()
+            ->where(
+                'organization_id',
+                Auth::user()->organization_id
+            )
+            ->with([
+                'consentTemplate',
+                'consentTemplateVersion',
+                'creator',
+                'signingStation',
+                'signature',
+            ])
+            ->latest()
+            ->paginate(15);
+
+        return view('consent-sessions.index', [
+            'consentSessions' => $consentSessions,
+        ]);
+    }
+
+    /**
+     * Display one consent record and its signing evidence.
+     */
+    public function show(
+        ConsentSession $consentSession
+    ): View {
+        $this->ensureSessionBelongsToOrganization(
+            $consentSession
+        );
+
+        $consentSession->load([
+            'organization',
+            'consentTemplate',
+            'consentTemplateVersion.publisher',
+            'creator',
+            'signingStation',
+            'signature',
+        ]);
+
+        $publishedVersion =
+            $consentSession->consentTemplateVersion;
+
+        $additionalFields = $this->additionalFields(
+            $consentSession
+        );
+
+        $responseEvidence = $this->responseEvidence(
+            $consentSession,
+            $additionalFields
+        );
+
+        $consentText =
+            data_get(
+                $publishedVersion,
+                'consent_text'
+            )
+            ?? data_get(
+                $publishedVersion,
+                'template_schema.consent_text'
+            )
+            ?? data_get(
+                $publishedVersion,
+                'template_schema.content'
+            )
+            ?? data_get(
+                $publishedVersion,
+                'content'
+            );
+
+        return view('consent-sessions.show', [
+            'consentSession' => $consentSession,
+            'publishedVersion' => $publishedVersion,
+            'additionalFields' => $additionalFields,
+            'responseEvidence' => $responseEvidence,
+            'consentText' => $consentText,
+        ]);
+    }
+
+    /**
+     * Show the form for creating a consent record.
+     */
+    public function create(
+        ConsentTemplate $consentTemplate
+    ): View|RedirectResponse {
+        $this->ensureTemplateBelongsToOrganization(
+            $consentTemplate
+        );
+
+        $consentTemplate->load([
+            'activeVersion.publisher',
+        ]);
+
+        if ($consentTemplate->activeVersion === null) {
+            return redirect()
+                ->route('consent-templates.index')
+                ->withErrors([
+                    'template' =>
+                        'A consent record can only be created from a published template.',
+                ]);
+        }
+
+        if ($consentTemplate->status === 'archived') {
+            return redirect()
+                ->route('consent-templates.index')
+                ->withErrors([
+                    'template' =>
+                        'A consent record cannot be created from an archived template.',
+                ]);
+        }
+
+        return view('consent-sessions.create', [
+            'consentTemplate' => $consentTemplate,
+            'publishedVersion' =>
+                $consentTemplate->activeVersion,
+        ]);
+    }
+
+    /**
+     * Store a new consent record.
+     */
+    public function store(
+        Request $request,
+        ConsentTemplate $consentTemplate,
+        ConsentAuditService $consentAuditService
+    ): RedirectResponse {
+        $this->ensureTemplateBelongsToOrganization(
+            $consentTemplate
+        );
+
+        $validated = $request->validate([
+            'signer_name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'signer_email' => [
+                'nullable',
+                'email',
+                'max:255',
+            ],
+
+            'signer_reference' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+        ]);
+
+        $consentSession = DB::transaction(
+            function () use (
+                $consentTemplate,
+                $validated,
+                $request,
+                $consentAuditService
+            ): ConsentSession {
+                /*
+                |--------------------------------------------------------------------------
+                | Lock the template during record creation
+                |--------------------------------------------------------------------------
+                |
+                | This prevents the active version from changing while the
+                | consent record is being created.
+                */
+
+                $lockedTemplate = ConsentTemplate::query()
+                    ->whereKey($consentTemplate->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $this->ensureTemplateBelongsToOrganization(
+                    $lockedTemplate
+                );
+
+                if (
+                    $lockedTemplate->active_version_id === null
+                ) {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'This template no longer has an active published version.',
+                    ]);
+                }
+
+                if (
+                    $lockedTemplate->status === 'archived'
+                ) {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'A consent record cannot be created from an archived template.',
+                    ]);
+                }
+
+                $consentSession = ConsentSession::query()->create([
+                    'organization_id' =>
+                        Auth::user()->organization_id,
+
+                    'consent_template_id' =>
+                        $lockedTemplate->id,
+
+                    'consent_template_version_id' =>
+                        $lockedTemplate->active_version_id,
+
+                    'created_by' =>
+                        Auth::id(),
+
+                    'signer_name' =>
+                        $validated['signer_name'],
+
+                    'signer_email' =>
+                        $validated['signer_email'] ?? null,
+
+                    'signer_reference' =>
+                        $validated['signer_reference'] ?? null,
+
+                    'access_token' =>
+                        (string) Str::uuid(),
+
+                    'status' =>
+                        ConsentSession::STATUS_PENDING,
+
+                    'responses' =>
+                        [],
+                ]);
+
+                $consentAuditService->record(
+                    consentSession: $consentSession,
+                    eventType: 'consent.created',
+                    description:
+                        'The consent record was created by an organization user.',
+                    metadata: [
+                        'creation_source' =>
+                            'organization_user',
+
+                        'consent_template_id' =>
+                            $lockedTemplate->id,
+
+                        'consent_template_version_id' =>
+                            $lockedTemplate->active_version_id,
+
+                        'initial_status' =>
+                            ConsentSession::STATUS_PENDING,
+                    ],
+                    request: $request
+                );
+
+                return $consentSession;
+            },
+            3
+        );
+
+        return redirect()
+            ->route(
+                'consent-sessions.show',
+                $consentSession
+            )
+            ->with(
+                'success',
+                "Consent record for {$consentSession->signer_name} created successfully."
+            );
+    }
+
+    /**
+     * Cancel an unfinished consent record.
+     */
+    public function cancel(
+        Request $request,
+        ConsentSession $consentSession,
+        ConsentAuditService $consentAuditService
+    ): RedirectResponse {
+        $this->ensureSessionBelongsToOrganization(
+            $consentSession
+        );
+
+        if ($consentSession->isCompleted()) {
+            return back()->withErrors([
+                'record' =>
+                    'A completed consent record cannot be cancelled.',
+            ]);
+        }
+
+        if ($consentSession->isCancelled()) {
+            return back()->withErrors([
+                'record' =>
+                    'This consent record has already been cancelled.',
+            ]);
+        }
+
+        $cancelledSession = DB::transaction(
+            function () use (
+                $request,
+                $consentSession,
+                $consentAuditService
+            ): ConsentSession {
+                $lockedSession = ConsentSession::query()
+                    ->whereKey($consentSession->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $this->ensureSessionBelongsToOrganization(
+                    $lockedSession
+                );
+
+                if ($lockedSession->isCompleted()) {
+                    throw ValidationException::withMessages([
+                        'record' =>
+                            'A completed consent record cannot be cancelled.',
+                    ]);
+                }
+
+                if ($lockedSession->isCancelled()) {
+                    throw ValidationException::withMessages([
+                        'record' =>
+                            'This consent record has already been cancelled.',
+                    ]);
+                }
+
+                $previousStatus = $lockedSession->status;
+                $cancelledAt = now();
+
+                $lockedSession->update([
+                    'status' =>
+                        ConsentSession::STATUS_CANCELLED,
+
+                    'cancelled_at' =>
+                        $cancelledAt,
+                ]);
+
+                $consentAuditService->record(
+                    consentSession: $lockedSession,
+                    eventType: 'consent.cancelled',
+                    description:
+                        'An organization user cancelled the consent record.',
+                    metadata: [
+                        'cancellation_source' =>
+                            'organization_application',
+
+                        'previous_status' =>
+                            $previousStatus,
+
+                        'cancelled_at' =>
+                            $cancelledAt->toIso8601String(),
+                    ],
+                    request: $request
+                );
+
+                return $lockedSession;
+            },
+            3
+        );
+
+        return redirect()
+            ->route(
+                'consent-sessions.show',
+                $cancelledSession
+            )
+            ->with(
+                'success',
+                'The consent record was cancelled successfully.'
+            );
+    }
+
+    /**
+     * Read dynamic fields from the exact version
+     * linked to this consent record.
+     */
+    private function additionalFields(
+        ConsentSession $consentSession
+    ): array {
+        $fields = data_get(
+            $consentSession->consentTemplateVersion,
+            'template_schema.additional_fields',
+            []
+        );
+
+        if (! is_array($fields)) {
+            return [];
+        }
+
+        return array_values(
+            array_filter(
+                $fields,
+                fn ($field): bool => is_array($field)
+            )
+        );
+    }
+
+    /**
+     * Match stored response keys to their original field
+     * labels and types from the published version.
+     */
+    private function responseEvidence(
+        ConsentSession $consentSession,
+        array $additionalFields
+    ): array {
+        $responses = $consentSession->responses ?? [];
+
+        if (! is_array($responses)) {
+            return [];
+        }
+
+        $fieldDefinitions = [];
+
+        foreach ($additionalFields as $index => $field) {
+            $key = $this->fieldKey(
+                $field,
+                $index
+            );
+
+            $fieldDefinitions[$key] = [
+                'label' =>
+                    $field['label']
+                    ?? $this->humanizeKey($key),
+
+                'type' =>
+                    $field['type'] ?? 'text',
+            ];
+        }
+
+        $evidence = [];
+
+        foreach ($responses as $key => $value) {
+            $stringKey = (string) $key;
+
+            $definition =
+                $fieldDefinitions[$stringKey] ?? null;
+
+            $evidence[] = [
+                'key' =>
+                    $stringKey,
+
+                'label' =>
+                    $definition['label']
+                    ?? $this->humanizeKey($stringKey),
+
+                'type' =>
+                    $definition['type']
+                    ?? 'text',
+
+                'value' =>
+                    $value,
+            ];
+        }
+
+        return $evidence;
+    }
+
+    /**
+     * Determine the request/storage key for a dynamic field.
+     */
+    private function fieldKey(
+        array $field,
+        int $index
+    ): string {
+        return (string) (
+            $field['name']
+            ?? $field['key']
+            ?? $field['id']
+            ?? 'field_'.$index
+        );
+    }
+
+    /**
+     * Turn a response key into a readable fallback label.
+     */
+    private function humanizeKey(
+        string $key
+    ): string {
+        return Str::of($key)
+            ->replace([
+                '_',
+                '-',
+            ], ' ')
+            ->squish()
+            ->title()
+            ->toString();
+    }
+
+    /**
+     * Prevent access to another organization's template.
+     */
+    private function ensureTemplateBelongsToOrganization(
+        ConsentTemplate $consentTemplate
+    ): void {
+        abort_unless(
+            (int) $consentTemplate->organization_id ===
+                (int) Auth::user()->organization_id,
+            403
+        );
+    }
+
+    /**
+     * Prevent access to another organization's consent record.
+     */
+    private function ensureSessionBelongsToOrganization(
+        ConsentSession $consentSession
+    ): void {
+        abort_unless(
+            (int) $consentSession->organization_id ===
+                (int) Auth::user()->organization_id,
+            403
+        );
+    }
+}
+
