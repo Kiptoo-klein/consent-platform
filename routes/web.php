@@ -308,6 +308,12 @@ Route::post('/consent-templates/{consentTemplate}/archive', [
     'archive',
 ])->name('consent-templates.archive');
 
+
+Route::patch('/consent-templates/{consentTemplate}/restore', [
+    ConsentTemplateController::class,
+    'restore',
+])->name('consent-templates.restore');
+
 /*
 |--------------------------------------------------------------------------
 | Published Version
