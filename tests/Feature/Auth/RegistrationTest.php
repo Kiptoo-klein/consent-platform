@@ -7,6 +7,10 @@ test('registration screen can be rendered', function () {
 });
 
 test('new organizations can register', function () {
+    $this->seed(
+        \Database\Seeders\SubscriptionPlanSeeder::class
+    );
+
     $response = $this->post('/register', [
         'organization_name' => 'Test Health Centre',
         'name' => 'Test Administrator',
@@ -33,6 +37,30 @@ test('new organizations can register', function () {
 
     expect($user->fresh()->hasRole('Organization Admin'))
         ->toBeTrue();
+
+    $subscription = $organization
+        ->subscription()
+        ->with('plan')
+        ->firstOrFail();
+
+    expect($subscription->plan->slug)->toBe('basic');
+
+    expect($subscription->status)->toBe(
+        \App\Enums\OrganizationSubscriptionStatus::TRIALING
+    );
+
+    expect($subscription->payment_status)->toBe(
+        \App\Enums\SubscriptionPaymentStatus::UNPAID
+    );
+
+    expect($subscription->billing_owner_user_id)
+        ->toBe($user->id);
+
+    expect($subscription->bypass_approved_at)->toBeNull();
+    expect($subscription->bypass_approved_by_user_id)->toBeNull();
+
+    expect($subscription->allowsOrganizationAccess())
+        ->toBeFalse();
 
     $response->assertRedirect(
         route('dashboard', absolute: false)

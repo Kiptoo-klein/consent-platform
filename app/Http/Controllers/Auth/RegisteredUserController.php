@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Enums\OrganizationRole;
+use App\Enums\OrganizationSubscriptionStatus;
+use App\Enums\SubscriptionPaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
+use App\Models\SubscriptionPlan;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -70,6 +73,17 @@ class RegisteredUserController extends Controller
                 $validated,
                 $permissionRegistrar
             ): User {
+                $basicPlan = SubscriptionPlan::query()
+                    ->where('slug', 'basic')
+                    ->where('is_active', true)
+                    ->first();
+
+                if ($basicPlan === null) {
+                    throw new \RuntimeException(
+                        'The active Basic subscription plan is unavailable.'
+                    );
+                }
+
                 $organization = Organization::create([
                     'name' => $validated['organization_name'],
                     'slug' => Str::slug(
@@ -115,6 +129,16 @@ class RegisteredUserController extends Controller
                     ->setPermissionsTeamId($organization->id);
 
                 $user->assignRole($administratorRole);
+
+                $organization->subscription()->create([
+                    'subscription_plan_id' => $basicPlan->id,
+                    'billing_owner_user_id' => $user->id,
+                    'status' =>
+                        OrganizationSubscriptionStatus::TRIALING,
+                    'payment_status' =>
+                        SubscriptionPaymentStatus::UNPAID,
+                    'starts_at' => now(),
+                ]);
 
                 $permissionRegistrar->forgetCachedPermissions();
 
