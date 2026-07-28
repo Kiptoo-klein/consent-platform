@@ -279,6 +279,53 @@ class PlatformOrganizationUserController extends Controller
                 }
             }
 
+            $maximumAuditors =
+                $subscription?->plan?->max_auditors;
+
+            if (
+                $role->name === 'Auditor'
+                && $maximumAuditors !== null
+            ) {
+                /*
+                 * Disabled Auditors still occupy role seats. Archived users
+                 * are excluded by the User model's SoftDeletes scope.
+                 */
+                $currentAuditors = User::query()
+                    ->where(
+                        'users.organization_id',
+                        $organization->id
+                    )
+                    ->whereHas(
+                        'roles',
+                        function ($query) use ($organization): void {
+                            $query
+                                ->where(
+                                    'roles.organization_id',
+                                    $organization->id
+                                )
+                                ->where(
+                                    'roles.guard_name',
+                                    'web'
+                                )
+                                ->where(
+                                    'roles.name',
+                                    'Auditor'
+                                );
+                        }
+                    )
+                    ->count();
+
+                if ($currentAuditors >= $maximumAuditors) {
+                    throw ValidationException::withMessages([
+                        'subscription' =>
+                            'This organization has reached its Auditor '
+                            ."role limit of {$maximumAuditors}. "
+                            .'Archive an Auditor or upgrade the '
+                            .'subscription before adding another.',
+                    ]);
+                }
+            }
+
             $user = User::create([
                 'organization_id' => $organization->id,
                 'platform_role_id' => null,
