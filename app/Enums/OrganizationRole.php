@@ -25,11 +25,11 @@ enum OrganizationRole: string
     public function label(): string
     {
         return match ($this) {
-            self::REVIEWER => 'Reviewer',
-            self::WORKFLOW_OPERATOR => 'Workflow Operator',
-            self::DOCUMENT_MANAGER => 'Document Manager',
+            self::REVIEWER => 'Auditor',
+            self::WORKFLOW_OPERATOR => 'Staff',
+            self::DOCUMENT_MANAGER => 'Consent Manager',
             self::ORGANIZATION_ADMINISTRATOR =>
-                'Organization Administrator',
+                'Organization Admin',
         };
     }
 

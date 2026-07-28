@@ -100,6 +100,29 @@ class OrganizationRoleTest extends TestCase
         );
     }
 
+    public function test_role_labels_preserve_existing_names(): void
+    {
+        $this->assertSame(
+            'Auditor',
+            OrganizationRole::REVIEWER->label()
+        );
+
+        $this->assertSame(
+            'Staff',
+            OrganizationRole::WORKFLOW_OPERATOR->label()
+        );
+
+        $this->assertSame(
+            'Consent Manager',
+            OrganizationRole::DOCUMENT_MANAGER->label()
+        );
+
+        $this->assertSame(
+            'Organization Admin',
+            OrganizationRole::ORGANIZATION_ADMINISTRATOR->label()
+        );
+    }
+
     public function test_roles_are_ordered_from_highest_to_lowest(): void
     {
         $this->assertSame(
