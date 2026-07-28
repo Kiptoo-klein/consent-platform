@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Enums\SubscriptionPaymentStatus;
 use App\Models\OrganizationSubscription;
 use Tests\TestCase;
 
@@ -15,6 +16,11 @@ class OrganizationSubscriptionTest extends TestCase
 
         $this->assertTrue(
             $subscription->allowsOrganizationAccess()
+        );
+
+        $this->assertSame(
+            SubscriptionPaymentStatus::PAID,
+            $subscription->payment_status
         );
 
         $this->assertFalse(

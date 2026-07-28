@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SubscriptionPaymentStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -40,6 +41,7 @@ class OrganizationSubscription extends Model
     protected function casts(): array
     {
         return [
+            'payment_status' => SubscriptionPaymentStatus::class,
             'starts_at' => 'datetime',
             'trial_ends_at' => 'datetime',
             'current_period_starts_at' => 'datetime',
@@ -105,7 +107,8 @@ class OrganizationSubscription extends Model
      */
     public function allowsOrganizationAccess(): bool
     {
-        return $this->payment_status === 'paid'
+        return $this->payment_status
+            ?->allowsOrganizationAccess() === true
             || $this->hasPlatformBypass();
     }
 }
