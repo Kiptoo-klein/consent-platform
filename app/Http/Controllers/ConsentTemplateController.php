@@ -18,9 +18,10 @@ class ConsentTemplateController extends Controller
     /**
      * Display the organization's existing consent templates by default.
      */
-    public function index(): View
-    {
-        return $this->manage();
+    public function index(
+        Request $request
+    ): View {
+        return $this->manage($request);
     }
 
     /**
@@ -34,14 +35,81 @@ class ConsentTemplateController extends Controller
     /**
      * Display the organization's existing consent templates.
      */
-    public function manage(): View
-    {
+    public function manage(
+        Request $request
+    ): View {
+        $search = trim(
+            (string) $request->query('search', '')
+        );
+
+        $filter = (string) $request->query(
+            'filter',
+            'all'
+        );
+
+        if (! in_array(
+            $filter,
+            [
+                'all',
+                'live',
+                'offline',
+                'changes',
+            ],
+            true
+        )) {
+            $filter = 'all';
+        }
+
         $consentTemplates = ConsentTemplate::query()
             ->where(
                 'organization_id',
                 Auth::user()->organization_id
             )
             ->where('status', '!=', 'archived')
+            ->when(
+                $search !== '',
+                function ($query) use ($search): void {
+                    $pattern = '%'
+                        . mb_strtolower($search)
+                        . '%';
+
+                    $query->where(
+                        function ($searchQuery) use ($pattern): void {
+                            $searchQuery
+                                ->whereRaw(
+                                    'LOWER(title) LIKE ?',
+                                    [$pattern]
+                                )
+                                ->orWhereRaw(
+                                    'LOWER(description) LIKE ?',
+                                    [$pattern]
+                                )
+                                ->orWhereRaw(
+                                    'LOWER(category) LIKE ?',
+                                    [$pattern]
+                                );
+                        }
+                    );
+                }
+            )
+            ->when(
+                $filter === 'live',
+                fn ($query) => $query
+                    ->whereNotNull('active_version_id')
+                    ->where('status', 'published')
+            )
+            ->when(
+                $filter === 'offline',
+                fn ($query) => $query
+                    ->whereNull('active_version_id')
+            )
+            ->when(
+                $filter === 'changes',
+                fn ($query) => $query->where(
+                    'has_unpublished_changes',
+                    true
+                )
+            )
             ->with([
                 'activeVersion.publisher',
                 'latestVersion',
@@ -51,20 +119,54 @@ class ConsentTemplateController extends Controller
 
         return view('consent-templates.manage', [
             'consentTemplates' => $consentTemplates,
+            'showingArchived' => false,
+            'search' => $search,
+            'filter' => $filter,
         ]);
     }
 
     /**
      * Display the organization's archived consent templates.
      */
-    public function archived(): View
-    {
+    public function archived(
+        Request $request
+    ): View {
+        $search = trim(
+            (string) $request->query('search', '')
+        );
+
         $consentTemplates = ConsentTemplate::query()
             ->where(
                 'organization_id',
                 Auth::user()->organization_id
             )
             ->where('status', 'archived')
+            ->when(
+                $search !== '',
+                function ($query) use ($search): void {
+                    $pattern = '%'
+                        . mb_strtolower($search)
+                        . '%';
+
+                    $query->where(
+                        function ($searchQuery) use ($pattern): void {
+                            $searchQuery
+                                ->whereRaw(
+                                    'LOWER(title) LIKE ?',
+                                    [$pattern]
+                                )
+                                ->orWhereRaw(
+                                    'LOWER(description) LIKE ?',
+                                    [$pattern]
+                                )
+                                ->orWhereRaw(
+                                    'LOWER(category) LIKE ?',
+                                    [$pattern]
+                                );
+                        }
+                    );
+                }
+            )
             ->with([
                 'activeVersion.publisher',
                 'latestVersion',
@@ -75,6 +177,8 @@ class ConsentTemplateController extends Controller
         return view('consent-templates.manage', [
             'consentTemplates' => $consentTemplates,
             'showingArchived' => true,
+            'search' => $search,
+            'filter' => 'all',
         ]);
     }
 
