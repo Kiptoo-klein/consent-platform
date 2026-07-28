@@ -195,15 +195,24 @@
                                                     Preview
                                                 </a>
 
-                                                @if (
-                                                    $consentTemplate->status !== 'archived'
-                                                    && $consentTemplate->has_unpublished_changes
+                                                @if ($consentTemplate->status === 'archived')
+                                                    <span
+                                                        class="col-start-2 inline-flex w-24 cursor-not-allowed items-center justify-center whitespace-nowrap rounded-lg border border-gray-200 bg-gray-100 px-4 py-2 text-sm font-medium text-gray-400"
+                                                        aria-disabled="true"
+                                                    >
+                                                        Archived
+                                                    </span>
+                                                @elseif (
+                                                    $consentTemplate->has_unpublished_changes
+                                                    || $consentTemplate->active_version_id === null
                                                 )
                                                     <form
                                                         method="POST"
                                                         action="{{ route('consent-templates.publish', $consentTemplate) }}"
                                                         class="col-start-2 w-24"
-                                                        onsubmit="return confirm('Publish these changes as a new immutable version?');"
+                                                        onsubmit="return confirm('{{ $consentTemplate->has_unpublished_changes
+                                                            ? 'Publish these changes as a new immutable version?'
+                                                            : 'Make the latest published version live again?' }}');"
                                                     >
                                                         @csrf
 
@@ -212,6 +221,22 @@
                                                             class="w-full whitespace-nowrap rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
                                                         >
                                                             Publish
+                                                        </button>
+                                                    </form>
+                                                @else
+                                                    <form
+                                                        method="POST"
+                                                        action="{{ route('consent-templates.unpublish', $consentTemplate) }}"
+                                                        class="col-start-2 w-24"
+                                                        onsubmit="return confirm('Take this consent template offline? Published history will be preserved.');"
+                                                    >
+                                                        @csrf
+
+                                                        <button
+                                                            type="submit"
+                                                            class="w-full whitespace-nowrap rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700"
+                                                        >
+                                                            Unpublish
                                                         </button>
                                                     </form>
                                                 @endif
