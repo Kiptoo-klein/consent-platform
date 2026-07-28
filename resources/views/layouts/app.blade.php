@@ -29,6 +29,18 @@
             rel="stylesheet"
         >
 
+        {{-- SIDEBAR_FIRST_PAINT_STABILITY --}}
+        <script>
+            try {
+                document.documentElement.classList.toggle(
+                    'sidebar-is-collapsed',
+                    localStorage.getItem('sidebarCollapsed') === 'true'
+                );
+            } catch (error) {
+                // Use the expanded sidebar when storage is unavailable.
+            }
+        </script>
+
         @vite([
             'resources/css/app.css',
             'resources/js/app.js',
@@ -41,16 +53,20 @@
                 mobileSidebarOpen: false,
 
                 sidebarCollapsed:
-                    localStorage.getItem('sidebarCollapsed') === 'true',
+                    document.documentElement.classList.contains(
+                        'sidebar-is-collapsed'
+                    ),
             }"
+            x-init="
+                document.documentElement.classList.add(
+                    'sidebar-alpine-ready'
+                )
+            "
             class="min-h-screen bg-gray-100 dark:bg-gray-950"
         >
             @include('layouts.navigation')
 
-            <div
-                class="min-h-screen transition-all duration-300 lg:pl-64"
-                :class="sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'"
-            >
+            <div class="econsent-main-shell min-h-screen">
                 <div class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-900 lg:hidden">
                     <button
                         type="button"

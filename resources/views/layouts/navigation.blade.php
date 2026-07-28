@@ -93,8 +93,7 @@
 
 <!-- Desktop Sidebar -->
 <aside
-    class="fixed inset-y-0 left-0 z-40 hidden border-r border-gray-200 bg-white transition-all duration-300 dark:border-gray-700 dark:bg-gray-900 lg:flex lg:flex-col"
-    :class="sidebarCollapsed ? 'w-20' : 'w-64'"
+    class="econsent-desktop-sidebar fixed inset-y-0 left-0 z-40 hidden border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 lg:flex lg:flex-col"
 >
     <!-- Logo -->
     <div class="flex h-16 shrink-0 items-center border-b border-gray-200 px-4 dark:border-gray-700">
@@ -107,8 +106,7 @@
             />
 
             <div
-                x-show="!sidebarCollapsed"
-                x-transition.opacity
+                data-sidebar-label
                 class="min-w-0"
             >
                 <p class="truncate text-sm font-bold text-gray-900 dark:text-white">
@@ -136,7 +134,7 @@
                     'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white' =>
                         ! request()->routeIs($item['active']),
                 ])
-                :class="sidebarCollapsed ? 'justify-center' : 'gap-3'"
+                data-sidebar-row
             >
                 @if ($item['icon'] === 'dashboard')
                     <svg
@@ -217,8 +215,7 @@
                 @endif
 
                 <span
-                    x-show="!sidebarCollapsed"
-                    x-transition.opacity
+                    data-sidebar-label
                     class="truncate"
                 >
                     {{ $item['label'] }}
@@ -233,15 +230,14 @@
            href="{{ route($accountRoute) }}"
             title="Profile"
             class="flex h-11 items-center rounded-lg px-3 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
-            :class="sidebarCollapsed ? 'justify-center' : 'gap-3'"
+            data-sidebar-row
         >
             <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
                 {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
             </div>
 
             <div
-                x-show="!sidebarCollapsed"
-                x-transition.opacity
+                data-sidebar-label
                 class="min-w-0 flex-1"
             >
                 <p class="truncate font-semibold text-gray-800 dark:text-gray-100">
@@ -265,7 +261,7 @@
                 type="submit"
                 title="Log Out"
                 class="flex h-11 w-full items-center rounded-lg px-3 text-sm font-medium text-gray-600 transition hover:bg-red-50 hover:text-red-700 dark:text-gray-300 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                :class="sidebarCollapsed ? 'justify-center' : 'gap-3'"
+                data-sidebar-row
             >
                 <svg
                     class="h-5 w-5 shrink-0"
@@ -282,8 +278,7 @@
                 </svg>
 
                 <span
-                    x-show="!sidebarCollapsed"
-                    x-transition.opacity
+                    data-sidebar-label
                 >
                     Log Out
                 </span>
@@ -295,13 +290,19 @@
             type="button"
             @click="
                 sidebarCollapsed = !sidebarCollapsed;
+
+                document.documentElement.classList.toggle(
+                    'sidebar-is-collapsed',
+                    sidebarCollapsed
+                );
+
                 localStorage.setItem(
                     'sidebarCollapsed',
                     sidebarCollapsed ? 'true' : 'false'
                 );
             "
             class="mt-2 flex h-10 w-full items-center rounded-lg px-3 text-sm font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
-            :class="sidebarCollapsed ? 'justify-center' : 'gap-3'"
+            data-sidebar-row
         >
             <svg
                 class="h-5 w-5 shrink-0 transition-transform duration-300"
@@ -319,8 +320,7 @@
             </svg>
 
             <span
-                x-show="!sidebarCollapsed"
-                x-transition.opacity
+                data-sidebar-label
             >
                 Collapse Sidebar
             </span>

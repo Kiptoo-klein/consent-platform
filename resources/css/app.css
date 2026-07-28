@@ -3156,3 +3156,66 @@ main [class*="text-amber-"] {
 }
 
 /* ANALYTICS_GRAPH_POLISH_END */
+
+
+/* SIDEBAR_FIRST_PAINT_STABILITY
+   Apply the stored sidebar state before Alpine initializes.
+*/
+[x-cloak] {
+    display: none !important;
+}
+
+@media (min-width: 1024px) {
+    .econsent-desktop-sidebar {
+        width: 16rem;
+    }
+
+    .econsent-main-shell {
+        padding-left: 16rem;
+    }
+
+    html.sidebar-is-collapsed .econsent-desktop-sidebar {
+        width: 5rem;
+    }
+
+    html.sidebar-is-collapsed .econsent-main-shell {
+        padding-left: 5rem;
+    }
+
+    [data-sidebar-row] {
+        gap: 0.75rem;
+    }
+
+    html.sidebar-is-collapsed [data-sidebar-row] {
+        justify-content: center;
+        gap: 0;
+    }
+
+    html.sidebar-alpine-ready .econsent-desktop-sidebar {
+        transition: width 200ms ease;
+    }
+
+    html.sidebar-alpine-ready .econsent-main-shell {
+        transition: padding-left 200ms ease;
+    }
+}
+
+
+/* SIDEBAR_TEXT_STABILITY
+   Render expanded labels immediately and avoid delayed Alpine reveals.
+*/
+@media (min-width: 1024px) {
+    html.sidebar-is-collapsed [data-sidebar-label] {
+        display: none !important;
+    }
+
+    [data-sidebar-label] {
+        animation: none !important;
+        transition: none !important;
+    }
+
+    html.sidebar-alpine-ready .econsent-desktop-sidebar,
+    html.sidebar-alpine-ready .econsent-main-shell {
+        transition: none !important;
+    }
+}
