@@ -357,3 +357,46 @@ test(
         ]);
     }
 );
+
+test(
+    'restoring an archived staff user is blocked when the staff role limit is reached',
+    function () {
+        $this->subscription->plan->update([
+            'max_users' => 10,
+            'max_staff' => 1,
+        ]);
+
+        app(PermissionRegistrar::class)
+            ->setPermissionsTeamId($this->organization->id);
+
+        $existingStaff = User::factory()->create([
+            'organization_id' => $this->organization->id,
+            'is_active' => false,
+        ]);
+
+        $existingStaff->assignRole($this->staffRole);
+
+        $archivedStaff = User::factory()->create([
+            'organization_id' => $this->organization->id,
+            'is_active' => false,
+        ]);
+
+        $archivedStaff->assignRole($this->staffRole);
+        $archivedStaff->delete();
+
+        $response = $this->patch(
+            route(
+                'platform.organizations.users.restore',
+                [$this->organization, $archivedStaff]
+            )
+        );
+
+        $response->assertSessionHasErrors('subscription');
+
+        $restoredState = User::withTrashed()
+            ->findOrFail($archivedStaff->id);
+
+        $this->assertTrue($restoredState->trashed());
+        $this->assertFalse($restoredState->is_active);
+    }
+);

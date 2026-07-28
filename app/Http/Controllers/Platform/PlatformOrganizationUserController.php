@@ -750,6 +750,64 @@ class PlatformOrganizationUserController extends Controller
                 ]);
             }
 
+            app(PermissionRegistrar::class)
+                ->setPermissionsTeamId($organization->id);
+
+            $restoredRole = $user
+                ->roles()
+                ->where(
+                    'roles.organization_id',
+                    $organization->id
+                )
+                ->where('roles.guard_name', 'web')
+                ->first();
+
+            $maximumStaff = $subscription?->plan?->max_staff;
+
+            if (
+                $restoredRole?->name === 'Staff'
+                && $maximumStaff !== null
+            ) {
+                /*
+                 * Disabled Staff users occupy role seats. Archived users
+                 * remain excluded until they are restored.
+                 */
+                $currentStaff = User::query()
+                    ->where(
+                        'users.organization_id',
+                        $organization->id
+                    )
+                    ->whereHas(
+                        'roles',
+                        function ($query) use ($organization): void {
+                            $query
+                                ->where(
+                                    'roles.organization_id',
+                                    $organization->id
+                                )
+                                ->where(
+                                    'roles.guard_name',
+                                    'web'
+                                )
+                                ->where(
+                                    'roles.name',
+                                    'Staff'
+                                );
+                        }
+                    )
+                    ->count();
+
+                if ($currentStaff >= $maximumStaff) {
+                    throw ValidationException::withMessages([
+                        'subscription' =>
+                            'This organization has reached its Staff '
+                            ."role limit of {$maximumStaff}. "
+                            .'Archive another Staff user or upgrade the '
+                            .'subscription before restoring this account.',
+                    ]);
+                }
+            }
+
             $oldValues = [
                 'is_active' => (bool) $user->is_active,
                 'deleted_at' => $user->deleted_at?->toDateTimeString(),
