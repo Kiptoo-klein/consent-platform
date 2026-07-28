@@ -193,7 +193,7 @@
                     </div>
 
                     <div class="mt-6 max-h-[34rem] space-y-3 overflow-y-auto pr-2">
-                        @foreach ($dailyTrends as $day)
+                        @foreach (array_reverse($dailyTrends) as $day)
                             <div class="grid grid-cols-[4.5rem_1fr_3rem] items-center gap-3 text-sm">
                                 <span class="text-gray-500">{{ $day['label'] }}</span>
                                 <div class="space-y-1">
