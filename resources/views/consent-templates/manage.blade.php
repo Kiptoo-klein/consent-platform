@@ -186,11 +186,11 @@
                                         <td class="px-6 py-5">
                                             <div
                                                 x-data="{ open: false }"
-                                                class="flex items-center justify-center gap-2"
+                                                class="mx-auto grid w-[20rem] grid-cols-3 items-center justify-items-center gap-2"
                                             >
                                                 <a
                                                     href="{{ route('consent-templates.preview', $consentTemplate) }}"
-                                                    class="whitespace-nowrap rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                                                    class="col-start-1 inline-flex w-24 items-center justify-center whitespace-nowrap rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
                                                 >
                                                     Preview
                                                 </a>
@@ -202,26 +202,27 @@
                                                     <form
                                                         method="POST"
                                                         action="{{ route('consent-templates.publish', $consentTemplate) }}"
+                                                        class="col-start-2 w-24"
                                                         onsubmit="return confirm('Publish these changes as a new immutable version?');"
                                                     >
                                                         @csrf
 
                                                         <button
                                                             type="submit"
-                                                            class="whitespace-nowrap rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                                                            class="w-full whitespace-nowrap rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
                                                         >
                                                             Publish
                                                         </button>
                                                     </form>
                                                 @endif
 
-                                                <div class="relative">
+                                                <div class="relative col-start-3 w-24">
                                                     <button
                                                         type="button"
                                                         x-on:click="open = ! open"
                                                         x-on:click.outside="open = false"
                                                         x-on:keydown.escape.window="open = false"
-                                                        class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                                        class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                                                         aria-haspopup="true"
                                                         x-bind:aria-expanded="open"
                                                     >
