@@ -144,31 +144,6 @@
                                 </span>
                             </span>
                         </label>
-
-                        <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
-                            <input
-                                type="checkbox"
-                                name="require_reference"
-                                value="1"
-                                @checked(
-                                    old(
-                                        'require_reference',
-                                        $signingStation->require_reference
-                                    )
-                                )
-                                class="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                            >
-
-                            <span>
-                                <span class="block text-sm font-semibold text-gray-800 dark:text-gray-100">
-                                    Require reference
-                                </span>
-
-                                <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">
-                                    Signers must enter a reference number.
-                                </span>
-                            </span>
-                        </label>
                     </div>
 
                     @include('signing-stations.partials.email-delivery-settings')
