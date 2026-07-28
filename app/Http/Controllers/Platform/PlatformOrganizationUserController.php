@@ -808,6 +808,57 @@ class PlatformOrganizationUserController extends Controller
                 }
             }
 
+            $maximumConsentManagers =
+                $subscription?->plan?->max_consent_managers;
+
+            if (
+                $restoredRole?->name === 'Consent Manager'
+                && $maximumConsentManagers !== null
+            ) {
+                /*
+                 * Disabled Consent Managers occupy role seats. Archived
+                 * users remain excluded until they are restored.
+                 */
+                $currentConsentManagers = User::query()
+                    ->where(
+                        'users.organization_id',
+                        $organization->id
+                    )
+                    ->whereHas(
+                        'roles',
+                        function ($query) use ($organization): void {
+                            $query
+                                ->where(
+                                    'roles.organization_id',
+                                    $organization->id
+                                )
+                                ->where(
+                                    'roles.guard_name',
+                                    'web'
+                                )
+                                ->where(
+                                    'roles.name',
+                                    'Consent Manager'
+                                );
+                        }
+                    )
+                    ->count();
+
+                if (
+                    $currentConsentManagers
+                    >= $maximumConsentManagers
+                ) {
+                    throw ValidationException::withMessages([
+                        'subscription' =>
+                            'This organization has reached its Consent '
+                            .'Manager role limit of '
+                            ."{$maximumConsentManagers}. "
+                            .'Archive another Consent Manager or upgrade '
+                            .'the subscription before restoring this account.',
+                    ]);
+                }
+            }
+
             $oldValues = [
                 'is_active' => (bool) $user->is_active,
                 'deleted_at' => $user->deleted_at?->toDateTimeString(),
