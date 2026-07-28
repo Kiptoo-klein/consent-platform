@@ -126,3 +126,95 @@ test('archived users do not count toward the total user seat limit', function ()
         'deleted_at' => null,
     ]);
 });
+
+test(
+    'restoring an archived user is blocked when all seats are occupied',
+    function () {
+        User::factory()->create([
+            'organization_id' => $this->organization->id,
+            'is_active' => false,
+        ]);
+
+        $archivedUser = User::factory()->create([
+            'organization_id' => $this->organization->id,
+            'is_active' => false,
+        ]);
+
+        $archivedUser->delete();
+
+        $this->assertSame(
+            2,
+            $this->organization->users()->count()
+        );
+
+        $response = $this->patch(
+            route(
+                'platform.organizations.users.restore',
+                [$this->organization, $archivedUser]
+            )
+        );
+
+        $response->assertSessionHasErrors('subscription');
+
+        $restoredState = User::withTrashed()
+            ->findOrFail($archivedUser->id);
+
+        $this->assertTrue($restoredState->trashed());
+        $this->assertFalse($restoredState->is_active);
+    }
+);
+
+test(
+    'restoring succeeds after another user is archived',
+    function () {
+        $occupiedUser = User::factory()->create([
+            'organization_id' => $this->organization->id,
+            'is_active' => false,
+        ]);
+
+        $archivedUser = User::factory()->create([
+            'organization_id' => $this->organization->id,
+            'is_active' => false,
+        ]);
+
+        $archivedUser->delete();
+
+        $this->assertSame(
+            2,
+            $this->organization->users()->count()
+        );
+
+        $occupiedUser->delete();
+
+        $this->assertSame(
+            1,
+            $this->organization->users()->count()
+        );
+
+        $response = $this->patch(
+            route(
+                'platform.organizations.users.restore',
+                [$this->organization, $archivedUser]
+            )
+        );
+
+        $response->assertRedirect(
+            route(
+                'platform.organizations.users.index',
+                $this->organization
+            )
+        );
+
+        $response->assertSessionHas(
+            'success',
+            'Organization user restored successfully. '
+            .'The account remains disabled until you enable it.'
+        );
+
+        $restoredState = User::withTrashed()
+            ->findOrFail($archivedUser->id);
+
+        $this->assertFalse($restoredState->trashed());
+        $this->assertFalse($restoredState->is_active);
+    }
+);

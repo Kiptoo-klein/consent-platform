@@ -573,6 +573,39 @@ class PlatformOrganizationUserController extends Controller
             $organization,
             $user
         ): void {
+            /*
+             * Serialize restoration for this organization so concurrent
+             * requests cannot exceed the subscription seat limit.
+             */
+            Organization::query()
+                ->whereKey($organization->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $subscription = $organization
+                ->subscription()
+                ->with('plan')
+                ->first();
+
+            $maximumUsers = $subscription?->plan?->max_users;
+            $currentUsers = $organization->users()->count();
+
+            /*
+             * Restoring an archived user consumes one organization seat.
+             */
+            if (
+                $maximumUsers !== null
+                && $currentUsers >= $maximumUsers
+            ) {
+                throw ValidationException::withMessages([
+                    'subscription' =>
+                        "This organization has reached its "
+                        ."{$maximumUsers}-user subscription limit. "
+                        .'Archive another user or upgrade the subscription '
+                        .'before restoring this account.',
+                ]);
+            }
+
             $oldValues = [
                 'is_active' => (bool) $user->is_active,
                 'deleted_at' => $user->deleted_at?->toDateTimeString(),
