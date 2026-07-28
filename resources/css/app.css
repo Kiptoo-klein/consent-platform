@@ -3428,3 +3428,30 @@ main table .text-amber-700 {
     color: #b45309 !important;
     font-weight: 700 !important;
 }
+
+/* ORGANIZATION_BRANDING_COLOR_PICKER_FIT */
+.econsent-app main input.branding-color-picker {
+    flex: 0 0 3.5rem;
+    overflow: hidden;
+    padding: 0 !important;
+    border-color: #d1d5db !important;
+    background: #ffffff !important;
+    box-shadow:
+        0 1px 2px rgba(24, 24, 27, 0.04),
+        0 6px 16px rgba(24, 24, 27, 0.06) !important;
+}
+
+.econsent-app main input.branding-color-picker::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.econsent-app main input.branding-color-picker::-webkit-color-swatch {
+    border: 0;
+    border-radius: 0.65rem;
+}
+
+.econsent-app main input.branding-color-picker::-moz-color-swatch {
+    border: 0;
+    border-radius: 0.65rem;
+}
+
