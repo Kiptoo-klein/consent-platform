@@ -174,6 +174,60 @@ class PlatformOrganizationUserController extends Controller
                 ]);
             }
 
+            app(PermissionRegistrar::class)
+                ->setPermissionsTeamId($organization->id);
+
+            $role = Role::query()
+                ->where('organization_id', $organization->id)
+                ->where('guard_name', 'web')
+                ->findOrFail($validated['role_id']);
+
+            $maximumStaff = $subscription?->plan?->max_staff;
+
+            if (
+                $role->name === 'Staff'
+                && $maximumStaff !== null
+            ) {
+                /*
+                 * Disabled Staff users still occupy role seats. Archived
+                 * users are excluded by the User model's SoftDeletes scope.
+                 */
+                $currentStaff = User::query()
+                    ->where(
+                        'users.organization_id',
+                        $organization->id
+                    )
+                    ->whereHas(
+                        'roles',
+                        function ($query) use ($organization): void {
+                            $query
+                                ->where(
+                                    'roles.organization_id',
+                                    $organization->id
+                                )
+                                ->where(
+                                    'roles.guard_name',
+                                    'web'
+                                )
+                                ->where(
+                                    'roles.name',
+                                    'Staff'
+                                );
+                        }
+                    )
+                    ->count();
+
+                if ($currentStaff >= $maximumStaff) {
+                    throw ValidationException::withMessages([
+                        'subscription' =>
+                            'This organization has reached its Staff '
+                            ."role limit of {$maximumStaff}. "
+                            .'Archive a Staff user or upgrade the '
+                            .'subscription before adding another.',
+                    ]);
+                }
+            }
+
             $user = User::create([
                 'organization_id' => $organization->id,
                 'platform_role_id' => null,
@@ -182,14 +236,6 @@ class PlatformOrganizationUserController extends Controller
                 'password' => $validated['password'],
                 'is_active' => true,
             ]);
-
-            app(PermissionRegistrar::class)
-                ->setPermissionsTeamId($organization->id);
-
-            $role = Role::query()
-                ->where('organization_id', $organization->id)
-                ->where('guard_name', 'web')
-                ->findOrFail($validated['role_id']);
 
             $user->assignRole($role);
 

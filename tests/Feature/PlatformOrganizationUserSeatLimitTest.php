@@ -7,6 +7,7 @@ use Database\Seeders\PlatformRoleSeeder;
 use Database\Seeders\SubscriptionPlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(RefreshDatabase::class);
 
@@ -216,5 +217,45 @@ test(
 
         $this->assertFalse($restoredState->trashed());
         $this->assertFalse($restoredState->is_active);
+    }
+);
+
+test(
+    'creating a user is blocked when the staff role limit is reached',
+    function () {
+        $this->subscription->plan->update([
+            'max_users' => 10,
+            'max_staff' => 1,
+        ]);
+
+        app(PermissionRegistrar::class)
+            ->setPermissionsTeamId($this->organization->id);
+
+        $existingStaff = User::factory()->create([
+            'organization_id' => $this->organization->id,
+            'is_active' => true,
+        ]);
+
+        $existingStaff->assignRole($this->staffRole);
+
+        $response = $this->post(
+            route(
+                'platform.organizations.users.store',
+                $this->organization
+            ),
+            [
+                'name' => 'Second Staff Member',
+                'email' => 'second-staff@example.com',
+                'password' => 'StrongPass1!',
+                'password_confirmation' => 'StrongPass1!',
+                'role_id' => $this->staffRole->id,
+            ]
+        );
+
+        $response->assertSessionHasErrors('subscription');
+
+        $this->assertDatabaseMissing('users', [
+            'email' => 'second-staff@example.com',
+        ]);
     }
 );
