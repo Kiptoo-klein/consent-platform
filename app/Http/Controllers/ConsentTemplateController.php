@@ -52,8 +52,7 @@ class ConsentTemplateController extends Controller
             [
                 'all',
                 'live',
-                'offline',
-                'changes',
+                'unpublished',
             ],
             true
         )) {
@@ -97,18 +96,25 @@ class ConsentTemplateController extends Controller
                 fn ($query) => $query
                     ->whereNotNull('active_version_id')
                     ->where('status', 'published')
+                    ->where(
+                        'has_unpublished_changes',
+                        false
+                    )
             )
             ->when(
-                $filter === 'offline',
-                fn ($query) => $query
-                    ->whereNull('active_version_id')
-            )
-            ->when(
-                $filter === 'changes',
-                fn ($query) => $query->where(
-                    'has_unpublished_changes',
-                    true
-                )
+                $filter === 'unpublished',
+                function ($query): void {
+                    $query->where(
+                        function ($unpublishedQuery): void {
+                            $unpublishedQuery
+                                ->whereNull('active_version_id')
+                                ->orWhere(
+                                    'has_unpublished_changes',
+                                    true
+                                );
+                        }
+                    );
+                }
             )
             ->with([
                 'activeVersion.publisher',

@@ -80,6 +80,78 @@
                     </a>
                 </div>
 
+                <form
+                    method="GET"
+                    action="{{ $showingArchived
+                        ? route('consent-templates.archived')
+                        : route('consent-templates.manage') }}"
+                    class="mb-6 flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 md:flex-row md:items-end"
+                >
+                    <label class="min-w-0 flex-1">
+                        <span class="block text-sm font-medium text-gray-700">
+                            Search templates
+                        </span>
+
+                        <input
+                            type="search"
+                            name="search"
+                            value="{{ $search ?? '' }}"
+                            placeholder="Search by title, description, or category"
+                            class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        >
+                    </label>
+
+                    @unless ($showingArchived)
+                        <label class="md:w-56">
+                            <span class="block text-sm font-medium text-gray-700">
+                                Filter
+                            </span>
+
+                            <select
+                                name="filter"
+                                class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            >
+                                <option
+                                    value="all"
+                                    @selected(($filter ?? 'all') === 'all')
+                                >
+                                    All templates
+                                </option>
+
+                                <option
+                                    value="live"
+                                    @selected(($filter ?? 'all') === 'live')
+                                >
+                                    Live
+                                </option>
+
+                                <option
+                                    value="unpublished"
+                                    @selected(($filter ?? 'all') === 'unpublished')
+                                >
+                                    Unpublished
+                                </option>
+                            </select>
+                        </label>
+                    @endunless
+
+                    <button
+                        type="submit"
+                        class="inline-flex justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                        Search
+                    </button>
+
+                    <a
+                        href="{{ $showingArchived
+                            ? route('consent-templates.archived')
+                            : route('consent-templates.manage') }}"
+                        class="inline-flex justify-center rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    >
+                        Clear
+                    </a>
+                </form>
+
                 @if ($consentTemplates->isEmpty())
                     <div class="py-20 text-center">
                         <h2 class="mb-3 text-2xl font-semibold text-gray-700">

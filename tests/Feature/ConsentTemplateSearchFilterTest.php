@@ -80,7 +80,7 @@ class ConsentTemplateSearchFilterTest extends TestCase
             ->assertViewHas('filter', 'all');
     }
 
-    public function test_templates_can_be_filtered_by_live_offline_and_unpublished_changes(): void
+    public function test_templates_can_be_filtered_by_live_and_unpublished_status(): void
     {
         [$organization, $user] = $this->createOrganizationUser();
 
@@ -94,6 +94,21 @@ class ConsentTemplateSearchFilterTest extends TestCase
             $liveTemplate,
             $user
         );
+
+        $liveChangedTemplate = $this->createTemplate(
+            $organization,
+            $user,
+            title: 'Live Template With Changes'
+        );
+
+        $this->publishTemplate(
+            $liveChangedTemplate,
+            $user
+        );
+
+        $liveChangedTemplate->update([
+            'has_unpublished_changes' => true,
+        ]);
 
         $offlineTemplate = $this->createTemplate(
             $organization,
@@ -119,16 +134,27 @@ class ConsentTemplateSearchFilterTest extends TestCase
             ->assertOk()
             ->assertViewHas(
                 'consentTemplates',
-                fn ($templates): bool =>
-                    $templates->pluck('id')->all()
-                    === [$liveTemplate->id]
+                function ($templates) use (
+                    $liveTemplate,
+                    $liveChangedTemplate
+                ): bool {
+                    $ids = $templates->pluck('id')->all();
+
+                    return count($ids) === 1
+                        && in_array($liveTemplate->id, $ids, true)
+                        && ! in_array(
+                            $liveChangedTemplate->id,
+                            $ids,
+                            true
+                        );
+                }
             );
 
         $this
             ->actingAs($user)
             ->get(
                 route('consent-templates.manage', [
-                    'filter' => 'offline',
+                    'filter' => 'unpublished',
                 ])
             )
             ->assertOk()
@@ -137,31 +163,32 @@ class ConsentTemplateSearchFilterTest extends TestCase
                 function ($templates) use (
                     $offlineTemplate,
                     $changedTemplate,
+                    $liveChangedTemplate,
                     $liveTemplate
                 ): bool {
-                    $ids = $templates
-                        ->pluck('id')
-                        ->all();
+                    $ids = $templates->pluck('id')->all();
 
-                    return in_array($offlineTemplate->id, $ids, true)
-                        && in_array($changedTemplate->id, $ids, true)
-                        && ! in_array($liveTemplate->id, $ids, true);
+                    return in_array(
+                        $offlineTemplate->id,
+                        $ids,
+                        true
+                    )
+                        && in_array(
+                            $changedTemplate->id,
+                            $ids,
+                            true
+                        )
+                        && in_array(
+                            $liveChangedTemplate->id,
+                            $ids,
+                            true
+                        )
+                        && ! in_array(
+                            $liveTemplate->id,
+                            $ids,
+                            true
+                        );
                 }
-            );
-
-        $this
-            ->actingAs($user)
-            ->get(
-                route('consent-templates.manage', [
-                    'filter' => 'changes',
-                ])
-            )
-            ->assertOk()
-            ->assertViewHas(
-                'consentTemplates',
-                fn ($templates): bool =>
-                    $templates->pluck('id')->all()
-                    === [$changedTemplate->id]
             );
     }
 
