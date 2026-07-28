@@ -146,3 +146,19 @@ test('platform admin can revoke a bypass without changing plan limits', function
     expect($subscription->allowsOrganizationAccess())
         ->toBeFalse();
 });
+
+test('platform admin can view organization subscription controls', function () {
+    $response = $this->get(
+        route(
+            'platform.organizations.show',
+            $this->organization
+        )
+    );
+
+    $response->assertOk();
+
+    $response->assertSeeText('Subscription Access');
+    $response->assertSeeText('Basic');
+    $response->assertSeeText('Unpaid');
+    $response->assertSeeText('Approve Payment Bypass');
+});

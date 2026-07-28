@@ -39,10 +39,16 @@ class OrganizationController extends Controller
      */
     public function show(Organization $organization): View
     {
-        $organization->loadCount([
-            'users',
-            'consentTemplates',
-        ]);
+        $organization
+            ->load([
+                'subscription.plan',
+                'subscription.billingOwner',
+                'subscription.bypassApprover',
+            ])
+            ->loadCount([
+                'users',
+                'consentTemplates',
+            ]);
 
         return view('platform.organizations.show', compact('organization'));
     }
