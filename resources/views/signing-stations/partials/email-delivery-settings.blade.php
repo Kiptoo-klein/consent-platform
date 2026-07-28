@@ -19,13 +19,13 @@
     );
 @endphp
 
-<section class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-5 dark:border-indigo-900 dark:bg-indigo-950/30">
+<section class="kiosk-email-identity-panel rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
     <div>
-        <h3 class="text-base font-bold text-gray-900 dark:text-gray-100">
+        <h3 class="text-base font-bold text-red-700">
             Signed PDF email identity
         </h3>
 
-        <p class="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-400">
+        <p class="mt-1 text-sm leading-6 text-gray-600">
             The platform email account sends the PDF. These settings control the display name, reply address and explanation shown to the signer.
         </p>
     </div>
@@ -34,7 +34,7 @@
         <div>
             <label
                 for="sender_name"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                class="block text-sm font-medium text-gray-700"
             >
                 Sender display name
             </label>
@@ -46,10 +46,10 @@
                 maxlength="120"
                 value="{{ old('sender_name', $stationForEmailSettings?->sender_name) }}"
                 placeholder="Example Medical Centre"
-                class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                class="mt-2 block w-full rounded-lg border border-gray-300 bg-white text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:ring-teal-600"
             >
 
-            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            <p class="mt-2 text-xs text-gray-500">
                 Displayed beside the platform's authenticated email address.
             </p>
 
@@ -63,7 +63,7 @@
         <div>
             <label
                 for="reply_to_email"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                class="block text-sm font-medium text-gray-700"
             >
                 Reply-to email
             </label>
@@ -75,10 +75,10 @@
                 maxlength="255"
                 value="{{ old('reply_to_email', $stationForEmailSettings?->reply_to_email) }}"
                 placeholder="consent@example.org"
-                class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                class="mt-2 block w-full rounded-lg border border-gray-300 bg-white text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:ring-teal-600"
             >
 
-            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            <p class="mt-2 text-xs text-gray-500">
                 Signer replies will be delivered to this address.
             </p>
 
@@ -94,12 +94,12 @@
         <div class="flex flex-wrap items-center justify-between gap-2">
             <label
                 for="email_description"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                class="block text-sm font-medium text-gray-700"
             >
                 Email description
             </label>
 
-            <span class="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-indigo-700 shadow-sm dark:bg-gray-900 dark:text-indigo-300">
+            <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
                 Default message provided
             </span>
         </div>
@@ -109,10 +109,10 @@
             name="email_description"
             rows="5"
             maxlength="1000"
-            class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            class="mt-2 block w-full rounded-lg border border-gray-300 bg-white text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:ring-teal-600"
         >{{ $kioskEmailDescriptionValue }}</textarea>
 
-        <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
+        <p class="mt-2 text-xs leading-5 text-gray-500">
             The organization may keep this message unchanged or edit it. When no custom message is saved, the default is used automatically. Avoid promotional language, unnecessary links and urgency.
         </p>
 
