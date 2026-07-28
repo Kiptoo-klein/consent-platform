@@ -232,6 +232,54 @@
                 >
                     @csrf
 
+                    {{-- REGISTRATION_ORGANIZATION_NAME_FIELD --}}
+                    <div>
+                        <label
+                            for="organization_name"
+                            class="mb-2 block text-sm font-semibold text-gray-700"
+                        >
+                            Organization name
+                        </label>
+
+                        <div class="relative">
+                            <div
+                                class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400"
+                            >
+                                <svg
+                                    class="h-5 w-5"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.8"
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M3.75 21h16.5M5.25 21V6.75L12 3l6.75 3.75V21M8.25 9.75h.008v.008H8.25V9.75Zm0 3h.008v.008H8.25v-.008Zm0 3h.008v.008H8.25v-.008Zm3.75-6h.008v.008H12V9.75Zm0 3h.008v.008H12v-.008Zm0 3h.008v.008H12v-.008Zm3.75-6h.008v.008h-.008V9.75Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z"
+                                    />
+                                </svg>
+                            </div>
+
+                            <input
+                                id="organization_name"
+                                type="text"
+                                name="organization_name"
+                                value="{{ old('organization_name') }}"
+                                required
+                                autocomplete="organization"
+                                placeholder="Your organization name"
+                                class="block w-full rounded-xl border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm text-gray-900 shadow-sm outline-none placeholder:text-gray-400 focus:border-[#0F766E] focus:ring-4 focus:ring-[#0F766E]/10"
+                            >
+                        </div>
+
+                        @error('organization_name')
+                            <p class="mt-2 text-sm font-medium text-red-600">
+                                {{ $message }}
+                            </p>
+                        @enderror
+                    </div>
+
                     <div>
                         <label
                             for="name"

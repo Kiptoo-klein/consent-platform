@@ -6,14 +6,35 @@ test('registration screen can be rendered', function () {
     $response->assertStatus(200);
 });
 
-test('new users can register', function () {
+test('new organizations can register', function () {
     $response = $this->post('/register', [
-        'name' => 'Test User',
+        'organization_name' => 'Test Health Centre',
+        'name' => 'Test Administrator',
         'email' => 'test@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+
+    $organization = \App\Models\Organization::query()
+        ->where('name', 'Test Health Centre')
+        ->firstOrFail();
+
+    $user = \App\Models\User::query()
+        ->where('email', 'test@example.com')
+        ->firstOrFail();
+
+    expect($user->organization_id)->toBe($organization->id);
+
+    app(
+        \Spatie\Permission\PermissionRegistrar::class
+    )->setPermissionsTeamId($organization->id);
+
+    expect($user->fresh()->hasRole('Organization Admin'))
+        ->toBeTrue();
+
+    $response->assertRedirect(
+        route('dashboard', absolute: false)
+    );
 });

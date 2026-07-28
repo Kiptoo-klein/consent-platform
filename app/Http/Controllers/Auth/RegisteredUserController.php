@@ -2,16 +2,22 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\OrganizationRole;
 use App\Http\Controllers\Controller;
+use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class RegisteredUserController extends Controller
 {
@@ -24,28 +30,107 @@ class RegisteredUserController extends Controller
     }
 
     /**
-     * Handle an incoming registration request.
+     * Handle an incoming organization registration request.
      *
      * @throws ValidationException
      */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        $validated = $request->validate([
+            'organization_name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+            'email' => [
+                'required',
+                'string',
+                'lowercase',
+                'email',
+                'max:255',
+                'unique:'.User::class,
+            ],
+            'password' => [
+                'required',
+                'confirmed',
+                Rules\Password::defaults(),
+            ],
         ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        $permissionRegistrar = app(PermissionRegistrar::class);
+        $previousTeamId = $permissionRegistrar->getPermissionsTeamId();
+
+        try {
+            $user = DB::transaction(function () use (
+                $validated,
+                $permissionRegistrar
+            ): User {
+                $organization = Organization::create([
+                    'name' => $validated['organization_name'],
+                    'slug' => Str::slug(
+                        $validated['organization_name']
+                    ).'-'.uniqid(),
+                ]);
+
+                $administratorRole = null;
+
+                foreach (OrganizationRole::cases() as $roleDetails) {
+                    $role = Role::query()->firstOrCreate([
+                        'organization_id' => $organization->id,
+                        'name' => $roleDetails->label(),
+                        'guard_name' => 'web',
+                    ]);
+
+                    if (
+                        $roleDetails
+                        === OrganizationRole::ORGANIZATION_ADMINISTRATOR
+                    ) {
+                        $administratorRole = $role;
+                    }
+                }
+
+                if ($administratorRole === null) {
+                    throw new \RuntimeException(
+                        'Organization Admin role could not be created.'
+                    );
+                }
+
+                $user = User::create([
+                    'organization_id' => $organization->id,
+                    'platform_role_id' => null,
+                    'name' => $validated['name'],
+                    'email' => $validated['email'],
+                    'password' => Hash::make(
+                        $validated['password']
+                    ),
+                    'is_active' => true,
+                ]);
+
+                $permissionRegistrar
+                    ->setPermissionsTeamId($organization->id);
+
+                $user->assignRole($administratorRole);
+
+                $permissionRegistrar->forgetCachedPermissions();
+
+                return $user;
+            });
+        } finally {
+            $permissionRegistrar
+                ->setPermissionsTeamId($previousTeamId);
+        }
 
         event(new Registered($user));
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        return redirect(
+            route('dashboard', absolute: false)
+        );
     }
 }
