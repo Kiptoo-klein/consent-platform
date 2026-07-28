@@ -291,7 +291,7 @@
                                                     <div
                                                         x-show="open"
                                                         x-cloak
-                                                        class="absolute right-0 z-20 mt-2 w-60 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
+                                                        class="absolute right-0 z-20 w-60 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg {{ $loop->remaining < 2 ? 'bottom-full mb-2' : 'mt-2' }}"
                                                     >
                                                         @if ($consentTemplate->status !== 'archived')
                                                             <a
@@ -351,9 +351,22 @@
                                                         @endif
 
                                                         @if ($consentTemplate->status === 'archived')
-                                                            <div class="px-4 py-3 text-sm text-gray-500">
-                                                                Archived template
-                                                            </div>
+                                                            <form
+                                                                method="POST"
+                                                                action="{{ route('consent-templates.restore', $consentTemplate) }}"
+                                                                class="border-t border-gray-100"
+                                                                onsubmit="return confirm('Restore this consent template to the active templates list? It will remain offline until published.');"
+                                                            >
+                                                                @csrf
+                                                                @method('PATCH')
+
+                                                                <button
+                                                                    type="submit"
+                                                                    class="block w-full px-4 py-3 text-left text-sm font-medium text-green-700 hover:bg-green-50"
+                                                                >
+                                                                    Restore
+                                                                </button>
+                                                            </form>
                                                         @endif
                                                     </div>
                                                 </div>
