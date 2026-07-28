@@ -10,6 +10,7 @@ use App\Http\Controllers\ConsentTemplateCategoryController;
 use App\Http\Controllers\ConsentTemplateController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrganizationBrandingController;
+use App\Http\Controllers\OrganizationSubscriptionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicConsentSigningController;
 use App\Http\Controllers\PublicSigningStationController;
@@ -172,6 +173,27 @@ Route::get('/sign/{accessToken}/completed', [
         'throttle:public-consent-view',
     ])
     ->name('public-consent.completed');
+
+/*
+|--------------------------------------------------------------------------
+| Organization Subscription Status
+|--------------------------------------------------------------------------
+|
+| This route remains available when organization workflow access is
+| blocked because payment is required.
+|
+*/
+
+Route::middleware([
+    'auth',
+    'active.user',
+    'organization.user',
+])->group(function () {
+    Route::get('/organization/subscription', [
+        OrganizationSubscriptionController::class,
+        'show',
+    ])->name('organization-subscription.show');
+});
 
 /*
 |--------------------------------------------------------------------------
