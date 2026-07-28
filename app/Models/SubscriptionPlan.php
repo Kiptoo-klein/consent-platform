@@ -23,6 +23,7 @@ class SubscriptionPlan extends Model
         'max_consent_managers',
         'max_staff',
         'max_auditors',
+        'max_active_kiosks',
         'is_active',
         'sort_order',
     ];
@@ -39,6 +40,7 @@ class SubscriptionPlan extends Model
             'max_consent_managers' => 'integer',
             'max_staff' => 'integer',
             'max_auditors' => 'integer',
+            'max_active_kiosks' => 'integer',
             'is_active' => 'boolean',
             'sort_order' => 'integer',
         ];
