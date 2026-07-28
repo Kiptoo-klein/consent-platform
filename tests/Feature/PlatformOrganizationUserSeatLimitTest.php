@@ -259,3 +259,52 @@ test(
         ]);
     }
 );
+
+test(
+    'creating a user is blocked when the consent manager role limit is reached',
+    function () {
+        $this->subscription->plan->update([
+            'max_users' => 10,
+            'max_consent_managers' => 1,
+        ]);
+
+        $consentManagerRole = Role::query()
+            ->where(
+                'organization_id',
+                $this->organization->id
+            )
+            ->where('guard_name', 'web')
+            ->where('name', 'Consent Manager')
+            ->firstOrFail();
+
+        app(PermissionRegistrar::class)
+            ->setPermissionsTeamId($this->organization->id);
+
+        $existingManager = User::factory()->create([
+            'organization_id' => $this->organization->id,
+            'is_active' => false,
+        ]);
+
+        $existingManager->assignRole($consentManagerRole);
+
+        $response = $this->post(
+            route(
+                'platform.organizations.users.store',
+                $this->organization
+            ),
+            [
+                'name' => 'Second Consent Manager',
+                'email' => 'second-manager@example.com',
+                'password' => 'StrongPass1!',
+                'password_confirmation' => 'StrongPass1!',
+                'role_id' => $consentManagerRole->id,
+            ]
+        );
+
+        $response->assertSessionHasErrors('subscription');
+
+        $this->assertDatabaseMissing('users', [
+            'email' => 'second-manager@example.com',
+        ]);
+    }
+);
