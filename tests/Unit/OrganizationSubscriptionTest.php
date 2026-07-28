@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Enums\OrganizationSubscriptionStatus;
 use App\Enums\SubscriptionPaymentStatus;
 use App\Models\OrganizationSubscription;
 use Tests\TestCase;
@@ -83,6 +84,18 @@ class OrganizationSubscriptionTest extends TestCase
 
         $this->assertTrue(
             $subscription->allowsOrganizationAccess()
+        );
+    }
+
+    public function test_subscription_status_is_cast_to_enum(): void
+    {
+        $subscription = new OrganizationSubscription([
+            'status' => 'trialing',
+        ]);
+
+        $this->assertSame(
+            OrganizationSubscriptionStatus::TRIALING,
+            $subscription->status
         );
     }
 }

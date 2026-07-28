@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\OrganizationSubscriptionStatus;
 use App\Enums\SubscriptionPaymentStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -41,6 +42,7 @@ class OrganizationSubscription extends Model
     protected function casts(): array
     {
         return [
+            'status' => OrganizationSubscriptionStatus::class,
             'payment_status' => SubscriptionPaymentStatus::class,
             'starts_at' => 'datetime',
             'trial_ends_at' => 'datetime',
