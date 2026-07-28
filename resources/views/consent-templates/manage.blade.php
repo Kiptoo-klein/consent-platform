@@ -1,12 +1,27 @@
 <x-app-layout>
+    @php
+        $showingArchived = $showingArchived ?? false;
+    @endphp
+
     <x-slot name="header">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 class="text-xl font-semibold leading-tight text-gray-800">
-                Manage Consent Templates
+                {{ $showingArchived
+                    ? 'Archived Consent Templates'
+                    : 'Manage Consent Templates' }}
             </h2>
 
             <div class="flex flex-wrap gap-2">
-                
+                <a
+                    href="{{ $showingArchived
+                        ? route('consent-templates.manage')
+                        : route('consent-templates.archived') }}"
+                    class="inline-flex justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                    {{ $showingArchived
+                        ? 'Active Templates'
+                        : 'Archived Templates' }}
+                </a>
 
                 <a
                     href="{{ route('consent-sessions.index') }}"
@@ -45,11 +60,15 @@
                 <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h1 class="text-3xl font-bold text-gray-900">
-                            Consent Templates
+                            {{ $showingArchived
+                                ? 'Archived Templates'
+                                : 'Consent Templates' }}
                         </h1>
 
                         <p class="mt-2 text-gray-500">
-                            Prepare changes privately while the current version remains live.
+                            {{ $showingArchived
+                                ? 'View consent templates removed from the active template list.'
+                                : 'Prepare changes privately while the current version remains live.' }}
                         </p>
                     </div>
 
@@ -308,6 +327,27 @@
                                                             <div class="border-t border-gray-100 px-4 py-3 text-sm text-gray-400">
                                                                 Working copy is up to date
                                                             </div>
+                                                        @endif
+
+                                                        @if (
+                                                            $consentTemplate->status !== 'archived'
+                                                            && $consentTemplate->active_version_id === null
+                                                        )
+                                                            <form
+                                                                method="POST"
+                                                                action="{{ route('consent-templates.archive', $consentTemplate) }}"
+                                                                class="border-t border-gray-100"
+                                                                onsubmit="return confirm('Archive this consent template? It will be hidden from the normal template list, but its history will be preserved.');"
+                                                            >
+                                                                @csrf
+
+                                                                <button
+                                                                    type="submit"
+                                                                    class="block w-full px-4 py-3 text-left text-sm font-medium text-red-700 hover:bg-red-50"
+                                                                >
+                                                                    Archive
+                                                                </button>
+                                                            </form>
                                                         @endif
 
                                                         @if ($consentTemplate->status === 'archived')

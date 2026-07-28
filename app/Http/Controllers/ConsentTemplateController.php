@@ -41,6 +41,7 @@ class ConsentTemplateController extends Controller
                 'organization_id',
                 Auth::user()->organization_id
             )
+            ->where('status', '!=', 'archived')
             ->with([
                 'activeVersion.publisher',
                 'latestVersion',
@@ -50,6 +51,30 @@ class ConsentTemplateController extends Controller
 
         return view('consent-templates.manage', [
             'consentTemplates' => $consentTemplates,
+        ]);
+    }
+
+    /**
+     * Display the organization's archived consent templates.
+     */
+    public function archived(): View
+    {
+        $consentTemplates = ConsentTemplate::query()
+            ->where(
+                'organization_id',
+                Auth::user()->organization_id
+            )
+            ->where('status', 'archived')
+            ->with([
+                'activeVersion.publisher',
+                'latestVersion',
+            ])
+            ->latest()
+            ->get();
+
+        return view('consent-templates.manage', [
+            'consentTemplates' => $consentTemplates,
+            'showingArchived' => true,
         ]);
     }
 

@@ -233,6 +233,12 @@ Route::get('/consent-templates/manage', [
     'manage',
 ])->name('consent-templates.manage');
 
+
+Route::get('/consent-templates/archived', [
+    ConsentTemplateController::class,
+    'archived',
+])->name('consent-templates.archived');
+
 Route::get('/consent-templates/create/individual', [
     \App\Http\Controllers\IndividualConsentWizardController::class,
     'create',
