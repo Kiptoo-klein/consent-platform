@@ -100,8 +100,29 @@ class OrganizationSubscription extends Model
      */
     public function hasPlatformBypass(): bool
     {
-        return $this->bypass_approved_at !== null
-            && $this->bypass_approved_by_user_id !== null;
+        if (
+            $this->bypass_approved_at === null
+            || $this->bypass_approved_by_user_id === null
+        ) {
+            return false;
+        }
+
+        $approver = $this->relationLoaded('bypassApprover')
+            ? $this->getRelation('bypassApprover')
+            : $this->bypassApprover()
+                ->with('platformRole')
+                ->first();
+
+        if (
+            $approver === null
+            || $approver->is_active !== true
+        ) {
+            return false;
+        }
+
+        $approver->loadMissing('platformRole');
+
+        return $approver->platformRole?->slug === 'super-admin';
     }
 
     /**
