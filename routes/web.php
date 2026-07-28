@@ -296,6 +296,12 @@ Route::post('/consent-templates/{consentTemplate}/unpublish', [
     'unpublish',
 ])->name('consent-templates.unpublish');
 
+
+Route::post('/consent-templates/{consentTemplate}/archive', [
+    ConsentTemplateController::class,
+    'archive',
+])->name('consent-templates.archive');
+
 /*
 |--------------------------------------------------------------------------
 | Published Version

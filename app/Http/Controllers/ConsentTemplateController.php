@@ -440,6 +440,57 @@ class ConsentTemplateController extends Controller
     }
 
     /**
+     * Archive a template without deleting its versions or records.
+     */
+    public function archive(
+        ConsentTemplate $consentTemplate
+    ): RedirectResponse {
+        $this->ensureTemplateBelongsToOrganization(
+            $consentTemplate
+        );
+
+        DB::transaction(
+            function () use ($consentTemplate): void {
+                $lockedTemplate = ConsentTemplate::query()
+                    ->whereKey($consentTemplate->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $this->ensureTemplateBelongsToOrganization(
+                    $lockedTemplate
+                );
+
+                if ($lockedTemplate->status === 'archived') {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'This consent template is already archived.',
+                    ]);
+                }
+
+                if ($lockedTemplate->active_version_id !== null) {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'Unpublish this consent template before archiving it.',
+                    ]);
+                }
+
+                $lockedTemplate->update([
+                    'active_version_id' => null,
+                    'status' => 'archived',
+                ]);
+            },
+            3
+        );
+
+        return redirect()
+            ->route('consent-templates.manage')
+            ->with(
+                'success',
+                'Consent template archived successfully.'
+            );
+    }
+
+    /**
      * Validate template creation and editing fields.
      */
     private function validateTemplateRequest(
