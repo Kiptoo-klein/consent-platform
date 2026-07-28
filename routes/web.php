@@ -596,6 +596,22 @@ Route::prefix('platform')
             'update',
         ])->name('organizations.update');
 
+        Route::patch(
+            '/organizations/{organization}/subscription-bypass',
+            [
+                OrganizationController::class,
+                'approveSubscriptionBypass',
+            ]
+        )->name('organizations.subscription-bypass.approve');
+
+        Route::delete(
+            '/organizations/{organization}/subscription-bypass',
+            [
+                OrganizationController::class,
+                'revokeSubscriptionBypass',
+            ]
+        )->name('organizations.subscription-bypass.revoke');
+
             /*
         |--------------------------------------------------------------------------
         | Organization User Management
