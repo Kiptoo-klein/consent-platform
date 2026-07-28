@@ -140,8 +140,9 @@
                                 type="number"
                                 min="3"
                                 max="300"
+                                step="1"
                                 required
-                                value="{{ old('auto_reset_seconds', 10) }}"
+                                value="{{ old('auto_reset_seconds', 3) }}"
                                 class="block w-32 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                             >
 
