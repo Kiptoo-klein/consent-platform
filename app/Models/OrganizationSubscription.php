@@ -18,13 +18,18 @@ class OrganizationSubscription extends Model
     protected $fillable = [
         'organization_id',
         'subscription_plan_id',
+        'billing_owner_user_id',
         'status',
+        'payment_status',
         'starts_at',
         'trial_ends_at',
         'current_period_starts_at',
         'current_period_ends_at',
         'cancelled_at',
         'ends_at',
+        'bypass_approved_at',
+        'bypass_approved_by_user_id',
+        'bypass_reason',
     ];
 
     /**
@@ -41,6 +46,7 @@ class OrganizationSubscription extends Model
             'current_period_ends_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'ends_at' => 'datetime',
+            'bypass_approved_at' => 'datetime',
         ];
     }
 
@@ -61,5 +67,45 @@ class OrganizationSubscription extends Model
             SubscriptionPlan::class,
             'subscription_plan_id'
         );
+    }
+
+    /**
+     * The Organization Admin responsible for billing.
+     */
+    public function billingOwner(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'billing_owner_user_id'
+        );
+    }
+
+    /**
+     * The Platform Admin who granted the payment bypass.
+     */
+    public function bypassApprover(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'bypass_approved_by_user_id'
+        );
+    }
+
+    /**
+     * Determine whether a Platform Admin bypass is active.
+     */
+    public function hasPlatformBypass(): bool
+    {
+        return $this->bypass_approved_at !== null
+            && $this->bypass_approved_by_user_id !== null;
+    }
+
+    /**
+     * Determine whether users in the organization may access the system.
+     */
+    public function allowsOrganizationAccess(): bool
+    {
+        return $this->payment_status === 'paid'
+            || $this->hasPlatformBypass();
     }
 }
