@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureOrganizationSubscriptionAccess;
 use App\Http\Middleware\EnsureOrganizationUser;
 use App\Http\Middleware\EnsurePlatformRole;
 use App\Http\Middleware\EnsureUserIsActive;
@@ -25,6 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'platform.role' => EnsurePlatformRole::class,
             'active.user' => EnsureUserIsActive::class,
             'organization.user' => EnsureOrganizationUser::class,
+            'organization.subscription' =>
+                EnsureOrganizationSubscriptionAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

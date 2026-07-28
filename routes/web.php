@@ -205,6 +205,7 @@ Route::middleware([
     'auth',
     'active.user',
     'organization.user',
+    'organization.subscription',
 ])->group(function () {
 
     /*
