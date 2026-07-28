@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SubscriptionPlan extends Model
 {
@@ -41,5 +42,15 @@ class SubscriptionPlan extends Model
             'is_active' => 'boolean',
             'sort_order' => 'integer',
         ];
+    }
+
+    /**
+     * Organization subscriptions using this plan.
+     */
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(
+            OrganizationSubscription::class
+        );
     }
 }
