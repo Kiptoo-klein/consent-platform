@@ -25,6 +25,11 @@ class ConsentTemplateUnpublishTest extends TestCase
             'is_active' => true,
         ]);
 
+        $this->enablePaidOrganizationAccess(
+            $organization,
+            $user
+        );
+
         [$template, $version] = $this->createPublishedTemplate(
             $organization,
             $user
@@ -90,10 +95,20 @@ class ConsentTemplateUnpublishTest extends TestCase
             'is_active' => true,
         ]);
 
+        $this->enablePaidOrganizationAccess(
+            $ownerOrganization,
+            $owner
+        );
+
         $otherUser = User::factory()->create([
             'organization_id' => $otherOrganization->id,
             'is_active' => true,
         ]);
+
+        $this->enablePaidOrganizationAccess(
+            $otherOrganization,
+            $otherUser
+        );
 
         [$template, $version] = $this->createPublishedTemplate(
             $ownerOrganization,
@@ -134,6 +149,11 @@ class ConsentTemplateUnpublishTest extends TestCase
             'organization_id' => $organization->id,
             'is_active' => true,
         ]);
+
+        $this->enablePaidOrganizationAccess(
+            $organization,
+            $user
+        );
 
         [$template, $version] = $this->createPublishedTemplate(
             $organization,

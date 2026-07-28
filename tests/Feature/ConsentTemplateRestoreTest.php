@@ -24,6 +24,11 @@ class ConsentTemplateRestoreTest extends TestCase
             'is_active' => true,
         ]);
 
+        $this->enablePaidOrganizationAccess(
+            $organization,
+            $user
+        );
+
         $template = ConsentTemplate::create([
             'organization_id' => $organization->id,
             'title' => 'Archived Template',

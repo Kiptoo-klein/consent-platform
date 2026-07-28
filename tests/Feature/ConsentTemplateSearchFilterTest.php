@@ -271,6 +271,11 @@ class ConsentTemplateSearchFilterTest extends TestCase
             'is_active' => true,
         ]);
 
+        $this->enablePaidOrganizationAccess(
+            $organization,
+            $user
+        );
+
         return [$organization, $user];
     }
 

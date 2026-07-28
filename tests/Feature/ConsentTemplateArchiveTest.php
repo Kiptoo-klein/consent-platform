@@ -25,6 +25,11 @@ class ConsentTemplateArchiveTest extends TestCase
             'is_active' => true,
         ]);
 
+        $this->enablePaidOrganizationAccess(
+            $organization,
+            $user
+        );
+
         [$template, $version] = $this->createPublishedTemplate(
             $organization,
             $user
@@ -88,6 +93,11 @@ class ConsentTemplateArchiveTest extends TestCase
             'organization_id' => $organization->id,
             'is_active' => true,
         ]);
+
+        $this->enablePaidOrganizationAccess(
+            $organization,
+            $user
+        );
 
         [$template, $version] = $this->createPublishedTemplate(
             $organization,
