@@ -30,6 +30,20 @@
                     </a>
                 @endif
 
+                @if (\Illuminate\Support\Facades\Route::has(
+                    'platform.organizations.edit'
+                ))
+                    <a
+                        href="{{ route(
+                            'platform.organizations.edit',
+                            $organization
+                        ) }}"
+                        class="inline-flex items-center rounded-lg border border-teal-700 bg-white px-4 py-2 text-sm font-semibold text-teal-700 transition hover:bg-teal-50"
+                    >
+                        Edit Organization
+                    </a>
+                @endif
+
                 <a
                     href="{{ route(
                         'platform.organizations.index'

@@ -98,6 +98,53 @@
                 @isset($header)
                     <header class="border-b border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
                         <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                            @php
+                                $globalBackFallback =
+                                    request()->routeIs('platform.*')
+                                    && \Illuminate\Support\Facades\Route::has(
+                                        'platform.dashboard'
+                                    )
+                                        ? route('platform.dashboard')
+                                        : (
+                                            \Illuminate\Support\Facades\Route::has(
+                                                'dashboard'
+                                            )
+                                                ? route('dashboard')
+                                                : url('/')
+                                        );
+
+                                $globalPreviousUrl = url()->previous();
+                                $globalCurrentUrl = url()->current();
+                                $globalLocalRoot = request()
+                                    ->getSchemeAndHttpHost();
+
+                                $globalPreviousIsInternal =
+                                    $globalPreviousUrl === $globalLocalRoot
+                                    || str_starts_with(
+                                        $globalPreviousUrl,
+                                        $globalLocalRoot . '/'
+                                    );
+
+                                $globalBackUrl =
+                                    $globalPreviousIsInternal
+                                    && $globalPreviousUrl !== $globalCurrentUrl
+                                        ? $globalPreviousUrl
+                                        : $globalBackFallback;
+                            @endphp
+
+                            @unless (
+                                request()->routeIs(
+                                    'dashboard',
+                                    'platform.dashboard'
+                                )
+                            )
+                                <div class="mb-4">
+                                    <x-back-button
+                                        :href="$globalBackUrl"
+                                    />
+                                </div>
+                            @endunless
+
                             {{ $header }}
                         </div>
                     </header>
