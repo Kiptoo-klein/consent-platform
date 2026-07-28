@@ -290,6 +290,12 @@ Route::post('/consent-templates/{consentTemplate}/publish', [
     'publish',
 ])->name('consent-templates.publish');
 
+
+Route::post('/consent-templates/{consentTemplate}/unpublish', [
+    ConsentTemplateController::class,
+    'unpublish',
+])->name('consent-templates.unpublish');
+
 /*
 |--------------------------------------------------------------------------
 | Published Version

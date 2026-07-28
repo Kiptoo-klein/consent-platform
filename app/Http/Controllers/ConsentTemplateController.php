@@ -359,6 +359,57 @@ class ConsentTemplateController extends Controller
     }
 
     /**
+     * Take the active published version offline without deleting history.
+     */
+    public function unpublish(
+        ConsentTemplate $consentTemplate
+    ): RedirectResponse {
+        $this->ensureTemplateBelongsToOrganization(
+            $consentTemplate
+        );
+
+        DB::transaction(
+            function () use ($consentTemplate): void {
+                $lockedTemplate = ConsentTemplate::query()
+                    ->whereKey($consentTemplate->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $this->ensureTemplateBelongsToOrganization(
+                    $lockedTemplate
+                );
+
+                if ($lockedTemplate->status === 'archived') {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'Archived templates cannot be unpublished.',
+                    ]);
+                }
+
+                if ($lockedTemplate->active_version_id === null) {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'This template is already offline.',
+                    ]);
+                }
+
+                $lockedTemplate->update([
+                    'active_version_id' => null,
+                    'status' => 'draft',
+                ]);
+            },
+            3
+        );
+
+        return redirect()
+            ->route('consent-templates.manage')
+            ->with(
+                'success',
+                'The consent template is now offline.'
+            );
+    }
+
+    /**
      * Validate template creation and editing fields.
      */
     private function validateTemplateRequest(
