@@ -310,6 +310,36 @@ class ConsentTemplateController extends Controller
                     ]);
                 }
 
+                /*
+                 * An unchanged template that was taken offline should restore
+                 * its latest immutable version instead of creating a duplicate.
+                 */
+                if (
+                    ! $lockedTemplate->has_unpublished_changes
+                    && $lockedTemplate->active_version_id === null
+                ) {
+                    $latestPublishedVersion = $lockedTemplate
+                        ->versions()
+                        ->orderByDesc('version_number')
+                        ->first();
+
+                    if ($latestPublishedVersion === null) {
+                        throw ValidationException::withMessages([
+                            'template' =>
+                                'There is no published version to restore.',
+                        ]);
+                    }
+
+                    $lockedTemplate->update([
+                        'active_version_id' =>
+                            $latestPublishedVersion->id,
+                        'status' => 'published',
+                    ]);
+
+                    return (int)
+                        $latestPublishedVersion->version_number;
+                }
+
                 if (
                     ! $lockedTemplate->has_unpublished_changes
                     && $lockedTemplate->active_version_id !== null

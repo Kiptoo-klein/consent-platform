@@ -123,6 +123,80 @@ class ConsentTemplateUnpublishTest extends TestCase
         );
     }
 
+    public function test_offline_unchanged_template_can_be_republished_without_creating_duplicate_version(): void
+    {
+        $organization = Organization::create([
+            'name' => 'Republish Organization',
+            'slug' => 'republish-organization',
+        ]);
+
+        $user = User::factory()->create([
+            'organization_id' => $organization->id,
+            'is_active' => true,
+        ]);
+
+        [$template, $version] = $this->createPublishedTemplate(
+            $organization,
+            $user
+        );
+
+        $this
+            ->actingAs($user)
+            ->post(
+                route(
+                    'consent-templates.unpublish',
+                    $template
+                )
+            )
+            ->assertRedirect(
+                route('consent-templates.manage')
+            );
+
+        $template->refresh();
+
+        $this->assertNull(
+            $template->active_version_id
+        );
+
+        $this->assertSame(
+            1,
+            $template->versions()->count()
+        );
+
+        $this
+            ->actingAs($user)
+            ->post(
+                route(
+                    'consent-templates.publish',
+                    $template
+                )
+            )
+            ->assertRedirect(
+                route('consent-templates.manage')
+            );
+
+        $template->refresh();
+
+        $this->assertSame(
+            $version->id,
+            $template->active_version_id
+        );
+
+        $this->assertSame(
+            'published',
+            $template->status
+        );
+
+        $this->assertFalse(
+            $template->has_unpublished_changes
+        );
+
+        $this->assertSame(
+            1,
+            $template->versions()->count()
+        );
+    }
+
     /**
      * @return array{ConsentTemplate, ConsentTemplateVersion}
      */
