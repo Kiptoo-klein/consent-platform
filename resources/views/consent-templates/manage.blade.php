@@ -204,19 +204,44 @@
                                 @foreach ($consentTemplates as $consentTemplate)
                                     <tr class="border-b hover:bg-gray-50">
                                         <td class="px-6 py-5">
-                                            <p class="font-semibold text-gray-900">
-                                                {{ $consentTemplate->title }}
-                                            </p>
+                                            @php
+                                                $templateIsLive =
+                                                    $consentTemplate->active_version_id !== null
+                                                    && $consentTemplate->status === 'published';
 
-                                            <p class="mt-1 text-sm text-gray-500">
-                                                {{ $consentTemplate->description ?: 'No description' }}
-                                            </p>
+                                                if ($consentTemplate->status === 'archived') {
+                                                    $templateStatusLabel = 'Archived';
+                                                    $templateStatusColor = '#6B7280';
+                                                } elseif ($consentTemplate->has_unpublished_changes) {
+                                                    $templateStatusLabel = 'Unpublished changes';
+                                                    $templateStatusColor = '#D97706';
+                                                } elseif ($templateIsLive) {
+                                                    $templateStatusLabel = 'Live';
+                                                    $templateStatusColor = '#16A34A';
+                                                } else {
+                                                    $templateStatusLabel = 'Offline';
+                                                    $templateStatusColor = '#9CA3AF';
+                                                }
+                                            @endphp
 
-                                            @if ($consentTemplate->status === 'archived')
-                                                <span class="mt-2 inline-flex rounded-full bg-gray-200 px-3 py-1 text-xs font-medium text-gray-700">
-                                                    Archived
-                                                </span>
-                                            @endif
+                                            <div
+                                                style="border-left: 4px solid {{ $templateStatusColor }}; padding-left: 0.75rem;"
+                                            >
+                                                <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                    <p class="font-semibold text-gray-900">
+                                                        {{ $consentTemplate->title }}
+                                                    </p>
+
+                                                    <span class="text-xs font-semibold text-gray-600">
+                                                        {{ $templateStatusLabel }}
+                                                    </span>
+
+                                                </div>
+
+                                                <p class="mt-1 text-sm text-gray-500">
+                                                    {{ $consentTemplate->description ?: 'No description' }}
+                                                </p>
+                                            </div>
                                         </td>
 
                                         <td class="px-6 py-5">
@@ -309,7 +334,7 @@
 
                                                         <button
                                                             type="submit"
-                                                            class="w-full whitespace-nowrap rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                                                            class="w-full whitespace-nowrap rounded-lg border border-blue-300 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
                                                         >
                                                             Publish
                                                         </button>
@@ -325,7 +350,7 @@
 
                                                         <button
                                                             type="submit"
-                                                            class="w-full whitespace-nowrap rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700"
+                                                            class="w-full whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
                                                         >
                                                             Unpublish
                                                         </button>
