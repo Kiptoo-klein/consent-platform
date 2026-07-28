@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
@@ -139,6 +140,40 @@ class PlatformOrganizationUserController extends Controller
             $validated,
             $organization
         ): void {
+            /*
+             * Serialize user creation for this organization so concurrent
+             * requests cannot exceed the subscription seat limit.
+             */
+            Organization::query()
+                ->whereKey($organization->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $subscription = $organization
+                ->subscription()
+                ->with('plan')
+                ->first();
+
+            $maximumUsers = $subscription?->plan?->max_users;
+            $currentUsers = $organization->users()->count();
+
+            /*
+             * Disabled users still occupy seats. Soft-deleted users are
+             * excluded automatically by the User model's SoftDeletes scope.
+             */
+            if (
+                $maximumUsers !== null
+                && $currentUsers >= $maximumUsers
+            ) {
+                throw ValidationException::withMessages([
+                    'subscription' =>
+                        "This organization has reached its "
+                        ."{$maximumUsers}-user subscription limit. "
+                        .'Archive a user or upgrade the subscription '
+                        .'before adding another user.',
+                ]);
+            }
+
             $user = User::create([
                 'organization_id' => $organization->id,
                 'platform_role_id' => null,
