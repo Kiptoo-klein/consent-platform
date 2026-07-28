@@ -2616,13 +2616,13 @@ from analytics statistic cards.
 */
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > div,
+main .analytics-summary-grid > div,
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > article,
+main .analytics-summary-grid > article,
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > section {
+main .analytics-summary-grid > section {
     position: relative !important;
     overflow: hidden !important;
     border: 1px solid #dfe6e3 !important;
@@ -2640,22 +2640,22 @@ main .grid > section {
 /* Remove decorative stripes and pseudo-elements. */
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > div::before,
+main .analytics-summary-grid > div::before,
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > div::after,
+main .analytics-summary-grid > div::after,
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > article::before,
+main .analytics-summary-grid > article::before,
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > article::after,
+main .analytics-summary-grid > article::after,
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > section::before,
+main .analytics-summary-grid > section::before,
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > section::after {
+main .analytics-summary-grid > section::after {
     display: none !important;
     background: transparent !important;
     content: none !important;
@@ -2664,13 +2664,13 @@ main .grid > section::after {
 /* Remove nested colored backgrounds from the cards. */
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid div[class*="bg-"]:not(.rounded-full),
+main .analytics-summary-grid div[class*="bg-"]:not(.rounded-full),
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid article[class*="bg-"],
+main .analytics-summary-grid article[class*="bg-"],
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid section[class*="bg-"] {
+main .analytics-summary-grid section[class*="bg-"] {
     border-color: transparent !important;
     background: transparent !important;
     background-color: transparent !important;
@@ -2681,7 +2681,7 @@ main .grid section[class*="bg-"] {
 /* Give every statistic icon the same subtle professional appearance. */
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid .rounded-full[class*="bg-"] {
+main .analytics-summary-grid .rounded-full[class*="bg-"] {
     border: 1px solid #cfe0db !important;
     background: #edf6f3 !important;
     background-color: #edf6f3 !important;
@@ -2691,29 +2691,29 @@ main .grid .rounded-full[class*="bg-"] {
 }
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid .rounded-full[class*="bg-"] svg {
+main .analytics-summary-grid .rounded-full[class*="bg-"] svg {
     color: #0f766e !important;
 }
 
 /* Normalize statistic numbers and colored labels. */
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid [class*="text-green-"],
+main .analytics-summary-grid [class*="text-green-"],
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid [class*="text-blue-"],
+main .analytics-summary-grid [class*="text-blue-"],
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid [class*="text-purple-"],
+main .analytics-summary-grid [class*="text-purple-"],
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid [class*="text-yellow-"],
+main .analytics-summary-grid [class*="text-yellow-"],
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid [class*="text-orange-"],
+main .analytics-summary-grid [class*="text-orange-"],
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid [class*="text-red-"] {
+main .analytics-summary-grid [class*="text-red-"] {
     color: #0f766e !important;
 }
 
