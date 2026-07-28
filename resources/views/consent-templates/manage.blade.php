@@ -212,15 +212,15 @@
                                                 if ($consentTemplate->status === 'archived') {
                                                     $templateStatusLabel = 'Archived';
                                                     $templateStatusColor = '#6B7280';
+                                                } elseif (! $templateIsLive) {
+                                                    $templateStatusLabel = 'Offline';
+                                                    $templateStatusColor = '#9CA3AF';
                                                 } elseif ($consentTemplate->has_unpublished_changes) {
                                                     $templateStatusLabel = 'Unpublished changes';
                                                     $templateStatusColor = '#D97706';
-                                                } elseif ($templateIsLive) {
+                                                } else {
                                                     $templateStatusLabel = 'Live';
                                                     $templateStatusColor = '#16A34A';
-                                                } else {
-                                                    $templateStatusLabel = 'Offline';
-                                                    $templateStatusColor = '#9CA3AF';
                                                 }
                                             @endphp
 
@@ -235,6 +235,7 @@
                                                     <span class="text-xs font-semibold text-gray-600">
                                                         {{ $templateStatusLabel }}
                                                     </span>
+
 
                                                 </div>
 
