@@ -144,6 +144,50 @@
 
                     <div>
                         <label
+                            for="subscription_invoice_id"
+                            class="block text-sm font-semibold text-gray-900"
+                        >
+                            Invoice
+                        </label>
+
+                        <select
+                            id="subscription_invoice_id"
+                            name="subscription_invoice_id"
+                            class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                        >
+                            <option value="">
+                                No linked invoice
+                            </option>
+
+                            @foreach ($outstandingInvoices as $invoice)
+                                <option
+                                    value="{{ $invoice->id }}"
+                                    @selected(
+                                        (string) old(
+                                            'subscription_invoice_id'
+                                        ) === (string) $invoice->id
+                                    )
+                                >
+                                    {{ $invoice->invoice_number }}
+                                    — {{ $invoice->currency }}
+                                    {{ number_format(
+                                        (float) $invoice->total_amount,
+                                        2
+                                    ) }}
+                                    — {{ $invoice->status?->label() }}
+                                </option>
+                            @endforeach
+                        </select>
+
+                        @error('subscription_invoice_id')
+                            <p class="mt-2 text-sm font-medium text-red-700">
+                                {{ $message }}
+                            </p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label
                             for="amount"
                             class="block text-sm font-semibold text-gray-900"
                         >
@@ -332,6 +376,10 @@
                                     </th>
 
                                     <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                        Invoice
+                                    </th>
+
+                                    <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                                         Type
                                     </th>
 
@@ -358,6 +406,10 @@
                                     <tr>
                                         <td class="px-5 py-4 text-sm font-semibold text-gray-900">
                                             {{ $transaction->reference }}
+                                        </td>
+
+                                        <td class="px-5 py-4 text-sm text-gray-700">
+                                            {{ $transaction->invoice?->invoice_number ?? '—' }}
                                         </td>
 
                                         <td class="px-5 py-4 text-sm text-gray-700">
