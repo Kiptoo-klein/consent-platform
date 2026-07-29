@@ -1,6 +1,8 @@
 <?php
 
 namespace App\Http\Controllers\Platform;
+use App\Enums\OrganizationSubscriptionStatus;
+use App\Enums\SubscriptionPaymentStatus;
 
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
@@ -10,6 +12,7 @@ use App\Models\User;
 use App\Services\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -301,6 +304,225 @@ class OrganizationController extends Controller
             ->with(
                 'success',
                 'Organization subscription plan updated successfully.'
+            );
+    }
+
+    /**
+     * Renew and reactivate an organization's subscription.
+     *
+     * The existing plan, organization data, and any Platform Admin bypass
+     * remain unchanged.
+     */
+    public function updateSubscriptionRenewal(
+        Request $request,
+        Organization $organization
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'current_period_starts_at' => [
+                'required',
+                'date_format:Y-m-d\TH:i',
+            ],
+
+            'current_period_ends_at' => [
+                'required',
+                'date_format:Y-m-d\TH:i',
+                'after:current_period_starts_at',
+            ],
+
+            'ends_at' => [
+                'nullable',
+                'date_format:Y-m-d\TH:i',
+                'after_or_equal:current_period_ends_at',
+            ],
+        ]);
+
+        $subscription = $organization
+            ->subscription()
+            ->firstOrFail();
+
+        $periodStart = Carbon::createFromFormat(
+            'Y-m-d\TH:i',
+            $validated['current_period_starts_at']
+        );
+
+        $periodEnd = Carbon::createFromFormat(
+            'Y-m-d\TH:i',
+            $validated['current_period_ends_at']
+        );
+
+        $finalEnd = filled($validated['ends_at'] ?? null)
+            ? Carbon::createFromFormat(
+                'Y-m-d\TH:i',
+                $validated['ends_at']
+            )
+            : null;
+
+        $datesMatch = static function (
+            ?Carbon $current,
+            ?Carbon $expected
+        ): bool {
+            if ($current === null || $expected === null) {
+                return $current === null
+                    && $expected === null;
+            }
+
+            return $current->equalTo($expected);
+        };
+
+        $isUnchanged =
+            $subscription->status
+                === OrganizationSubscriptionStatus::ACTIVE
+            && $subscription->payment_status
+                === SubscriptionPaymentStatus::PAID
+            && $subscription->trial_ends_at === null
+            && $subscription->cancelled_at === null
+            && $datesMatch(
+                $subscription->current_period_starts_at,
+                $periodStart
+            )
+            && $datesMatch(
+                $subscription->current_period_ends_at,
+                $periodEnd
+            )
+            && $datesMatch(
+                $subscription->ends_at,
+                $finalEnd
+            );
+
+        if ($isUnchanged) {
+            return redirect()
+                ->route(
+                    'platform.organizations.show',
+                    $organization
+                )
+                ->with(
+                    'success',
+                    'The subscription already uses these renewal dates.'
+                );
+        }
+
+        $oldValues = [
+            'status' =>
+                $subscription->status?->value,
+
+            'payment_status' =>
+                $subscription->payment_status?->value,
+
+            'trial_ends_at' =>
+                $subscription->trial_ends_at
+                    ?->toIso8601String(),
+
+            'current_period_starts_at' =>
+                $subscription->current_period_starts_at
+                    ?->toIso8601String(),
+
+            'current_period_ends_at' =>
+                $subscription->current_period_ends_at
+                    ?->toIso8601String(),
+
+            'cancelled_at' =>
+                $subscription->cancelled_at
+                    ?->toIso8601String(),
+
+            'ends_at' =>
+                $subscription->ends_at
+                    ?->toIso8601String(),
+        ];
+
+        DB::transaction(function () use (
+            $subscription,
+            $organization,
+            $periodStart,
+            $periodEnd,
+            $finalEnd,
+            $oldValues
+        ): void {
+            $subscription->update([
+                'status' =>
+                    OrganizationSubscriptionStatus::ACTIVE,
+
+                'payment_status' =>
+                    SubscriptionPaymentStatus::PAID,
+
+                'trial_ends_at' => null,
+
+                'current_period_starts_at' =>
+                    $periodStart,
+
+                'current_period_ends_at' =>
+                    $periodEnd,
+
+                'cancelled_at' => null,
+
+                'ends_at' =>
+                    $finalEnd,
+            ]);
+
+            $subscription->refresh();
+
+            $this->activityLogger->log(
+                action:
+                    'organization.subscription_renewed',
+
+                description:
+                    'Organization subscription renewed.',
+
+                subject:
+                    $subscription,
+
+                organizationId:
+                    $organization->id,
+
+                properties: [
+                    'old' =>
+                        $oldValues,
+
+                    'new' => [
+                        'status' =>
+                            $subscription->status?->value,
+
+                        'payment_status' =>
+                            $subscription
+                                ->payment_status
+                                ?->value,
+
+                        'trial_ends_at' =>
+                            $subscription
+                                ->trial_ends_at
+                                ?->toIso8601String(),
+
+                        'current_period_starts_at' =>
+                            $subscription
+                                ->current_period_starts_at
+                                ?->toIso8601String(),
+
+                        'current_period_ends_at' =>
+                            $subscription
+                                ->current_period_ends_at
+                                ?->toIso8601String(),
+
+                        'cancelled_at' =>
+                            $subscription
+                                ->cancelled_at
+                                ?->toIso8601String(),
+
+                        'ends_at' =>
+                            $subscription
+                                ->ends_at
+                                ?->toIso8601String(),
+                    ],
+                ],
+            );
+        });
+
+        return redirect()
+            ->route(
+                'platform.organizations.show',
+                $organization
+            )
+            ->with(
+                'success',
+                'Organization subscription renewed successfully.'
             );
     }
 

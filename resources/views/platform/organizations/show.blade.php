@@ -286,6 +286,130 @@
                         </form>
                     </div>
 
+                    <div class="border-t border-gray-200 p-6">
+                        <h3 class="text-base font-semibold text-gray-900">
+                            Renew Subscription
+                        </h3>
+
+                        <p class="mt-1 text-sm text-gray-500">
+                            Confirm payment and define the new active billing
+                            period. Renewal preserves the current plan,
+                            organization records, and any approved bypass.
+                        </p>
+
+                        <form
+                            method="POST"
+                            action="{{ route(
+                                'platform.organizations.subscription-renewal.update',
+                                $organization
+                            ) }}"
+                            class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                        >
+                            @csrf
+                            @method('PATCH')
+
+                            <div>
+                                <label
+                                    for="current_period_starts_at"
+                                    class="block text-sm font-semibold text-gray-900"
+                                >
+                                    Period starts
+                                </label>
+
+                                <input
+                                    id="current_period_starts_at"
+                                    name="current_period_starts_at"
+                                    type="datetime-local"
+                                    required
+                                    value="{{ old(
+                                        'current_period_starts_at',
+                                        $subscription
+                                            ->current_period_starts_at
+                                            ?->format('Y-m-d\TH:i')
+                                    ) }}"
+                                    class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                >
+
+                                @error('current_period_starts_at')
+                                    <p class="mt-2 text-sm font-medium text-red-700">
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
+
+                            <div>
+                                <label
+                                    for="current_period_ends_at"
+                                    class="block text-sm font-semibold text-gray-900"
+                                >
+                                    Period ends
+                                </label>
+
+                                <input
+                                    id="current_period_ends_at"
+                                    name="current_period_ends_at"
+                                    type="datetime-local"
+                                    required
+                                    value="{{ old(
+                                        'current_period_ends_at',
+                                        $subscription
+                                            ->current_period_ends_at
+                                            ?->format('Y-m-d\TH:i')
+                                    ) }}"
+                                    class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                >
+
+                                @error('current_period_ends_at')
+                                    <p class="mt-2 text-sm font-medium text-red-700">
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
+
+                            <div>
+                                <label
+                                    for="ends_at"
+                                    class="block text-sm font-semibold text-gray-900"
+                                >
+                                    Final subscription end
+                                </label>
+
+                                <input
+                                    id="ends_at"
+                                    name="ends_at"
+                                    type="datetime-local"
+                                    value="{{ old(
+                                        'ends_at',
+                                        $subscription
+                                            ->ends_at
+                                            ?->format('Y-m-d\TH:i')
+                                    ) }}"
+                                    class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                >
+
+                                <p class="mt-2 text-xs text-gray-500">
+                                    Optional. Leave blank for no scheduled final
+                                    subscription end.
+                                </p>
+
+                                @error('ends_at')
+                                    <p class="mt-2 text-sm font-medium text-red-700">
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
+
+                            <div class="sm:col-span-2 lg:col-span-3">
+                                <button
+                                    type="submit"
+                                    class="inline-flex rounded-lg border border-teal-700 bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-800"
+                                >
+                                    Renew Subscription
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
                     @if ($plan && ! empty($capacity))
                         <div class="border-t border-gray-200 p-6">
                             @if ($hasCapacityOverage)
