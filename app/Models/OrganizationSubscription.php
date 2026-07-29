@@ -127,11 +127,74 @@ class OrganizationSubscription extends Model
 
     /**
      * Determine whether users in the organization may access the system.
+     *
+     * A valid Platform Admin bypass overrides payment and lifecycle
+     * restrictions. Otherwise, an organization must have either an
+     * unexpired trial or a paid subscription with a valid lifecycle.
      */
     public function allowsOrganizationAccess(): bool
     {
-        return $this->payment_status
-            ?->allowsOrganizationAccess() === true
-            || $this->hasPlatformBypass();
+        if ($this->hasPlatformBypass()) {
+            return true;
+        }
+
+        if ($this->hasActiveTrial()) {
+            return true;
+        }
+
+        if (
+            $this->payment_status
+                ?->allowsOrganizationAccess() !== true
+        ) {
+            return false;
+        }
+
+        if ($this->hasBlockingLifecycleStatus()) {
+            return false;
+        }
+
+        if (
+            $this->current_period_ends_at !== null
+            && ! $this->current_period_ends_at->isFuture()
+        ) {
+            return false;
+        }
+
+        if (
+            $this->ends_at !== null
+            && ! $this->ends_at->isFuture()
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Determine whether an unpaid trial is still valid.
+     */
+    private function hasActiveTrial(): bool
+    {
+        return $this->status
+            === OrganizationSubscriptionStatus::TRIALING
+            && $this->trial_ends_at !== null
+            && $this->trial_ends_at->isFuture();
+    }
+
+    /**
+     * Determine whether the lifecycle status independently blocks access.
+     */
+    private function hasBlockingLifecycleStatus(): bool
+    {
+        return in_array(
+            $this->status,
+            [
+                OrganizationSubscriptionStatus::PAST_DUE,
+                OrganizationSubscriptionStatus::CANCELLED,
+                OrganizationSubscriptionStatus::EXPIRED,
+                OrganizationSubscriptionStatus::SUSPENDED,
+            ],
+            true
+        );
     }
 }
