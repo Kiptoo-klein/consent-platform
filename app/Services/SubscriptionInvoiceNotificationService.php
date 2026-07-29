@@ -15,58 +15,9 @@ use Throwable;
 class SubscriptionInvoiceNotificationService
 {
     public function __construct(
-        private readonly ActivityLogger $activityLogger
+        private readonly ActivityLogger $activityLogger,
+        private readonly SubscriptionInvoiceReminderSettingsService $settingsService
     ) {
-    }
-
-    /**
-     * @return list<int>
-     */
-    public function configuredBeforeDueDays(): array
-    {
-        return collect(
-            config(
-                'subscription-invoice-notifications.before_due_days',
-                [3, 1]
-            )
-        )
-            ->map(
-                fn ($days): int =>
-                    (int) $days
-            )
-            ->filter(
-                fn (int $days): bool =>
-                    $days > 0
-            )
-            ->unique()
-            ->sortDesc()
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return list<int>
-     */
-    public function configuredOverdueDays(): array
-    {
-        return collect(
-            config(
-                'subscription-invoice-notifications.overdue_days',
-                [1, 7]
-            )
-        )
-            ->map(
-                fn ($days): int =>
-                    (int) $days
-            )
-            ->filter(
-                fn (int $days): bool =>
-                    $days > 0
-            )
-            ->unique()
-            ->sortDesc()
-            ->values()
-            ->all();
     }
 
     public function reminderKeyFor(
@@ -101,7 +52,7 @@ class SubscriptionInvoiceNotificationService
             if (
                 in_array(
                     $daysUntilDue,
-                    $this->configuredBeforeDueDays(),
+                    $this->settingsService->beforeDueDays(),
                     true
                 )
             ) {
@@ -122,7 +73,7 @@ class SubscriptionInvoiceNotificationService
             if (
                 in_array(
                     $daysOverdue,
-                    $this->configuredOverdueDays(),
+                    $this->settingsService->overdueDays(),
                     true
                 )
             ) {
@@ -196,13 +147,9 @@ class SubscriptionInvoiceNotificationService
         SubscriptionInvoice $invoice,
         string $reminderKey
     ): bool {
-        $retryMinutes = max(
-            1,
-            (int) config(
-                'subscription-invoice-notifications.automatic_retry_minutes',
-                60
-            )
-        );
+        $retryMinutes =
+            $this->settingsService
+                ->automaticRetryMinutes();
 
         return SubscriptionInvoiceNotification::query()
             ->where(
@@ -448,13 +395,9 @@ class SubscriptionInvoiceNotificationService
                     'Only failed reminder attempts can be retried.'
                 );
 
-                $retryMinutes = max(
-                    1,
-                    (int) config(
-                        'subscription-invoice-notifications.manual_retry_minutes',
-                        5
-                    )
-                );
+                $retryMinutes =
+                    $this->settingsService
+                        ->manualRetryMinutes();
 
                 $recentRetryExists =
                     SubscriptionInvoiceNotification::query()
