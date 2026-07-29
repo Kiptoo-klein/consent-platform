@@ -570,6 +570,70 @@ class PlatformOrganizationUserController extends Controller
                 }
             }
 
+            /*
+             * A role limit is consumed only when moving into the
+             * Consent Manager role. Editing an existing Consent Manager
+             * must remain allowed.
+             */
+            if (
+                $newRole->name === 'Consent Manager'
+                && $currentRole?->id !== $newRole->id
+            ) {
+                $subscription = $organization
+                    ->subscription()
+                    ->with('plan')
+                    ->first();
+
+                $maximumConsentManagers =
+                    $subscription?->plan?->max_consent_managers;
+
+                if ($maximumConsentManagers !== null) {
+                    /*
+                     * Disabled Consent Managers still occupy role seats.
+                     * Archived users are excluded by the User model's
+                     * SoftDeletes scope.
+                     */
+                    $currentConsentManagers = User::query()
+                        ->where(
+                            'users.organization_id',
+                            $organization->id
+                        )
+                        ->whereHas(
+                            'roles',
+                            function ($query) use ($organization): void {
+                                $query
+                                    ->where(
+                                        'roles.organization_id',
+                                        $organization->id
+                                    )
+                                    ->where(
+                                        'roles.guard_name',
+                                        'web'
+                                    )
+                                    ->where(
+                                        'roles.name',
+                                        'Consent Manager'
+                                    );
+                            }
+                        )
+                        ->count();
+
+                    if (
+                        $currentConsentManagers
+                        >= $maximumConsentManagers
+                    ) {
+                        throw ValidationException::withMessages([
+                            'subscription' =>
+                                'This organization has reached its Consent '
+                                .'Manager role limit of '
+                                ."{$maximumConsentManagers}. "
+                                .'Archive a Consent Manager or upgrade the '
+                                .'subscription before changing this role.',
+                        ]);
+                    }
+                }
+            }
+
             $user->name = $validated['name'];
             $user->email = $validated['email'];
 

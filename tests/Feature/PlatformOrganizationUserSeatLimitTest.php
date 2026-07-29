@@ -565,3 +565,75 @@ test(
         $this->assertFalse($auditor->hasRole($this->staffRole));
     }
 );
+
+test(
+    'changing a user to consent manager is blocked when the consent manager role limit is reached',
+    function () {
+        $this->subscription->plan->update([
+            'max_users' => 10,
+            'max_consent_managers' => 1,
+            'max_auditors' => 10,
+        ]);
+
+        $consentManagerRole = Role::query()
+            ->where(
+                'organization_id',
+                $this->organization->id
+            )
+            ->where('guard_name', 'web')
+            ->where('name', 'Consent Manager')
+            ->firstOrFail();
+
+        $auditorRole = Role::query()
+            ->where(
+                'organization_id',
+                $this->organization->id
+            )
+            ->where('guard_name', 'web')
+            ->where('name', 'Auditor')
+            ->firstOrFail();
+
+        app(PermissionRegistrar::class)
+            ->setPermissionsTeamId($this->organization->id);
+
+        $existingManager = User::factory()->create([
+            'organization_id' => $this->organization->id,
+            'is_active' => false,
+        ]);
+
+        $existingManager->assignRole($consentManagerRole);
+
+        $auditor = User::factory()->create([
+            'organization_id' => $this->organization->id,
+            'name' => 'Role Change Auditor',
+            'email' => 'role-change-auditor@example.com',
+            'is_active' => false,
+        ]);
+
+        $auditor->assignRole($auditorRole);
+
+        $response = $this->put(
+            route(
+                'platform.organizations.users.update',
+                [$this->organization, $auditor]
+            ),
+            [
+                'name' => $auditor->name,
+                'email' => $auditor->email,
+                'role_id' => $consentManagerRole->id,
+            ]
+        );
+
+        $response->assertSessionHasErrors('subscription');
+
+        app(PermissionRegistrar::class)
+            ->setPermissionsTeamId($this->organization->id);
+
+        $auditor->refresh();
+
+        $this->assertTrue($auditor->hasRole($auditorRole));
+        $this->assertFalse(
+            $auditor->hasRole($consentManagerRole)
+        );
+    }
+);
