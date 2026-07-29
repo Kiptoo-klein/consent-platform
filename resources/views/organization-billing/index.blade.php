@@ -103,6 +103,114 @@
             <section class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
                 <div class="border-b border-gray-200 px-6 py-5 dark:border-gray-800 sm:px-8">
                     <h2 class="text-lg font-bold text-gray-900 dark:text-white">
+                        Subscription Invoices
+                    </h2>
+
+                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                        Review issued invoices and download official PDF copies.
+                    </p>
+                </div>
+
+                @if ($invoices->isEmpty())
+                    <div class="p-6 text-sm text-gray-600 dark:text-gray-400 sm:p-8">
+                        No subscription invoices have been issued.
+                    </div>
+                @else
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+                            <thead class="bg-gray-50 dark:bg-gray-800">
+                                <tr>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                        Invoice
+                                    </th>
+
+                                    <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                        Status
+                                    </th>
+
+                                    <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                        Total
+                                    </th>
+
+                                    <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                        Issued
+                                    </th>
+
+                                    <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                        Due
+                                    </th>
+
+                                    <th class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                        Invoice
+                                    </th>
+                                </tr>
+                            </thead>
+
+                            <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-800 dark:bg-gray-900">
+                                @foreach ($invoices as $invoice)
+                                    <tr>
+                                        <td class="px-5 py-4 text-sm font-semibold text-gray-900 dark:text-white">
+                                            {{ $invoice->invoice_number }}
+                                        </td>
+
+                                        <td class="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
+                                            {{ $invoice->status?->label() }}
+                                        </td>
+
+                                        <td class="px-5 py-4 text-sm font-semibold text-gray-900 dark:text-white">
+                                            {{ $invoice->currency }}
+                                            {{ number_format(
+                                                (float) $invoice->total_amount,
+                                                2
+                                            ) }}
+                                        </td>
+
+                                        <td class="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
+                                            {{ $invoice->issue_date?->format('M d, Y') ?? '—' }}
+                                        </td>
+
+                                        <td class="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
+                                            {{ $invoice->due_date?->format('M d, Y') ?? '—' }}
+                                        </td>
+
+                                        <td class="px-5 py-4">
+                                            <div class="flex justify-end gap-3">
+                                                <a
+                                                    href="{{ route(
+                                                        'organization-billing.invoices.show',
+                                                        $invoice
+                                                    ) }}"
+                                                    class="text-sm font-semibold text-teal-700 hover:text-teal-900 dark:text-teal-400"
+                                                >
+                                                    View
+                                                </a>
+
+                                                <a
+                                                    href="{{ route(
+                                                        'organization-billing.invoices.download',
+                                                        $invoice
+                                                    ) }}"
+                                                    class="text-sm font-semibold text-indigo-700 hover:text-indigo-900 dark:text-indigo-400"
+                                                >
+                                                    Download PDF
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="border-t border-gray-200 px-5 py-4 dark:border-gray-800">
+                        {{ $invoices->links() }}
+                    </div>
+                @endif
+            </section>
+
+            <section class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <div class="border-b border-gray-200 px-6 py-5 dark:border-gray-800 sm:px-8">
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-white">
                         Transaction History
                     </h2>
 

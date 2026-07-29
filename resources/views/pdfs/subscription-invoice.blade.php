@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+
+    <title>
+        Subscription Invoice {{ $invoice->invoice_number }}
+    </title>
+
+    <style>
+        @page {
+            margin: 42px;
+        }
+
+        body {
+            color: #1f2937;
+            font-family: DejaVu Sans, sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        h1 {
+            color: #111827;
+            font-size: 24px;
+            margin: 0 0 6px;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin: 0 0 28px;
+        }
+
+        .invoice-number {
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            margin-bottom: 24px;
+            padding: 18px;
+        }
+
+        .label {
+            color: #6b7280;
+            display: block;
+            font-size: 10px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .number {
+            color: #111827;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        td {
+            border: 1px solid #d1d5db;
+            padding: 12px;
+            vertical-align: top;
+            width: 50%;
+        }
+
+        .value {
+            color: #111827;
+            font-weight: bold;
+        }
+
+        .amount {
+            font-size: 17px;
+        }
+
+        .notes {
+            border: 1px solid #d1d5db;
+            margin-top: 20px;
+            padding: 14px;
+        }
+
+        .footer {
+            color: #6b7280;
+            font-size: 9px;
+            margin-top: 28px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Subscription Invoice</h1>
+
+    <p class="subtitle">
+        Invoice for {{ $invoice->organization->name }}
+    </p>
+
+    <div class="invoice-number">
+        <span class="label">Invoice number</span>
+
+        <div class="number">
+            {{ $invoice->invoice_number }}
+        </div>
+    </div>
+
+    <table>
+        <tr>
+            <td>
+                <span class="label">Organization</span>
+
+                <span class="value">
+                    {{ $invoice->organization->name }}
+                </span>
+            </td>
+
+            <td>
+                <span class="label">Subscription plan</span>
+
+                <span class="value">
+                    {{ $invoice->plan->name }}
+                </span>
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <span class="label">Status</span>
+
+                <span class="value">
+                    {{ $invoice->status?->label() }}
+                </span>
+            </td>
+
+            <td>
+                <span class="label">Currency</span>
+
+                <span class="value">
+                    {{ $invoice->currency }}
+                </span>
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <span class="label">Issue date</span>
+
+                <span class="value">
+                    {{ $invoice->issue_date?->format('M d, Y') ?? '—' }}
+                </span>
+            </td>
+
+            <td>
+                <span class="label">Due date</span>
+
+                <span class="value">
+                    {{ $invoice->due_date?->format('M d, Y') ?? '—' }}
+                </span>
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <span class="label">Subtotal</span>
+
+                <span class="value">
+                    {{ $invoice->currency }}
+                    {{ number_format(
+                        (float) $invoice->subtotal,
+                        2
+                    ) }}
+                </span>
+            </td>
+
+            <td>
+                <span class="label">Tax</span>
+
+                <span class="value">
+                    {{ $invoice->currency }}
+                    {{ number_format(
+                        (float) $invoice->tax_amount,
+                        2
+                    ) }}
+                </span>
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <span class="label">Total</span>
+
+                <span class="value amount">
+                    {{ $invoice->currency }}
+                    {{ number_format(
+                        (float) $invoice->total_amount,
+                        2
+                    ) }}
+                </span>
+            </td>
+
+            <td>
+                <span class="label">Paid at</span>
+
+                <span class="value">
+                    {{ $invoice->paid_at?->format('M d, Y H:i') ?? '—' }}
+                </span>
+            </td>
+        </tr>
+    </table>
+
+    @if ($invoice->notes)
+        <div class="notes">
+            <span class="label">Notes</span>
+
+            <div>
+                {{ $invoice->notes }}
+            </div>
+        </div>
+    @endif
+
+    <p class="footer">
+        Generated by the eConsent subscription billing system.
+    </p>
+</body>
+</html>

@@ -203,6 +203,22 @@ Route::middleware([
     ])->name('organization-billing.index');
 
     Route::get(
+        '/subscription/billing/invoices/{subscriptionInvoice}',
+        [
+            OrganizationBillingController::class,
+            'showInvoice',
+        ]
+    )->name('organization-billing.invoices.show');
+
+    Route::get(
+        '/subscription/billing/invoices/{subscriptionInvoice}/download',
+        [
+            OrganizationBillingController::class,
+            'downloadInvoice',
+        ]
+    )->name('organization-billing.invoices.download');
+
+    Route::get(
         '/subscription/billing/transactions/{subscriptionTransaction}',
         [
             OrganizationBillingController::class,
