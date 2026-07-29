@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SubscriptionInvoiceStatus;
 use App\Models\Organization;
 use App\Models\OrganizationSubscription;
+use App\Models\SubscriptionInvoice;
 use App\Models\SubscriptionTransaction;
 use App\Services\ActivityLogger;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -45,6 +47,31 @@ class OrganizationBillingController extends Controller
             ->latest('id')
             ->paginate(20);
 
+        $invoices = SubscriptionInvoice::query()
+            ->where(
+                'organization_id',
+                $organization->id
+            )
+            ->where(
+                'organization_subscription_id',
+                $subscription->id
+            )
+            ->where(
+                'status',
+                '!=',
+                SubscriptionInvoiceStatus::DRAFT->value
+            )
+            ->with([
+                'plan',
+                'issuedBy',
+            ])
+            ->latest('id')
+            ->paginate(
+                20,
+                ['*'],
+                'invoice_page'
+            );
+
         return view(
             'organization-billing.index',
             [
@@ -56,6 +83,9 @@ class OrganizationBillingController extends Controller
 
                 'transactions' =>
                     $transactions,
+
+                'invoices' =>
+                    $invoices,
             ]
         );
     }
@@ -193,6 +223,200 @@ class OrganizationBillingController extends Controller
         );
 
         return $pdf->download($filename);
+    }
+
+    /**
+     * Display an organization subscription invoice.
+     */
+    public function showInvoice(
+        Request $request,
+        SubscriptionInvoice $subscriptionInvoice
+    ): View {
+        [
+            $organization,
+            $subscription,
+        ] = $this->billingContext($request);
+
+        $this->ensureInvoiceBelongsToSubscription(
+            $subscriptionInvoice,
+            $organization,
+            $subscription
+        );
+
+        $subscriptionInvoice->load([
+            'organization',
+            'subscription',
+            'plan',
+            'issuedBy',
+            'transactions' => function ($query): void {
+                $query->latest('id');
+            },
+        ]);
+
+        $this->activityLogger->log(
+            action:
+                'organization.subscription_invoice_viewed',
+
+            description:
+                'An Organization Admin viewed a subscription invoice.',
+
+            subject:
+                $subscriptionInvoice,
+
+            organizationId:
+                $organization->id,
+
+            properties: [
+                'invoice_number' =>
+                    $subscriptionInvoice->invoice_number,
+
+                'status' =>
+                    $subscriptionInvoice->status?->value,
+
+                'total_amount' =>
+                    $subscriptionInvoice->total_amount,
+
+                'currency' =>
+                    $subscriptionInvoice->currency,
+            ],
+        );
+
+        return view(
+            'organization-billing.invoice',
+            [
+                'organization' =>
+                    $organization,
+
+                'invoice' =>
+                    $subscriptionInvoice,
+            ]
+        );
+    }
+
+    /**
+     * Download an organization subscription invoice.
+     */
+    public function downloadInvoice(
+        Request $request,
+        SubscriptionInvoice $subscriptionInvoice
+    ): Response {
+        [
+            $organization,
+            $subscription,
+        ] = $this->billingContext($request);
+
+        $this->ensureInvoiceBelongsToSubscription(
+            $subscriptionInvoice,
+            $organization,
+            $subscription
+        );
+
+        $subscriptionInvoice->load([
+            'organization',
+            'subscription',
+            'plan',
+            'issuedBy',
+            'transactions' => function ($query): void {
+                $query->latest('id');
+            },
+        ]);
+
+        $filename = $this->invoiceDownloadFilename(
+            $subscriptionInvoice
+        );
+
+        $this->activityLogger->log(
+            action:
+                'organization.subscription_invoice_downloaded',
+
+            description:
+                'An Organization Admin downloaded a subscription invoice.',
+
+            subject:
+                $subscriptionInvoice,
+
+            organizationId:
+                $organization->id,
+
+            properties: [
+                'invoice_number' =>
+                    $subscriptionInvoice->invoice_number,
+
+                'status' =>
+                    $subscriptionInvoice->status?->value,
+
+                'total_amount' =>
+                    $subscriptionInvoice->total_amount,
+
+                'currency' =>
+                    $subscriptionInvoice->currency,
+
+                'download_filename' =>
+                    $filename,
+            ],
+        );
+
+        $pdf = Pdf::loadView(
+            'pdfs.subscription-invoice',
+            [
+                'invoice' =>
+                    $subscriptionInvoice,
+            ]
+        );
+
+        $pdf->setPaper(
+            'a4',
+            'portrait'
+        );
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Prevent draft and cross-organization invoice access.
+     */
+    private function ensureInvoiceBelongsToSubscription(
+        SubscriptionInvoice $invoice,
+        Organization $organization,
+        OrganizationSubscription $subscription
+    ): void {
+        abort_unless(
+            (int) $invoice->organization_id
+                === (int) $organization->id
+            && (int) $invoice->organization_subscription_id
+                === (int) $subscription->id
+            && $invoice->status
+                !== SubscriptionInvoiceStatus::DRAFT,
+            403
+        );
+    }
+
+    /**
+     * Return a safe invoice PDF filename.
+     */
+    private function invoiceDownloadFilename(
+        SubscriptionInvoice $invoice
+    ): string {
+        $safeNumber = preg_replace(
+            '/[^A-Za-z0-9_-]+/',
+            '_',
+            $invoice->invoice_number
+        );
+
+        $safeNumber = trim(
+            (string) $safeNumber,
+            '_'
+        );
+
+        if ($safeNumber === '') {
+            $safeNumber = 'invoice';
+        }
+
+        return Str::limit(
+            "subscription_invoice_{$safeNumber}",
+            180,
+            ''
+        ).'.pdf';
     }
 
     /**
