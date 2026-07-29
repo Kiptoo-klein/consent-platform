@@ -16,6 +16,10 @@ Schedule::command('subscriptions:expire')
     ->everyMinute()
     ->withoutOverlapping();
 
+Schedule::command('subscription-invoices:mark-overdue')
+    ->everyMinute()
+    ->withoutOverlapping();
+
 /* BEGIN CONSENT EMAIL REMINDERS */
 \Illuminate\Support\Facades\Schedule::command(
     'consent:send-reminders'
