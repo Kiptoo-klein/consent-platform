@@ -31,6 +31,14 @@
                 'active' => 'platform.organizations.*',
                 'icon' => 'templates',
             ],
+            [
+                'label' => 'Invoice Reminder Settings',
+                'route' =>
+                    'platform.subscription-invoice-reminder-settings.index',
+                'active' =>
+                    'platform.subscription-invoice-reminder-settings.*',
+                'icon' => 'records',
+            ],
             // PLATFORM_ADMIN_TOOLS_RELOCATION_NAV
             [
                 'label' => 'Security Status',

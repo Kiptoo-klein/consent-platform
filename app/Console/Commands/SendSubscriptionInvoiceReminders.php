@@ -6,6 +6,7 @@ use App\Enums\SubscriptionInvoiceStatus;
 use App\Models\SubscriptionInvoice;
 use App\Models\SubscriptionInvoiceNotification;
 use App\Services\SubscriptionInvoiceNotificationService;
+use App\Services\SubscriptionInvoiceReminderSettingsService;
 use Illuminate\Console\Command;
 
 class SendSubscriptionInvoiceReminders extends Command
@@ -19,15 +20,25 @@ class SendSubscriptionInvoiceReminders extends Command
         'Send scheduled reminders for upcoming and overdue subscription invoices.';
 
     public function handle(
-        SubscriptionInvoiceNotificationService $notificationService
+        SubscriptionInvoiceNotificationService $notificationService,
+        SubscriptionInvoiceReminderSettingsService $settingsService
     ): int {
+        if (
+            ! $settingsService
+                ->automaticRemindersEnabled()
+        ) {
+            $this->info(
+                'Subscription invoice reminders are disabled.'
+            );
+
+            return self::SUCCESS;
+        }
+
         $beforeDueDays =
-            $notificationService
-                ->configuredBeforeDueDays();
+            $settingsService->beforeDueDays();
 
         $overdueDays =
-            $notificationService
-                ->configuredOverdueDays();
+            $settingsService->overdueDays();
 
         if (
             $beforeDueDays === []

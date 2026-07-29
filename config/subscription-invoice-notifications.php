@@ -28,6 +28,14 @@ $positiveDays = static function (
 };
 
 return [
+    'enabled' => filter_var(
+        env(
+            'SUBSCRIPTION_INVOICE_REMINDERS_ENABLED',
+            true
+        ),
+        FILTER_VALIDATE_BOOL
+    ),
+
     'before_due_days' => $positiveDays(
         'SUBSCRIPTION_INVOICE_REMINDER_BEFORE_DUE_DAYS',
         '3,1'

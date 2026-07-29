@@ -22,6 +22,7 @@ use App\Http\Controllers\SecurityStatusController;
 use App\Http\Controllers\Platform\PlatformDashboardController;
 use App\Http\Controllers\Platform\OrganizationController;
 use App\Http\Controllers\Platform\SubscriptionInvoiceController;
+use App\Http\Controllers\Platform\SubscriptionInvoiceReminderSettingsController;
 use App\Http\Controllers\Platform\SubscriptionTransactionController;
 use App\Http\Controllers\Platform\PlatformOrganizationUserController;
 use App\Http\Controllers\Platform\PlatformActivityLogController;
@@ -609,6 +610,26 @@ Route::prefix('platform')
             PlatformDashboardController::class,
             'index',
         ])->name('dashboard');
+
+        Route::get(
+            '/subscription-invoice-reminder-settings',
+            [
+                SubscriptionInvoiceReminderSettingsController::class,
+                'index',
+            ]
+        )->name(
+            'subscription-invoice-reminder-settings.index'
+        );
+
+        Route::patch(
+            '/subscription-invoice-reminder-settings',
+            [
+                SubscriptionInvoiceReminderSettingsController::class,
+                'update',
+            ]
+        )->name(
+            'subscription-invoice-reminder-settings.update'
+        );
 
         /*
         |--------------------------------------------------------------------------
