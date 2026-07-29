@@ -29,6 +29,18 @@
             rel="stylesheet"
         >
 
+        {{-- SIDEBAR_FIRST_PAINT_STABILITY --}}
+        <script>
+            try {
+                document.documentElement.classList.toggle(
+                    'sidebar-is-collapsed',
+                    localStorage.getItem('sidebarCollapsed') === 'true'
+                );
+            } catch (error) {
+                // Use the expanded sidebar when storage is unavailable.
+            }
+        </script>
+
         @vite([
             'resources/css/app.css',
             'resources/js/app.js',
@@ -41,16 +53,20 @@
                 mobileSidebarOpen: false,
 
                 sidebarCollapsed:
-                    localStorage.getItem('sidebarCollapsed') === 'true',
+                    document.documentElement.classList.contains(
+                        'sidebar-is-collapsed'
+                    ),
             }"
+            x-init="
+                document.documentElement.classList.add(
+                    'sidebar-alpine-ready'
+                )
+            "
             class="min-h-screen bg-gray-100 dark:bg-gray-950"
         >
             @include('layouts.navigation')
 
-            <div
-                class="min-h-screen transition-all duration-300 lg:pl-64"
-                :class="sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'"
-            >
+            <div class="econsent-main-shell min-h-screen">
                 <div class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-900 lg:hidden">
                     <button
                         type="button"
@@ -98,6 +114,53 @@
                 @isset($header)
                     <header class="border-b border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
                         <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                            @php
+                                $globalBackFallback =
+                                    request()->routeIs('platform.*')
+                                    && \Illuminate\Support\Facades\Route::has(
+                                        'platform.dashboard'
+                                    )
+                                        ? route('platform.dashboard')
+                                        : (
+                                            \Illuminate\Support\Facades\Route::has(
+                                                'dashboard'
+                                            )
+                                                ? route('dashboard')
+                                                : url('/')
+                                        );
+
+                                $globalPreviousUrl = url()->previous();
+                                $globalCurrentUrl = url()->current();
+                                $globalLocalRoot = request()
+                                    ->getSchemeAndHttpHost();
+
+                                $globalPreviousIsInternal =
+                                    $globalPreviousUrl === $globalLocalRoot
+                                    || str_starts_with(
+                                        $globalPreviousUrl,
+                                        $globalLocalRoot . '/'
+                                    );
+
+                                $globalBackUrl =
+                                    $globalPreviousIsInternal
+                                    && $globalPreviousUrl !== $globalCurrentUrl
+                                        ? $globalPreviousUrl
+                                        : $globalBackFallback;
+                            @endphp
+
+                            @unless (
+                                request()->routeIs(
+                                    'dashboard',
+                                    'platform.dashboard'
+                                )
+                            )
+                                <div class="mb-4">
+                                    <x-back-button
+                                        :href="$globalBackUrl"
+                                    />
+                                </div>
+                            @endunless
+
                             {{ $header }}
                         </div>
                     </header>
