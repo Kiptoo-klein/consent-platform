@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ConsentTemplate;
+use App\Models\OrganizationSubscription;
 use App\Models\SigningStation;
 use chillerlan\QRCode\QRCode;
 use Illuminate\Http\RedirectResponse;
@@ -130,6 +131,15 @@ class SigningStationController extends Controller
                 ->withErrors([
                     'consent_template_id' =>
                         'Select a published template enabled for public signing stations.',
+                ]);
+        }
+
+        if ($this->activeKioskLimitReached($organizationId)) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'subscription' =>
+                        'The active signing station limit for this subscription plan has been reached.',
                 ]);
         }
 
@@ -333,6 +343,18 @@ class SigningStationController extends Controller
     ): RedirectResponse {
         $this->authorizeStation($request, $signingStation);
 
+        if (
+            ! $signingStation->active
+            && $this->activeKioskLimitReached(
+                (int) $signingStation->organization_id
+            )
+        ) {
+            return back()->withErrors([
+                'subscription' =>
+                    'The active signing station limit for this subscription plan has been reached.',
+            ]);
+        }
+
         $signingStation->update([
             'active' => ! $signingStation->active,
         ]);
@@ -464,6 +486,35 @@ class SigningStationController extends Controller
         }
 
         return urldecode($encodedContent);
+    }
+
+    /**
+     * Determine whether the organization has used all active kiosk slots.
+     */
+    private function activeKioskLimitReached(
+        int $organizationId
+    ): bool {
+        $maximumActiveKiosks = OrganizationSubscription::query()
+            ->where('organization_id', $organizationId)
+            ->with('plan')
+            ->first()
+            ?->plan
+            ?->max_active_kiosks;
+
+        /*
+         * A missing subscription or plan limit is handled by the
+         * subscription-access layer rather than treated as a zero limit.
+         */
+        if ($maximumActiveKiosks === null) {
+            return false;
+        }
+
+        $activeKiosks = SigningStation::query()
+            ->where('organization_id', $organizationId)
+            ->where('active', true)
+            ->count();
+
+        return $activeKiosks >= (int) $maximumActiveKiosks;
     }
 
     private function authorizeStation(
