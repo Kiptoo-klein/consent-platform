@@ -12,6 +12,10 @@ Schedule::command('consents:expire')
     ->everyMinute()
     ->withoutOverlapping();
 
+Schedule::command('subscriptions:expire')
+    ->everyMinute()
+    ->withoutOverlapping();
+
 /* BEGIN CONSENT EMAIL REMINDERS */
 \Illuminate\Support\Facades\Schedule::command(
     'consent:send-reminders'
