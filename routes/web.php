@@ -708,6 +708,16 @@ Route::prefix('platform')
             ]
         )->name('organizations.subscription-invoices.issue');
 
+        Route::post(
+            '/organizations/{organization}/subscription-invoices/{subscriptionInvoice}/reminder-notifications/{subscriptionInvoiceNotification}/retry',
+            [
+                SubscriptionInvoiceController::class,
+                'retryReminder',
+            ]
+        )->name(
+            'organizations.subscription-invoices.reminder-notifications.retry'
+        );
+
         Route::get(
             '/organizations/{organization}/subscription-transactions',
             [

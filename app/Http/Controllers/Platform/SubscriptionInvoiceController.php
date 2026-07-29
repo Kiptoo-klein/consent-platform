@@ -6,7 +6,9 @@ use App\Enums\SubscriptionInvoiceStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
 use App\Models\SubscriptionInvoice;
+use App\Models\SubscriptionInvoiceNotification;
 use App\Services\ActivityLogger;
+use App\Services\SubscriptionInvoiceNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -292,6 +294,63 @@ class SubscriptionInvoiceController extends Controller
                     $subscriptionInvoice,
             ]
         );
+    }
+
+    /**
+     * Retry a failed subscription invoice reminder.
+     */
+    public function retryReminder(
+        Request $request,
+        Organization $organization,
+        SubscriptionInvoice $subscriptionInvoice,
+        SubscriptionInvoiceNotification $subscriptionInvoiceNotification,
+        SubscriptionInvoiceNotificationService $notificationService
+    ): RedirectResponse {
+        $this->ensureInvoiceBelongsToOrganization(
+            $subscriptionInvoice,
+            $organization
+        );
+
+        abort_unless(
+            (int) $subscriptionInvoiceNotification->organization_id
+                === (int) $organization->id
+            && (int) $subscriptionInvoiceNotification
+                ->subscription_invoice_id
+                === (int) $subscriptionInvoice->id,
+            404
+        );
+
+        $notification =
+            $notificationService->retryFailedReminder(
+                invoice:
+                    $subscriptionInvoice,
+
+                failedNotification:
+                    $subscriptionInvoiceNotification,
+
+                requestedByUserId:
+                    $request->user()->id
+            );
+
+        $redirect = redirect()->route(
+            'platform.organizations.subscription-invoices.show',
+            [
+                $organization,
+                $subscriptionInvoice,
+            ]
+        );
+
+        if ($notification->isSent()) {
+            return $redirect->with(
+                'success',
+                'Subscription invoice reminder sent successfully.'
+            );
+        }
+
+        return $redirect->withErrors([
+            'reminder' =>
+                'The subscription invoice reminder could not be delivered. Check the mail configuration and try again.',
+        ]);
     }
 
     /**
