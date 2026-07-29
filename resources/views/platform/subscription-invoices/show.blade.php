@@ -212,6 +212,17 @@
                 </section>
             @endif
 
+            @include(
+                'subscription-invoices.partials.reminder-history',
+                [
+                    'notifications' =>
+                        $invoice->reminderNotifications,
+
+                    'showFailureDetails' =>
+                        true,
+                ]
+            )
+
             <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 px-6 py-5">
                     <h2 class="text-lg font-semibold text-gray-900">

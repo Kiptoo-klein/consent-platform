@@ -248,8 +248,24 @@ class OrganizationBillingController extends Controller
             'subscription',
             'plan',
             'issuedBy',
+
             'transactions' => function ($query): void {
                 $query->latest('id');
+            },
+
+            'reminderNotifications' => function ($query): void {
+                $query
+                    ->select([
+                        'id',
+                        'subscription_invoice_id',
+                        'reminder_key',
+                        'status',
+                        'recipient_email',
+                        'created_at',
+                    ])
+                    ->orderByDesc('created_at')
+                    ->orderByDesc('id')
+                    ->limit(20);
             },
         ]);
 
