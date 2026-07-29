@@ -11,12 +11,27 @@
                 </p>
             </div>
 
-            <a
-                href="{{ route('profile.edit') }}"
-                class="text-sm font-semibold text-gray-600 transition hover:text-emerald-700 dark:text-gray-300"
-            >
-                Manage profile
-            </a>
+            <div class="flex flex-wrap items-center gap-4">
+                @if (
+                    $subscription
+                    && (int) $subscription->billing_owner_user_id
+                        === (int) auth()->id()
+                )
+                    <a
+                        href="{{ route('organization-billing.index') }}"
+                        class="text-sm font-semibold text-indigo-700 transition hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                    >
+                        Billing & Receipts
+                    </a>
+                @endif
+
+                <a
+                    href="{{ route('profile.edit') }}"
+                    class="text-sm font-semibold text-gray-600 transition hover:text-emerald-700 dark:text-gray-300"
+                >
+                    Manage profile
+                </a>
+            </div>
         </div>
     </x-slot>
 

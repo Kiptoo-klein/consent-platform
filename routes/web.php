@@ -10,6 +10,7 @@ use App\Http\Controllers\ConsentTemplateCategoryController;
 use App\Http\Controllers\ConsentTemplateController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrganizationBrandingController;
+use App\Http\Controllers\OrganizationBillingController;
 use App\Http\Controllers\OrganizationSubscriptionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicConsentSigningController;
@@ -194,6 +195,27 @@ Route::middleware([
         OrganizationSubscriptionController::class,
         'show',
     ])->name('organization-subscription.show');
+
+    Route::get('/subscription/billing', [
+        OrganizationBillingController::class,
+        'index',
+    ])->name('organization-billing.index');
+
+    Route::get(
+        '/subscription/billing/transactions/{subscriptionTransaction}',
+        [
+            OrganizationBillingController::class,
+            'show',
+        ]
+    )->name('organization-billing.receipts.show');
+
+    Route::get(
+        '/subscription/billing/transactions/{subscriptionTransaction}/download',
+        [
+            OrganizationBillingController::class,
+            'download',
+        ]
+    )->name('organization-billing.receipts.download');
 });
 
 /*
