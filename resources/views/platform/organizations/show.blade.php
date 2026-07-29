@@ -410,6 +410,199 @@
                         </form>
                     </div>
 
+                    <div class="border-t border-gray-200 p-6">
+                        <h3 class="text-base font-semibold text-gray-900">
+                            Subscription Lifecycle
+                        </h3>
+
+                        <p class="mt-1 text-sm text-gray-500">
+                            Suspend access temporarily, resume a valid
+                            subscription, or cancel it immediately or at the
+                            end of its current billing period.
+                        </p>
+
+                        <div class="mt-5 grid gap-5 lg:grid-cols-2">
+                            <div class="rounded-xl border border-amber-200 bg-amber-50 p-5">
+                                @if (
+                                    $subscription->status
+                                        === \App\Enums\OrganizationSubscriptionStatus::SUSPENDED
+                                )
+                                    <h4 class="font-semibold text-amber-950">
+                                        Resume Subscription
+                                    </h4>
+
+                                    <p class="mt-1 text-sm text-amber-900">
+                                        Resumption requires paid status and
+                                        lifecycle dates that have not expired.
+                                    </p>
+
+                                    <form
+                                        method="POST"
+                                        action="{{ route(
+                                            'platform.organizations.subscription-suspension.resume',
+                                            $organization
+                                        ) }}"
+                                        class="mt-4"
+                                    >
+                                        @csrf
+                                        @method('DELETE')
+
+                                        <button
+                                            type="submit"
+                                            class="inline-flex rounded-lg border border-green-700 bg-green-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-800"
+                                        >
+                                            Resume Subscription
+                                        </button>
+                                    </form>
+                                @else
+                                    <h4 class="font-semibold text-amber-950">
+                                        Suspend Subscription
+                                    </h4>
+
+                                    <p class="mt-1 text-sm text-amber-900">
+                                        Suspension blocks organization access
+                                        without changing payment, plan, users,
+                                        kiosks, consents, or billing dates.
+                                    </p>
+
+                                    <form
+                                        method="POST"
+                                        action="{{ route(
+                                            'platform.organizations.subscription-suspension.suspend',
+                                            $organization
+                                        ) }}"
+                                        class="mt-4"
+                                    >
+                                        @csrf
+                                        @method('PATCH')
+
+                                        <label
+                                            for="suspension_reason"
+                                            class="block text-sm font-semibold text-amber-950"
+                                        >
+                                            Suspension reason
+                                        </label>
+
+                                        <textarea
+                                            id="suspension_reason"
+                                            name="reason"
+                                            rows="3"
+                                            required
+                                            maxlength="2000"
+                                            class="mt-2 block w-full rounded-lg border-amber-300 bg-white shadow-sm focus:border-amber-600 focus:ring-amber-600"
+                                        >{{ old('reason') }}</textarea>
+
+                                        @error('subscription')
+                                            <p class="mt-2 text-sm font-medium text-red-700">
+                                                {{ $message }}
+                                            </p>
+                                        @enderror
+
+                                        <button
+                                            type="submit"
+                                            class="mt-4 inline-flex rounded-lg border border-amber-700 bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-800"
+                                        >
+                                            Suspend Subscription
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
+
+                            <div class="rounded-xl border border-red-200 bg-red-50 p-5">
+                                <h4 class="font-semibold text-red-950">
+                                    Cancel Subscription
+                                </h4>
+
+                                <p class="mt-1 text-sm text-red-900">
+                                    Immediate cancellation blocks access now.
+                                    Period-end cancellation keeps access until
+                                    the current paid period finishes.
+                                </p>
+
+                                <form
+                                    method="POST"
+                                    action="{{ route(
+                                        'platform.organizations.subscription-cancellation.update',
+                                        $organization
+                                    ) }}"
+                                    class="mt-4"
+                                >
+                                    @csrf
+                                    @method('PATCH')
+
+                                    <label
+                                        for="cancellation_mode"
+                                        class="block text-sm font-semibold text-red-950"
+                                    >
+                                        Cancellation timing
+                                    </label>
+
+                                    <select
+                                        id="cancellation_mode"
+                                        name="mode"
+                                        required
+                                        class="mt-2 block w-full rounded-lg border-red-300 bg-white shadow-sm focus:border-red-600 focus:ring-red-600"
+                                    >
+                                        <option
+                                            value="immediate"
+                                            @selected(old('mode') === 'immediate')
+                                        >
+                                            Cancel immediately
+                                        </option>
+
+                                        <option
+                                            value="period_end"
+                                            @selected(old('mode') === 'period_end')
+                                        >
+                                            Cancel at period end
+                                        </option>
+                                    </select>
+
+                                    @error('mode')
+                                        <p class="mt-2 text-sm font-medium text-red-700">
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+
+                                    <label
+                                        for="cancellation_reason"
+                                        class="mt-4 block text-sm font-semibold text-red-950"
+                                    >
+                                        Cancellation reason
+                                    </label>
+
+                                    <textarea
+                                        id="cancellation_reason"
+                                        name="reason"
+                                        rows="3"
+                                        required
+                                        maxlength="2000"
+                                        class="mt-2 block w-full rounded-lg border-red-300 bg-white shadow-sm focus:border-red-600 focus:ring-red-600"
+                                    >{{ old('reason') }}</textarea>
+
+                                    @error('reason')
+                                        <p class="mt-2 text-sm font-medium text-red-700">
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+
+                                    @error('subscription')
+                                        <p class="mt-2 text-sm font-medium text-red-700">
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+
+                                    <button
+                                        type="submit"
+                                        class="mt-4 inline-flex rounded-lg border border-red-700 bg-red-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-800"
+                                    >
+                                        Cancel Subscription
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
                     @if ($plan && ! empty($capacity))
                         <div class="border-t border-gray-200 p-6">
                             @if ($hasCapacityOverage)
