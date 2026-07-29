@@ -21,6 +21,7 @@ use App\Http\Controllers\EmailDiagnosticsController;
 use App\Http\Controllers\SecurityStatusController;
 use App\Http\Controllers\Platform\PlatformDashboardController;
 use App\Http\Controllers\Platform\OrganizationController;
+use App\Http\Controllers\Platform\SubscriptionInvoiceController;
 use App\Http\Controllers\Platform\SubscriptionTransactionController;
 use App\Http\Controllers\Platform\PlatformOrganizationUserController;
 use App\Http\Controllers\Platform\PlatformActivityLogController;
@@ -658,6 +659,38 @@ Route::prefix('platform')
                 'cancelSubscription',
             ]
         )->name('organizations.subscription-cancellation.update');
+
+        Route::get(
+            '/organizations/{organization}/subscription-invoices',
+            [
+                SubscriptionInvoiceController::class,
+                'index',
+            ]
+        )->name('organizations.subscription-invoices.index');
+
+        Route::post(
+            '/organizations/{organization}/subscription-invoices',
+            [
+                SubscriptionInvoiceController::class,
+                'store',
+            ]
+        )->name('organizations.subscription-invoices.store');
+
+        Route::get(
+            '/organizations/{organization}/subscription-invoices/{subscriptionInvoice}',
+            [
+                SubscriptionInvoiceController::class,
+                'show',
+            ]
+        )->name('organizations.subscription-invoices.show');
+
+        Route::patch(
+            '/organizations/{organization}/subscription-invoices/{subscriptionInvoice}/issue',
+            [
+                SubscriptionInvoiceController::class,
+                'issue',
+            ]
+        )->name('organizations.subscription-invoices.issue');
 
         Route::get(
             '/organizations/{organization}/subscription-transactions',

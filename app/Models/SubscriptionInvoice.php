@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
-use App\Enums\SubscriptionTransactionStatus;
-use App\Enums\SubscriptionTransactionType;
+use App\Enums\SubscriptionInvoiceStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class SubscriptionTransaction extends Model
+class SubscriptionInvoice extends Model
 {
     use HasFactory;
 
@@ -17,20 +17,21 @@ class SubscriptionTransaction extends Model
      */
     protected $fillable = [
         'organization_subscription_id',
-        'subscription_invoice_id',
         'organization_id',
         'subscription_plan_id',
-        'reference',
-        'type',
+        'invoice_number',
         'status',
-        'amount',
+        'issue_date',
+        'due_date',
+        'subtotal',
+        'tax_amount',
+        'total_amount',
         'currency',
-        'payment_method',
-        'paid_at',
-        'period_starts_at',
-        'period_ends_at',
         'notes',
-        'recorded_by_user_id',
+        'issued_by_user_id',
+        'paid_at',
+        'voided_at',
+        'cancelled_at',
     ];
 
     /**
@@ -39,12 +40,15 @@ class SubscriptionTransaction extends Model
     protected function casts(): array
     {
         return [
-            'type' => SubscriptionTransactionType::class,
-            'status' => SubscriptionTransactionStatus::class,
-            'amount' => 'decimal:2',
+            'status' => SubscriptionInvoiceStatus::class,
+            'issue_date' => 'date',
+            'due_date' => 'date',
+            'subtotal' => 'decimal:2',
+            'tax_amount' => 'decimal:2',
+            'total_amount' => 'decimal:2',
             'paid_at' => 'datetime',
-            'period_starts_at' => 'datetime',
-            'period_ends_at' => 'datetime',
+            'voided_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 
@@ -56,17 +60,11 @@ class SubscriptionTransaction extends Model
         );
     }
 
-    public function invoice(): BelongsTo
-    {
-        return $this->belongsTo(
-            SubscriptionInvoice::class,
-            'subscription_invoice_id'
-        );
-    }
-
     public function organization(): BelongsTo
     {
-        return $this->belongsTo(Organization::class);
+        return $this->belongsTo(
+            Organization::class
+        );
     }
 
     public function plan(): BelongsTo
@@ -77,11 +75,19 @@ class SubscriptionTransaction extends Model
         );
     }
 
-    public function recordedBy(): BelongsTo
+    public function issuedBy(): BelongsTo
     {
         return $this->belongsTo(
             User::class,
-            'recorded_by_user_id'
+            'issued_by_user_id'
+        );
+    }
+
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(
+            SubscriptionTransaction::class,
+            'subscription_invoice_id'
         );
     }
 }

@@ -86,6 +86,17 @@ class OrganizationSubscription extends Model
     }
 
     /**
+     * Subscription invoices issued to this organization.
+     */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(
+            SubscriptionInvoice::class,
+            'organization_subscription_id'
+        );
+    }
+
+    /**
      * Payment, renewal, refund, and adjustment history.
      */
     public function transactions(): HasMany

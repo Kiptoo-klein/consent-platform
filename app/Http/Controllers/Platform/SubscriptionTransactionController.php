@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Platform;
 
 use App\Enums\OrganizationSubscriptionStatus;
+use App\Enums\SubscriptionInvoiceStatus;
 use App\Enums\SubscriptionPaymentStatus;
 use App\Enums\SubscriptionTransactionStatus;
 use App\Enums\SubscriptionTransactionType;
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
 use App\Models\OrganizationSubscription;
+use App\Models\SubscriptionInvoice;
 use App\Models\SubscriptionTransaction;
 use App\Services\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
@@ -16,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class SubscriptionTransactionController extends Controller
@@ -42,11 +45,33 @@ class SubscriptionTransactionController extends Controller
                 $organization->id
             )
             ->with([
+                'invoice',
                 'plan',
                 'recordedBy',
             ])
             ->latest('id')
             ->paginate(20);
+
+        $outstandingInvoices =
+            SubscriptionInvoice::query()
+                ->where(
+                    'organization_id',
+                    $organization->id
+                )
+                ->where(
+                    'organization_subscription_id',
+                    $subscription->id
+                )
+                ->whereIn(
+                    'status',
+                    [
+                        SubscriptionInvoiceStatus::ISSUED->value,
+                        SubscriptionInvoiceStatus::OVERDUE->value,
+                    ]
+                )
+                ->orderBy('due_date')
+                ->orderBy('invoice_number')
+                ->get();
 
         return view(
             'platform.subscription-transactions.index',
@@ -54,6 +79,9 @@ class SubscriptionTransactionController extends Controller
                 'organization' => $organization,
                 'subscription' => $subscription,
                 'transactions' => $transactions,
+
+                'outstandingInvoices' =>
+                    $outstandingInvoices,
 
                 'transactionTypes' =>
                     SubscriptionTransactionType::cases(),
@@ -89,6 +117,15 @@ class SubscriptionTransactionController extends Controller
                 Rule::unique(
                     'subscription_transactions',
                     'reference'
+                ),
+            ],
+
+            'subscription_invoice_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(
+                    'subscription_invoices',
+                    'id'
                 ),
             ],
 
@@ -188,6 +225,18 @@ class SubscriptionTransactionController extends Controller
                 )
                 : null;
 
+        $invoiceId =
+            filled(
+                $validated['subscription_invoice_id']
+                    ?? null
+            )
+                ? (int) $validated['subscription_invoice_id']
+                : null;
+
+        $currency = strtoupper(
+            $validated['currency']
+        );
+
         DB::transaction(function () use (
             $request,
             $organization,
@@ -196,12 +245,30 @@ class SubscriptionTransactionController extends Controller
             $status,
             $paidAt,
             $periodStart,
-            $periodEnd
+            $periodEnd,
+            $invoiceId,
+            $currency
         ): void {
             $subscription = $organization
                 ->subscription()
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            $invoice = null;
+
+            if ($invoiceId !== null) {
+                $invoice = SubscriptionInvoice::query()
+                    ->whereKey($invoiceId)
+                    ->lockForUpdate()
+                    ->first();
+
+                $this->ensureInvoiceCanReceiveTransaction(
+                    $invoice,
+                    $organization,
+                    $subscription,
+                    $currency
+                );
+            }
 
             $oldSubscription =
                 $this->subscriptionSnapshot(
@@ -212,6 +279,9 @@ class SubscriptionTransactionController extends Controller
                 SubscriptionTransaction::query()->create([
                     'organization_subscription_id' =>
                         $subscription->id,
+
+                    'subscription_invoice_id' =>
+                        $invoice?->id,
 
                     'organization_id' =>
                         $organization->id,
@@ -232,9 +302,7 @@ class SubscriptionTransactionController extends Controller
                         $validated['amount'],
 
                     'currency' =>
-                        strtoupper(
-                            $validated['currency']
-                        ),
+                        $currency,
 
                     'payment_method' =>
                         filled(
@@ -309,6 +377,98 @@ class SubscriptionTransactionController extends Controller
             $subscription->refresh();
             $transaction->refresh();
 
+            if (
+                $invoice !== null
+                && $status
+                    === SubscriptionTransactionStatus::SUCCESSFUL
+                && in_array(
+                    $type,
+                    [
+                        SubscriptionTransactionType::PAYMENT,
+                        SubscriptionTransactionType::RENEWAL,
+                    ],
+                    true
+                )
+                && $invoice->status?->isOutstanding()
+            ) {
+                $paidTotal = $invoice
+                    ->transactions()
+                    ->where(
+                        'status',
+                        SubscriptionTransactionStatus::SUCCESSFUL
+                            ->value
+                    )
+                    ->whereIn(
+                        'type',
+                        [
+                            SubscriptionTransactionType::PAYMENT
+                                ->value,
+
+                            SubscriptionTransactionType::RENEWAL
+                                ->value,
+                        ]
+                    )
+                    ->sum('amount');
+
+                if (
+                    round((float) $paidTotal, 2)
+                        >= round(
+                            (float) $invoice->total_amount,
+                            2
+                        )
+                ) {
+                    $invoice->update([
+                        'status' =>
+                            SubscriptionInvoiceStatus::PAID,
+
+                        'paid_at' =>
+                            $paidAt ?? now(),
+                    ]);
+
+                    $invoice->refresh();
+
+                    $this->activityLogger->log(
+                        action:
+                            'organization.subscription_invoice_paid',
+
+                        description:
+                            'Subscription invoice marked as paid.',
+
+                        subject:
+                            $invoice,
+
+                        organizationId:
+                            $organization->id,
+
+                        properties: [
+                            'invoice_number' =>
+                                $invoice->invoice_number,
+
+                            'paid_total' =>
+                                number_format(
+                                    (float) $paidTotal,
+                                    2,
+                                    '.',
+                                    ''
+                                ),
+
+                            'total_amount' =>
+                                $invoice->total_amount,
+
+                            'currency' =>
+                                $invoice->currency,
+
+                            'paid_at' =>
+                                $invoice->paid_at
+                                    ?->toIso8601String(),
+
+                            'transaction_reference' =>
+                                $transaction->reference,
+                        ],
+                    );
+                }
+            }
+
             $this->activityLogger->log(
                 action:
                     'organization.subscription_transaction_recorded',
@@ -325,6 +485,12 @@ class SubscriptionTransactionController extends Controller
                 properties: [
                     'reference' =>
                         $transaction->reference,
+
+                    'subscription_invoice_id' =>
+                        $transaction->subscription_invoice_id,
+
+                    'invoice_number' =>
+                        $invoice?->invoice_number,
 
                     'type' =>
                         $transaction->type?->value,
@@ -407,6 +573,32 @@ class SubscriptionTransactionController extends Controller
                     $subscriptionTransaction,
             ]
         );
+    }
+
+    /**
+     * Validate a selected invoice before linking a transaction.
+     */
+    private function ensureInvoiceCanReceiveTransaction(
+        ?SubscriptionInvoice $invoice,
+        Organization $organization,
+        OrganizationSubscription $subscription,
+        string $currency
+    ): void {
+        $valid = $invoice !== null
+            && (int) $invoice->organization_id
+                === (int) $organization->id
+            && (int) $invoice->organization_subscription_id
+                === (int) $subscription->id
+            && $invoice->status?->isOutstanding()
+            && strtoupper($invoice->currency)
+                === $currency;
+
+        if (! $valid) {
+            throw ValidationException::withMessages([
+                'subscription_invoice_id' =>
+                    'The selected invoice is not eligible for this transaction.',
+            ]);
+        }
     }
 
     /**

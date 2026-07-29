@@ -172,6 +172,16 @@
                             @if ($subscription)
                                 <a
                                     href="{{ route(
+                                        'platform.organizations.subscription-invoices.index',
+                                        $organization
+                                    ) }}"
+                                    class="inline-flex rounded-lg border border-indigo-700 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50"
+                                >
+                                    Invoices
+                                </a>
+
+                                <a
+                                    href="{{ route(
                                         'platform.organizations.subscription-transactions.index',
                                         $organization
                                     ) }}"
