@@ -39,10 +39,16 @@ class OrganizationController extends Controller
      */
     public function show(Organization $organization): View
     {
-        $organization->loadCount([
-            'users',
-            'consentTemplates',
-        ]);
+        $organization
+            ->load([
+                'subscription.plan',
+                'subscription.billingOwner',
+                'subscription.bypassApprover',
+            ])
+            ->loadCount([
+                'users',
+                'consentTemplates',
+            ]);
 
         return view('platform.organizations.show', compact('organization'));
     }
@@ -134,6 +140,70 @@ class OrganizationController extends Controller
         return redirect()
             ->route('platform.organizations.show', $organization)
             ->with('success', 'Organization updated successfully.');
+    }
+
+    /**
+     * Allow an organization to operate without confirmed payment.
+     */
+    public function approveSubscriptionBypass(
+        Request $request,
+        Organization $organization
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'reason' => [
+                'required',
+                'string',
+                'max:2000',
+            ],
+        ]);
+
+        $subscription = $organization
+            ->subscription()
+            ->firstOrFail();
+
+        $subscription->update([
+            'bypass_approved_at' => now(),
+            'bypass_approved_by_user_id' =>
+                $request->user()->id,
+            'bypass_reason' => trim($validated['reason']),
+        ]);
+
+        return redirect()
+            ->route(
+                'platform.organizations.show',
+                $organization
+            )
+            ->with(
+                'success',
+                'Organization subscription bypass approved.'
+            );
+    }
+
+    /**
+     * Remove an organization's payment bypass.
+     */
+    public function revokeSubscriptionBypass(
+        Organization $organization
+    ): RedirectResponse {
+        $subscription = $organization
+            ->subscription()
+            ->firstOrFail();
+
+        $subscription->update([
+            'bypass_approved_at' => null,
+            'bypass_approved_by_user_id' => null,
+            'bypass_reason' => null,
+        ]);
+
+        return redirect()
+            ->route(
+                'platform.organizations.show',
+                $organization
+            )
+            ->with(
+                'success',
+                'Organization subscription bypass revoked.'
+            );
     }
 
     /**

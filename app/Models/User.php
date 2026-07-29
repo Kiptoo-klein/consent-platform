@@ -5,6 +5,8 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -76,5 +78,30 @@ class User extends Authenticatable
     public function platformRole(): BelongsTo
     {
         return $this->belongsTo(PlatformRole::class);
+    }
+
+    /**
+     * The organization subscription owned by this Organization Admin.
+     */
+    public function billingSubscription(): HasOne
+    {
+        return $this->hasOne(
+            OrganizationSubscription::class,
+            'billing_owner_user_id'
+        );
+    }
+
+    /**
+     * Subscription bypasses approved by this Platform Admin.
+     *
+     * This relationship is for audit history and does not subject
+     * Platform Admins to organization subscription restrictions.
+     */
+    public function subscriptionBypassApprovals(): HasMany
+    {
+        return $this->hasMany(
+            OrganizationSubscription::class,
+            'bypass_approved_by_user_id'
+        );
     }
 }

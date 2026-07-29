@@ -2616,13 +2616,13 @@ from analytics statistic cards.
 */
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > div,
+main .analytics-summary-grid > div,
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > article,
+main .analytics-summary-grid > article,
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > section {
+main .analytics-summary-grid > section {
     position: relative !important;
     overflow: hidden !important;
     border: 1px solid #dfe6e3 !important;
@@ -2640,22 +2640,22 @@ main .grid > section {
 /* Remove decorative stripes and pseudo-elements. */
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > div::before,
+main .analytics-summary-grid > div::before,
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > div::after,
+main .analytics-summary-grid > div::after,
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > article::before,
+main .analytics-summary-grid > article::before,
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > article::after,
+main .analytics-summary-grid > article::after,
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > section::before,
+main .analytics-summary-grid > section::before,
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid > section::after {
+main .analytics-summary-grid > section::after {
     display: none !important;
     background: transparent !important;
     content: none !important;
@@ -2664,13 +2664,13 @@ main .grid > section::after {
 /* Remove nested colored backgrounds from the cards. */
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid div[class*="bg-"]:not(.rounded-full),
+main .analytics-summary-grid div[class*="bg-"]:not(.rounded-full),
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid article[class*="bg-"],
+main .analytics-summary-grid article[class*="bg-"],
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid section[class*="bg-"] {
+main .analytics-summary-grid section[class*="bg-"] {
     border-color: transparent !important;
     background: transparent !important;
     background-color: transparent !important;
@@ -2681,7 +2681,7 @@ main .grid section[class*="bg-"] {
 /* Give every statistic icon the same subtle professional appearance. */
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid .rounded-full[class*="bg-"] {
+main .analytics-summary-grid .rounded-full[class*="bg-"] {
     border: 1px solid #cfe0db !important;
     background: #edf6f3 !important;
     background-color: #edf6f3 !important;
@@ -2691,29 +2691,29 @@ main .grid .rounded-full[class*="bg-"] {
 }
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid .rounded-full[class*="bg-"] svg {
+main .analytics-summary-grid .rounded-full[class*="bg-"] svg {
     color: #0f766e !important;
 }
 
 /* Normalize statistic numbers and colored labels. */
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid [class*="text-green-"],
+main .analytics-summary-grid [class*="text-green-"],
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid [class*="text-blue-"],
+main .analytics-summary-grid [class*="text-blue-"],
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid [class*="text-purple-"],
+main .analytics-summary-grid [class*="text-purple-"],
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid [class*="text-yellow-"],
+main .analytics-summary-grid [class*="text-yellow-"],
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid [class*="text-orange-"],
+main .analytics-summary-grid [class*="text-orange-"],
 
 body.econsent-app[data-path="signing-stations/analytics"]
-main .grid [class*="text-red-"] {
+main .analytics-summary-grid [class*="text-red-"] {
     color: #0f766e !important;
 }
 
@@ -3219,3 +3219,266 @@ main [class*="text-amber-"] {
         transition: none !important;
     }
 }
+
+/* CONTENT_RIGHT_ASIDE_BACKGROUND_FIX
+   Content-page asides must not inherit the navigation sidebar surface. */
+body.econsent-app[data-path*="consent-record"] main aside,
+body.econsent-app[data-path*="organization"][data-path*="branding"] main aside {
+    border-color: transparent !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+}
+
+/* KIOSK_EMAIL_IDENTITY_PANEL_BORDER */
+.econsent-app main .kiosk-email-identity-panel {
+    border: 2px solid #0b5f58 !important;
+    border-left: 9px solid #064e49 !important;
+    background:
+        linear-gradient(
+            90deg,
+            rgba(6, 78, 73, 0.13),
+            rgba(255, 255, 255, 0.98) 5rem
+        ) !important;
+    box-shadow:
+        0 0 0 3px rgba(6, 78, 73, 0.10),
+        0 8px 24px rgba(24, 24, 27, 0.09) !important;
+}
+
+/* ANALYTICS_INFORMATION_COLORS
+   Restore meaningful status colors removed by the old neutral analytics theme. */
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-metric-card {
+    border-width: 1px !important;
+    border-left-width: 6px !important;
+    background-image: none !important;
+    box-shadow:
+        0 1px 2px rgba(24, 24, 27, 0.04),
+        0 8px 22px rgba(24, 24, 27, 0.06) !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-metric-total {
+    border-color: #d4d4d8 !important;
+    border-left-color: #18181b !important;
+    background: #fafafa !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-metric-completed {
+    border-color: #bbf7d0 !important;
+    border-left-color: #22c55e !important;
+    background: #f0fdf4 !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-metric-abandoned {
+    border-color: #fde68a !important;
+    border-left-color: #f59e0b !important;
+    background: #fffbeb !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-metric-cancelled {
+    border-color: #fecaca !important;
+    border-left-color: #ef4444 !important;
+    background: #fef2f2 !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-metric-active {
+    border-color: #bfdbfe !important;
+    border-left-color: #3b82f6 !important;
+    background: #eff6ff !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-metric-stale {
+    border-color: #fecdd3 !important;
+    border-left-color: #f43f5e !important;
+    background: #fff1f2 !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-metric-time {
+    border-color: #bfdbfe !important;
+    border-left-color: #3b82f6 !important;
+    background: #eff6ff !important;
+}
+
+/* Strong, readable metric text. */
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-metric-total > p:first-child,
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-metric-total .text-3xl {
+    color: #18181b !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-summary-grid
+.analytics-metric-completed p,
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-summary-grid
+.analytics-metric-completed .text-3xl {
+    color: #16a34a !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-summary-grid
+.analytics-metric-abandoned p,
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-summary-grid
+.analytics-metric-abandoned .text-3xl {
+    color: #f59e0b !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-metric-cancelled > p:first-child,
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-metric-cancelled .text-3xl {
+    color: #dc2626 !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-metric-active p {
+    color: #2563eb !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-metric-stale p {
+    color: #e11d48 !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-metric-time > p:first-child,
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-metric-time .text-3xl {
+    color: #2563eb !important;
+}
+
+/* Main analytics information panels. */
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-daily-card {
+    border: 1px solid #99f6e4 !important;
+    border-top: 5px solid #14b8a6 !important;
+    background: #ffffff !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-abandonment-card {
+    border: 1px solid #fde68a !important;
+    border-top: 5px solid #f59e0b !important;
+    background: #fffdf7 !important;
+}
+
+/* Restore the activity legend dots and chart bars. */
+body.econsent-app[data-path="signing-stations/analytics"]
+main .bg-emerald-500 {
+    background: #10b981 !important;
+    background-color: #10b981 !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .bg-amber-500 {
+    background: #f59e0b !important;
+    background-color: #f59e0b !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .bg-gray-400 {
+    background: #ef4444 !important;
+    background-color: #ef4444 !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-daily-card .bg-gray-100,
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-abandonment-card .bg-gray-100 {
+    background: #e5e7eb !important;
+    background-color: #e5e7eb !important;
+}
+
+/* Preserve the explanatory timeout note. */
+body.econsent-app[data-path="signing-stations/analytics"]
+main .analytics-timeout-note {
+    border-color: #93c5fd !important;
+    background: #eff6ff !important;
+    background-color: #eff6ff !important;
+    color: #1e3a8a !important;
+    box-shadow: none !important;
+}
+
+/* Add color to the performance table without reducing readability. */
+body.econsent-app[data-path="signing-stations/analytics"]
+main table thead {
+    background: #f0fdfa !important;
+    background-color: #f0fdfa !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main table .text-emerald-700 {
+    color: #16a34a !important;
+    font-weight: 700 !important;
+}
+
+body.econsent-app[data-path="signing-stations/analytics"]
+main table .text-amber-700 {
+    color: #b45309 !important;
+    font-weight: 700 !important;
+}
+
+/* ORGANIZATION_BRANDING_COLOR_PICKER_FIT */
+.econsent-app main input.branding-color-picker {
+    flex: 0 0 3.5rem;
+    overflow: hidden;
+    padding: 0 !important;
+    border-color: #d1d5db !important;
+    background: #ffffff !important;
+    box-shadow:
+        0 1px 2px rgba(24, 24, 27, 0.04),
+        0 6px 16px rgba(24, 24, 27, 0.06) !important;
+}
+
+.econsent-app main input.branding-color-picker::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.econsent-app main input.branding-color-picker::-webkit-color-swatch {
+    border: 0;
+    border-radius: 0.65rem;
+}
+
+.econsent-app main input.branding-color-picker::-moz-color-swatch {
+    border: 0;
+    border-radius: 0.65rem;
+}
+
+/* SECURITY_DEVELOPMENT_NOTICE */
+.econsent-app main .security-development-notice {
+    border: 1px solid #fbbf24 !important;
+    border-left: 7px solid #d97706 !important;
+    background:
+        linear-gradient(
+            135deg,
+            #fffbeb 0%,
+            #fef3c7 100%
+        ) !important;
+    color: #3f3f46 !important;
+    box-shadow:
+        0 1px 2px rgba(24, 24, 27, 0.04),
+        0 10px 24px rgba(217, 119, 6, 0.10) !important;
+}
+
+.econsent-app main .security-development-notice p:first-child {
+    color: #92400e !important;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.econsent-app main .security-development-notice p:last-child {
+    color: #3f3f46 !important;
+    font-weight: 500;
+}
+

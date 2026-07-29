@@ -70,7 +70,7 @@
                     </div>
 
                     @if (! $isProduction)
-                        <div class="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
+                        <div class="security-development-notice rounded-2xl border p-5">
                             <p class="font-semibold">
                                 Development environment
                             </p>

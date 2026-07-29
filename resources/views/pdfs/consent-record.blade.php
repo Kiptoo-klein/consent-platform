@@ -91,22 +91,24 @@
 
         .brand-logo-wrap {
             display: inline-block;
-            width: 56px;
-            height: 42px;
+            overflow: hidden;
+            width: 52px;
+            height: 52px;
             margin-right: 10px;
+            border-radius: 4px;
             vertical-align: top;
         }
 
         .brand-logo {
             display: block;
-            max-width: 56px;
-            max-height: 42px;
+            width: 52px;
+            height: 52px;
         }
 
         .brand-copy {
             display: inline-block;
             vertical-align: top;
-            padding-top: 1px;
+            padding-top: 5px;
         }
 
         .organization-name {
@@ -227,17 +229,28 @@
         }
 
         .section-number {
-            display: inline-block;
+            display: inline-table;
             width: 22px;
             height: 22px;
-            line-height: 22px;
             margin-right: 8px;
+            padding: 0;
             border-radius: 11px;
             background: {{ $pdfPrimaryColor }};
             color: #ffffff;
-            text-align: center;
-            font-size: 8px;
+            font-size: 9px;
             font-weight: bold;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .section-number > span {
+            display: table-cell;
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            line-height: 1;
+            text-align: center;
+            vertical-align: middle;
         }
 
         .section-title {
@@ -540,6 +553,85 @@
                         }
                     }
 
+                    /*
+                     * Create a square thumbnail before embedding the logo.
+                     * This lets portrait and landscape images fill the
+                     * dedicated PDF logo frame without distortion.
+                     */
+                    if (
+                        $logoMime !== null
+                        && is_string($logoBytes)
+                        && $logoBytes !== ''
+                        && function_exists('imagecreatefromstring')
+                        && function_exists('imagecreatetruecolor')
+                    ) {
+                        $sourceLogo = @imagecreatefromstring($logoBytes);
+
+                        if ($sourceLogo !== false) {
+                            $sourceWidth = imagesx($sourceLogo);
+                            $sourceHeight = imagesy($sourceLogo);
+                            $cropSize = min($sourceWidth, $sourceHeight);
+
+                            $sourceX = (int) floor(
+                                ($sourceWidth - $cropSize) / 2
+                            );
+
+                            $sourceY = (int) floor(
+                                ($sourceHeight - $cropSize) / 2
+                            );
+
+                            $squareLogo = imagecreatetruecolor(160, 160);
+
+                            imagealphablending($squareLogo, false);
+                            imagesavealpha($squareLogo, true);
+
+                            $transparent = imagecolorallocatealpha(
+                                $squareLogo,
+                                255,
+                                255,
+                                255,
+                                127
+                            );
+
+                            imagefilledrectangle(
+                                $squareLogo,
+                                0,
+                                0,
+                                159,
+                                159,
+                                $transparent
+                            );
+
+                            imagecopyresampled(
+                                $squareLogo,
+                                $sourceLogo,
+                                0,
+                                0,
+                                $sourceX,
+                                $sourceY,
+                                160,
+                                160,
+                                $cropSize,
+                                $cropSize
+                            );
+
+                            ob_start();
+                            imagepng($squareLogo);
+                            $squareLogoBytes = ob_get_clean();
+
+                            imagedestroy($squareLogo);
+                            imagedestroy($sourceLogo);
+
+                            if (
+                                is_string($squareLogoBytes)
+                                && $squareLogoBytes !== ''
+                            ) {
+                                $logoBytes = $squareLogoBytes;
+                                $logoMime = 'image/png';
+                            }
+                        }
+                    }
+
                     if (
                         $logoMime !== null
                         && is_string($logoBytes)
@@ -714,7 +806,9 @@
 
     <div class="section">
         <div class="section-heading">
-            <span class="section-number">1</span>
+            <span class="section-number">
+                <span>1</span>
+            </span>
             <span class="section-title">Consent presented</span>
             <div class="section-note">
                 The exact consent text from the published template version
@@ -735,7 +829,9 @@
 
     <div class="section page-break-avoid">
         <div class="section-heading">
-            <span class="section-number">2</span>
+            <span class="section-number">
+                <span>2</span>
+            </span>
             <span class="section-title">Signer information</span>
             <div class="section-note">
                 Identity information supplied for this consent record.
@@ -775,7 +871,9 @@
     @if (count($responseEvidence) > 0)
         <div class="section">
             <div class="section-heading">
-                <span class="section-number">3</span>
+                <span class="section-number">
+                    <span>3</span>
+                </span>
                 <span class="section-title">Recorded responses</span>
                 <div class="section-note">
                     Additional information and acknowledgements supplied by
@@ -806,7 +904,7 @@
     <div class="section page-break-avoid">
         <div class="section-heading">
             <span class="section-number">
-                {{ count($responseEvidence) > 0 ? '4' : '3' }}
+                <span>{{ count($responseEvidence) > 0 ? '4' : '3' }}</span>
             </span>
             <span class="section-title">Consent declaration and signature</span>
             <div class="section-note">

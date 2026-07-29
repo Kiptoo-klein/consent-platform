@@ -104,6 +104,42 @@
                             @endforeach
                         </select>
 
+                        {{-- ORGANIZATION_ROLE_GUIDE --}}
+                        @if ($roles->isNotEmpty())
+                            <div class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                                <p class="text-sm font-semibold text-gray-900">
+                                    Role guide
+                                </p>
+
+                                <p class="mt-1 text-xs leading-5 text-gray-500">
+                                    Higher roles include the access provided by
+                                    the roles below them.
+                                </p>
+
+                                <div class="mt-4 space-y-3">
+                                    @foreach (
+                                        \App\Enums\OrganizationRole::ordered()
+                                        as $roleDetails
+                                    )
+                                        <div class="rounded-lg border border-gray-200 bg-white px-4 py-3">
+                                            <p class="text-sm font-semibold text-gray-900">
+                                                {{ $roleDetails->label() }}
+                                            </p>
+
+                                            <p class="mt-1 text-xs font-medium text-teal-700">
+                                                Example:
+                                                {{ $roleDetails->example() }}
+                                            </p>
+
+                                            <p class="mt-2 text-sm leading-6 text-gray-600">
+                                                {{ $roleDetails->description() }}
+                                            </p>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
                         @if ($roles->isEmpty())
                             <p class="mt-2 text-sm text-red-700">
                                 No organization roles are currently available.

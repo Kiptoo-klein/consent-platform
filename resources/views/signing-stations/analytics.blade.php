@@ -132,44 +132,44 @@
                 @endif
             </div>
 
-            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <div class="analytics-summary-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div class="analytics-metric-card analytics-metric-total rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
                     <p class="text-sm font-medium text-gray-500">Total kiosk flows</p>
                     <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{{ number_format($metrics['total']) }}</p>
                     <p class="mt-1 text-xs text-gray-500">Review attempts in the selected period</p>
                 </div>
 
-                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-                    <p class="text-sm font-medium text-emerald-700 dark:text-emerald-300">Completed</p>
+                <div class="analytics-metric-card analytics-metric-completed rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+                    <p class="text-sm font-medium text-emerald-700">Completed</p>
                     <p class="mt-2 text-3xl font-bold text-emerald-900 dark:text-emerald-100">{{ number_format($metrics['completed']) }}</p>
                     <p class="mt-1 text-xs text-emerald-700 dark:text-emerald-300">{{ number_format($metrics['completion_rate'], 1) }}% completion rate</p>
                 </div>
 
-                <div class="rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-900 dark:bg-amber-950/30">
-                    <p class="text-sm font-medium text-amber-700 dark:text-amber-300">Abandoned by timeout</p>
+                <div class="analytics-metric-card analytics-metric-abandoned rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+                    <p class="text-sm font-medium text-amber-700">Abandoned by timeout</p>
                     <p class="mt-2 text-3xl font-bold text-amber-900 dark:text-amber-100">{{ number_format($metrics['abandoned']) }}</p>
                     <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">{{ number_format($metrics['abandonment_rate'], 1) }}% abandonment rate</p>
                 </div>
 
-                <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <div class="analytics-metric-card analytics-metric-cancelled rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
                     <p class="text-sm font-medium text-gray-500">Manually cancelled</p>
                     <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{{ number_format($metrics['cancelled']) }}</p>
                     <p class="mt-1 text-xs text-gray-500">Explicit cancellation rather than inactivity</p>
                 </div>
 
-                <div class="rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm dark:border-blue-900 dark:bg-blue-950/30">
-                    <p class="text-sm font-medium text-blue-700 dark:text-blue-300">Currently active</p>
+                <div class="analytics-metric-card analytics-metric-active rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
+                    <p class="text-sm font-medium text-blue-700">Currently active</p>
                     <p class="mt-2 text-3xl font-bold text-blue-900 dark:text-blue-100">{{ number_format($metrics['active']) }}</p>
                     <p class="mt-1 text-xs text-blue-700 dark:text-blue-300">Reviewing, entering details, or signing</p>
                 </div>
 
-                <div class="rounded-xl border border-rose-200 bg-rose-50 p-5 shadow-sm dark:border-rose-900 dark:bg-rose-950/30">
-                    <p class="text-sm font-medium text-rose-700 dark:text-rose-300">Potential stale flows</p>
+                <div class="analytics-metric-card analytics-metric-stale rounded-xl border border-rose-200 bg-rose-50 p-5 shadow-sm">
+                    <p class="text-sm font-medium text-rose-700">Potential stale flows</p>
                     <p class="mt-2 text-3xl font-bold text-rose-900 dark:text-rose-100">{{ number_format($metrics['stale_active']) }}</p>
                     <p class="mt-1 text-xs text-rose-700 dark:text-rose-300">No server activity for over 10 minutes</p>
                 </div>
 
-                <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:col-span-2">
+                <div class="analytics-metric-card analytics-metric-time rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:col-span-2">
                     <p class="text-sm font-medium text-gray-500">Average completion time</p>
                     <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
                         {{ $formatDuration($metrics['average_completion_seconds']) }}
@@ -179,7 +179,7 @@
             </div>
 
             <div class="grid gap-6 lg:grid-cols-3">
-                <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 lg:col-span-2">
+                <div class="analytics-daily-card rounded-xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Daily activity</h3>
@@ -193,7 +193,7 @@
                     </div>
 
                     <div class="mt-6 max-h-[34rem] space-y-3 overflow-y-auto pr-2">
-                        @foreach ($dailyTrends as $day)
+                        @foreach (array_reverse($dailyTrends) as $day)
                             <div class="grid grid-cols-[4.5rem_1fr_3rem] items-center gap-3 text-sm">
                                 <span class="text-gray-500">{{ $day['label'] }}</span>
                                 <div class="space-y-1">
@@ -213,8 +213,8 @@
                     </div>
                 </div>
 
-                <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Abandonment stage</h3>
+                <div class="analytics-abandonment-card rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                    <h3 class="text-lg font-semibold text-gray-900">Abandonment stage</h3>
                     <p class="mt-1 text-sm text-gray-500">Where inactivity timeouts happened.</p>
 
                     <div class="mt-6 space-y-4">
@@ -241,7 +241,7 @@
                         @endforeach
                     </div>
 
-                    <div class="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+                    <div class="analytics-timeout-note mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
                         A timeout is counted as abandoned only when the kiosk sends its two-minute inactivity cancellation. Older cancellations remain classified as historical/manual cancellations.
                     </div>
                 </div>

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Organization extends Model
 {
@@ -41,6 +42,14 @@ class Organization extends Model
     public function consentTemplates(): HasMany
     {
         return $this->hasMany(ConsentTemplate::class);
+    }
+
+    /**
+     * The organization's current subscription.
+     */
+    public function subscription(): HasOne
+    {
+        return $this->hasOne(OrganizationSubscription::class);
     }
 }
 

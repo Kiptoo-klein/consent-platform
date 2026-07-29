@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
@@ -139,14 +140,39 @@ class PlatformOrganizationUserController extends Controller
             $validated,
             $organization
         ): void {
-            $user = User::create([
-                'organization_id' => $organization->id,
-                'platform_role_id' => null,
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-                'password' => $validated['password'],
-                'is_active' => true,
-            ]);
+            /*
+             * Serialize user creation for this organization so concurrent
+             * requests cannot exceed the subscription seat limit.
+             */
+            Organization::query()
+                ->whereKey($organization->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $subscription = $organization
+                ->subscription()
+                ->with('plan')
+                ->first();
+
+            $maximumUsers = $subscription?->plan?->max_users;
+            $currentUsers = $organization->users()->count();
+
+            /*
+             * Disabled users still occupy seats. Soft-deleted users are
+             * excluded automatically by the User model's SoftDeletes scope.
+             */
+            if (
+                $maximumUsers !== null
+                && $currentUsers >= $maximumUsers
+            ) {
+                throw ValidationException::withMessages([
+                    'subscription' =>
+                        "This organization has reached its "
+                        ."{$maximumUsers}-user subscription limit. "
+                        .'Archive a user or upgrade the subscription '
+                        .'before adding another user.',
+                ]);
+            }
 
             app(PermissionRegistrar::class)
                 ->setPermissionsTeamId($organization->id);
@@ -155,6 +181,159 @@ class PlatformOrganizationUserController extends Controller
                 ->where('organization_id', $organization->id)
                 ->where('guard_name', 'web')
                 ->findOrFail($validated['role_id']);
+
+            $maximumStaff = $subscription?->plan?->max_staff;
+
+            if (
+                $role->name === 'Staff'
+                && $maximumStaff !== null
+            ) {
+                /*
+                 * Disabled Staff users still occupy role seats. Archived
+                 * users are excluded by the User model's SoftDeletes scope.
+                 */
+                $currentStaff = User::query()
+                    ->where(
+                        'users.organization_id',
+                        $organization->id
+                    )
+                    ->whereHas(
+                        'roles',
+                        function ($query) use ($organization): void {
+                            $query
+                                ->where(
+                                    'roles.organization_id',
+                                    $organization->id
+                                )
+                                ->where(
+                                    'roles.guard_name',
+                                    'web'
+                                )
+                                ->where(
+                                    'roles.name',
+                                    'Staff'
+                                );
+                        }
+                    )
+                    ->count();
+
+                if ($currentStaff >= $maximumStaff) {
+                    throw ValidationException::withMessages([
+                        'subscription' =>
+                            'This organization has reached its Staff '
+                            ."role limit of {$maximumStaff}. "
+                            .'Archive a Staff user or upgrade the '
+                            .'subscription before adding another.',
+                    ]);
+                }
+            }
+
+            $maximumConsentManagers =
+                $subscription?->plan?->max_consent_managers;
+
+            if (
+                $role->name === 'Consent Manager'
+                && $maximumConsentManagers !== null
+            ) {
+                /*
+                 * Disabled Consent Managers still occupy role seats.
+                 * Archived users are excluded by the SoftDeletes scope.
+                 */
+                $currentConsentManagers = User::query()
+                    ->where(
+                        'users.organization_id',
+                        $organization->id
+                    )
+                    ->whereHas(
+                        'roles',
+                        function ($query) use ($organization): void {
+                            $query
+                                ->where(
+                                    'roles.organization_id',
+                                    $organization->id
+                                )
+                                ->where(
+                                    'roles.guard_name',
+                                    'web'
+                                )
+                                ->where(
+                                    'roles.name',
+                                    'Consent Manager'
+                                );
+                        }
+                    )
+                    ->count();
+
+                if (
+                    $currentConsentManagers
+                    >= $maximumConsentManagers
+                ) {
+                    throw ValidationException::withMessages([
+                        'subscription' =>
+                            'This organization has reached its Consent '
+                            .'Manager role limit of '
+                            ."{$maximumConsentManagers}. "
+                            .'Archive a Consent Manager or upgrade the '
+                            .'subscription before adding another.',
+                    ]);
+                }
+            }
+
+            $maximumAuditors =
+                $subscription?->plan?->max_auditors;
+
+            if (
+                $role->name === 'Auditor'
+                && $maximumAuditors !== null
+            ) {
+                /*
+                 * Disabled Auditors still occupy role seats. Archived users
+                 * are excluded by the User model's SoftDeletes scope.
+                 */
+                $currentAuditors = User::query()
+                    ->where(
+                        'users.organization_id',
+                        $organization->id
+                    )
+                    ->whereHas(
+                        'roles',
+                        function ($query) use ($organization): void {
+                            $query
+                                ->where(
+                                    'roles.organization_id',
+                                    $organization->id
+                                )
+                                ->where(
+                                    'roles.guard_name',
+                                    'web'
+                                )
+                                ->where(
+                                    'roles.name',
+                                    'Auditor'
+                                );
+                        }
+                    )
+                    ->count();
+
+                if ($currentAuditors >= $maximumAuditors) {
+                    throw ValidationException::withMessages([
+                        'subscription' =>
+                            'This organization has reached its Auditor '
+                            ."role limit of {$maximumAuditors}. "
+                            .'Archive an Auditor or upgrade the '
+                            .'subscription before adding another.',
+                    ]);
+                }
+            }
+
+            $user = User::create([
+                'organization_id' => $organization->id,
+                'platform_role_id' => null,
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+                'is_active' => true,
+            ]);
 
             $user->assignRole($role);
 
@@ -316,6 +495,145 @@ class PlatformOrganizationUserController extends Controller
             $user,
             $newRole
         ): void {
+            /*
+             * Serialize role changes so concurrent requests cannot exceed
+             * the organization's subscription role limits.
+             */
+            Organization::query()
+                ->whereKey($organization->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            app(PermissionRegistrar::class)
+                ->setPermissionsTeamId($organization->id);
+
+            $currentRole = $user
+                ->roles()
+                ->where(
+                    'roles.organization_id',
+                    $organization->id
+                )
+                ->where('roles.guard_name', 'web')
+                ->first();
+
+            /*
+             * A role limit is consumed only when moving into that role.
+             * Editing a user who is already Staff must remain allowed.
+             */
+            if (
+                $newRole->name === 'Staff'
+                && $currentRole?->id !== $newRole->id
+            ) {
+                $subscription = $organization
+                    ->subscription()
+                    ->with('plan')
+                    ->first();
+
+                $maximumStaff =
+                    $subscription?->plan?->max_staff;
+
+                if ($maximumStaff !== null) {
+                    $currentStaff = User::query()
+                        ->where(
+                            'users.organization_id',
+                            $organization->id
+                        )
+                        ->whereHas(
+                            'roles',
+                            function ($query) use ($organization): void {
+                                $query
+                                    ->where(
+                                        'roles.organization_id',
+                                        $organization->id
+                                    )
+                                    ->where(
+                                        'roles.guard_name',
+                                        'web'
+                                    )
+                                    ->where(
+                                        'roles.name',
+                                        'Staff'
+                                    );
+                            }
+                        )
+                        ->count();
+
+                    if ($currentStaff >= $maximumStaff) {
+                        throw ValidationException::withMessages([
+                            'subscription' =>
+                                'This organization has reached its Staff '
+                                ."role limit of {$maximumStaff}. "
+                                .'Archive a Staff user or upgrade the '
+                                .'subscription before changing this role.',
+                        ]);
+                    }
+                }
+            }
+
+            /*
+             * A role limit is consumed only when moving into the
+             * Consent Manager role. Editing an existing Consent Manager
+             * must remain allowed.
+             */
+            if (
+                $newRole->name === 'Consent Manager'
+                && $currentRole?->id !== $newRole->id
+            ) {
+                $subscription = $organization
+                    ->subscription()
+                    ->with('plan')
+                    ->first();
+
+                $maximumConsentManagers =
+                    $subscription?->plan?->max_consent_managers;
+
+                if ($maximumConsentManagers !== null) {
+                    /*
+                     * Disabled Consent Managers still occupy role seats.
+                     * Archived users are excluded by the User model's
+                     * SoftDeletes scope.
+                     */
+                    $currentConsentManagers = User::query()
+                        ->where(
+                            'users.organization_id',
+                            $organization->id
+                        )
+                        ->whereHas(
+                            'roles',
+                            function ($query) use ($organization): void {
+                                $query
+                                    ->where(
+                                        'roles.organization_id',
+                                        $organization->id
+                                    )
+                                    ->where(
+                                        'roles.guard_name',
+                                        'web'
+                                    )
+                                    ->where(
+                                        'roles.name',
+                                        'Consent Manager'
+                                    );
+                            }
+                        )
+                        ->count();
+
+                    if (
+                        $currentConsentManagers
+                        >= $maximumConsentManagers
+                    ) {
+                        throw ValidationException::withMessages([
+                            'subscription' =>
+                                'This organization has reached its Consent '
+                                .'Manager role limit of '
+                                ."{$maximumConsentManagers}. "
+                                .'Archive a Consent Manager or upgrade the '
+                                .'subscription before changing this role.',
+                        ]);
+                    }
+                }
+            }
+
             $user->name = $validated['name'];
             $user->email = $validated['email'];
 
@@ -538,6 +856,195 @@ class PlatformOrganizationUserController extends Controller
             $organization,
             $user
         ): void {
+            /*
+             * Serialize restoration for this organization so concurrent
+             * requests cannot exceed the subscription seat limit.
+             */
+            Organization::query()
+                ->whereKey($organization->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $subscription = $organization
+                ->subscription()
+                ->with('plan')
+                ->first();
+
+            $maximumUsers = $subscription?->plan?->max_users;
+            $currentUsers = $organization->users()->count();
+
+            /*
+             * Restoring an archived user consumes one organization seat.
+             */
+            if (
+                $maximumUsers !== null
+                && $currentUsers >= $maximumUsers
+            ) {
+                throw ValidationException::withMessages([
+                    'subscription' =>
+                        "This organization has reached its "
+                        ."{$maximumUsers}-user subscription limit. "
+                        .'Archive another user or upgrade the subscription '
+                        .'before restoring this account.',
+                ]);
+            }
+
+            app(PermissionRegistrar::class)
+                ->setPermissionsTeamId($organization->id);
+
+            $restoredRole = $user
+                ->roles()
+                ->where(
+                    'roles.organization_id',
+                    $organization->id
+                )
+                ->where('roles.guard_name', 'web')
+                ->first();
+
+            $maximumStaff = $subscription?->plan?->max_staff;
+
+            if (
+                $restoredRole?->name === 'Staff'
+                && $maximumStaff !== null
+            ) {
+                /*
+                 * Disabled Staff users occupy role seats. Archived users
+                 * remain excluded until they are restored.
+                 */
+                $currentStaff = User::query()
+                    ->where(
+                        'users.organization_id',
+                        $organization->id
+                    )
+                    ->whereHas(
+                        'roles',
+                        function ($query) use ($organization): void {
+                            $query
+                                ->where(
+                                    'roles.organization_id',
+                                    $organization->id
+                                )
+                                ->where(
+                                    'roles.guard_name',
+                                    'web'
+                                )
+                                ->where(
+                                    'roles.name',
+                                    'Staff'
+                                );
+                        }
+                    )
+                    ->count();
+
+                if ($currentStaff >= $maximumStaff) {
+                    throw ValidationException::withMessages([
+                        'subscription' =>
+                            'This organization has reached its Staff '
+                            ."role limit of {$maximumStaff}. "
+                            .'Archive another Staff user or upgrade the '
+                            .'subscription before restoring this account.',
+                    ]);
+                }
+            }
+
+            $maximumConsentManagers =
+                $subscription?->plan?->max_consent_managers;
+
+            if (
+                $restoredRole?->name === 'Consent Manager'
+                && $maximumConsentManagers !== null
+            ) {
+                /*
+                 * Disabled Consent Managers occupy role seats. Archived
+                 * users remain excluded until they are restored.
+                 */
+                $currentConsentManagers = User::query()
+                    ->where(
+                        'users.organization_id',
+                        $organization->id
+                    )
+                    ->whereHas(
+                        'roles',
+                        function ($query) use ($organization): void {
+                            $query
+                                ->where(
+                                    'roles.organization_id',
+                                    $organization->id
+                                )
+                                ->where(
+                                    'roles.guard_name',
+                                    'web'
+                                )
+                                ->where(
+                                    'roles.name',
+                                    'Consent Manager'
+                                );
+                        }
+                    )
+                    ->count();
+
+                if (
+                    $currentConsentManagers
+                    >= $maximumConsentManagers
+                ) {
+                    throw ValidationException::withMessages([
+                        'subscription' =>
+                            'This organization has reached its Consent '
+                            .'Manager role limit of '
+                            ."{$maximumConsentManagers}. "
+                            .'Archive another Consent Manager or upgrade '
+                            .'the subscription before restoring this account.',
+                    ]);
+                }
+            }
+
+            $maximumAuditors =
+                $subscription?->plan?->max_auditors;
+
+            if (
+                $restoredRole?->name === 'Auditor'
+                && $maximumAuditors !== null
+            ) {
+                /*
+                 * Disabled Auditors occupy role seats. Archived users
+                 * remain excluded until they are restored.
+                 */
+                $currentAuditors = User::query()
+                    ->where(
+                        'users.organization_id',
+                        $organization->id
+                    )
+                    ->whereHas(
+                        'roles',
+                        function ($query) use ($organization): void {
+                            $query
+                                ->where(
+                                    'roles.organization_id',
+                                    $organization->id
+                                )
+                                ->where(
+                                    'roles.guard_name',
+                                    'web'
+                                )
+                                ->where(
+                                    'roles.name',
+                                    'Auditor'
+                                );
+                        }
+                    )
+                    ->count();
+
+                if ($currentAuditors >= $maximumAuditors) {
+                    throw ValidationException::withMessages([
+                        'subscription' =>
+                            'This organization has reached its Auditor '
+                            ."role limit of {$maximumAuditors}. "
+                            .'Archive another Auditor or upgrade the '
+                            .'subscription before restoring this account.',
+                    ]);
+                }
+            }
+
             $oldValues = [
                 'is_active' => (bool) $user->is_active,
                 'deleted_at' => $user->deleted_at?->toDateTimeString(),

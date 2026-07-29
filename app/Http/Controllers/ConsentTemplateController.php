@@ -18,9 +18,10 @@ class ConsentTemplateController extends Controller
     /**
      * Display the organization's existing consent templates by default.
      */
-    public function index(): View
-    {
-        return $this->manage();
+    public function index(
+        Request $request
+    ): View {
+        return $this->manage($request);
     }
 
     /**
@@ -34,12 +35,86 @@ class ConsentTemplateController extends Controller
     /**
      * Display the organization's existing consent templates.
      */
-    public function manage(): View
-    {
+    public function manage(
+        Request $request
+    ): View {
+        $search = trim(
+            (string) $request->query('search', '')
+        );
+
+        $filter = (string) $request->query(
+            'filter',
+            'all'
+        );
+
+        if (! in_array(
+            $filter,
+            [
+                'all',
+                'live',
+                'unpublished',
+            ],
+            true
+        )) {
+            $filter = 'all';
+        }
+
         $consentTemplates = ConsentTemplate::query()
             ->where(
                 'organization_id',
                 Auth::user()->organization_id
+            )
+            ->where('status', '!=', 'archived')
+            ->when(
+                $search !== '',
+                function ($query) use ($search): void {
+                    $pattern = '%'
+                        . mb_strtolower($search)
+                        . '%';
+
+                    $query->where(
+                        function ($searchQuery) use ($pattern): void {
+                            $searchQuery
+                                ->whereRaw(
+                                    'LOWER(title) LIKE ?',
+                                    [$pattern]
+                                )
+                                ->orWhereRaw(
+                                    'LOWER(description) LIKE ?',
+                                    [$pattern]
+                                )
+                                ->orWhereRaw(
+                                    'LOWER(category) LIKE ?',
+                                    [$pattern]
+                                );
+                        }
+                    );
+                }
+            )
+            ->when(
+                $filter === 'live',
+                fn ($query) => $query
+                    ->whereNotNull('active_version_id')
+                    ->where('status', 'published')
+                    ->where(
+                        'has_unpublished_changes',
+                        false
+                    )
+            )
+            ->when(
+                $filter === 'unpublished',
+                function ($query): void {
+                    $query->where(
+                        function ($unpublishedQuery): void {
+                            $unpublishedQuery
+                                ->whereNull('active_version_id')
+                                ->orWhere(
+                                    'has_unpublished_changes',
+                                    true
+                                );
+                        }
+                    );
+                }
             )
             ->with([
                 'activeVersion.publisher',
@@ -50,6 +125,66 @@ class ConsentTemplateController extends Controller
 
         return view('consent-templates.manage', [
             'consentTemplates' => $consentTemplates,
+            'showingArchived' => false,
+            'search' => $search,
+            'filter' => $filter,
+        ]);
+    }
+
+    /**
+     * Display the organization's archived consent templates.
+     */
+    public function archived(
+        Request $request
+    ): View {
+        $search = trim(
+            (string) $request->query('search', '')
+        );
+
+        $consentTemplates = ConsentTemplate::query()
+            ->where(
+                'organization_id',
+                Auth::user()->organization_id
+            )
+            ->where('status', 'archived')
+            ->when(
+                $search !== '',
+                function ($query) use ($search): void {
+                    $pattern = '%'
+                        . mb_strtolower($search)
+                        . '%';
+
+                    $query->where(
+                        function ($searchQuery) use ($pattern): void {
+                            $searchQuery
+                                ->whereRaw(
+                                    'LOWER(title) LIKE ?',
+                                    [$pattern]
+                                )
+                                ->orWhereRaw(
+                                    'LOWER(description) LIKE ?',
+                                    [$pattern]
+                                )
+                                ->orWhereRaw(
+                                    'LOWER(category) LIKE ?',
+                                    [$pattern]
+                                );
+                        }
+                    );
+                }
+            )
+            ->with([
+                'activeVersion.publisher',
+                'latestVersion',
+            ])
+            ->latest()
+            ->get();
+
+        return view('consent-templates.manage', [
+            'consentTemplates' => $consentTemplates,
+            'showingArchived' => true,
+            'search' => $search,
+            'filter' => 'all',
         ]);
     }
 
@@ -310,6 +445,36 @@ class ConsentTemplateController extends Controller
                     ]);
                 }
 
+                /*
+                 * An unchanged template that was taken offline should restore
+                 * its latest immutable version instead of creating a duplicate.
+                 */
+                if (
+                    ! $lockedTemplate->has_unpublished_changes
+                    && $lockedTemplate->active_version_id === null
+                ) {
+                    $latestPublishedVersion = $lockedTemplate
+                        ->versions()
+                        ->orderByDesc('version_number')
+                        ->first();
+
+                    if ($latestPublishedVersion === null) {
+                        throw ValidationException::withMessages([
+                            'template' =>
+                                'There is no published version to restore.',
+                        ]);
+                    }
+
+                    $lockedTemplate->update([
+                        'active_version_id' =>
+                            $latestPublishedVersion->id,
+                        'status' => 'published',
+                    ]);
+
+                    return (int)
+                        $latestPublishedVersion->version_number;
+                }
+
                 if (
                     ! $lockedTemplate->has_unpublished_changes
                     && $lockedTemplate->active_version_id !== null
@@ -355,6 +520,152 @@ class ConsentTemplateController extends Controller
             ->with(
                 'success',
                 "Version {$publishedVersionNumber} is now live."
+            );
+    }
+
+    /**
+     * Take the active published version offline without deleting history.
+     */
+    public function unpublish(
+        ConsentTemplate $consentTemplate
+    ): RedirectResponse {
+        $this->ensureTemplateBelongsToOrganization(
+            $consentTemplate
+        );
+
+        DB::transaction(
+            function () use ($consentTemplate): void {
+                $lockedTemplate = ConsentTemplate::query()
+                    ->whereKey($consentTemplate->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $this->ensureTemplateBelongsToOrganization(
+                    $lockedTemplate
+                );
+
+                if ($lockedTemplate->status === 'archived') {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'Archived templates cannot be unpublished.',
+                    ]);
+                }
+
+                if ($lockedTemplate->active_version_id === null) {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'This template is already offline.',
+                    ]);
+                }
+
+                $lockedTemplate->update([
+                    'active_version_id' => null,
+                    'status' => 'draft',
+                ]);
+            },
+            3
+        );
+
+        return redirect()
+            ->route('consent-templates.manage')
+            ->with(
+                'success',
+                'The consent template is now offline.'
+            );
+    }
+
+    /**
+     * Archive a template without deleting its versions or records.
+     */
+    public function archive(
+        ConsentTemplate $consentTemplate
+    ): RedirectResponse {
+        $this->ensureTemplateBelongsToOrganization(
+            $consentTemplate
+        );
+
+        DB::transaction(
+            function () use ($consentTemplate): void {
+                $lockedTemplate = ConsentTemplate::query()
+                    ->whereKey($consentTemplate->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $this->ensureTemplateBelongsToOrganization(
+                    $lockedTemplate
+                );
+
+                if ($lockedTemplate->status === 'archived') {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'This consent template is already archived.',
+                    ]);
+                }
+
+                if ($lockedTemplate->active_version_id !== null) {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'Unpublish this consent template before archiving it.',
+                    ]);
+                }
+
+                $lockedTemplate->update([
+                    'active_version_id' => null,
+                    'status' => 'archived',
+                ]);
+            },
+            3
+        );
+
+        return redirect()
+            ->route('consent-templates.manage')
+            ->with(
+                'success',
+                'Consent template archived successfully.'
+            );
+    }
+
+    /**
+     * Restore an archived template as an offline draft.
+     */
+    public function restore(
+        ConsentTemplate $consentTemplate
+    ): RedirectResponse {
+        $this->ensureTemplateBelongsToOrganization(
+            $consentTemplate
+        );
+
+        DB::transaction(
+            function () use ($consentTemplate): void {
+                $lockedTemplate = ConsentTemplate::query()
+                    ->whereKey($consentTemplate->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $this->ensureTemplateBelongsToOrganization(
+                    $lockedTemplate
+                );
+
+                if ($lockedTemplate->status !== 'archived') {
+                    throw ValidationException::withMessages([
+                        'template' =>
+                            'Only archived consent templates can be restored.',
+                    ]);
+                }
+
+                $lockedTemplate->update([
+                    'active_version_id' => null,
+                    'status' => 'draft',
+                ]);
+            },
+            3
+        );
+
+        return redirect()
+            ->route('consent-templates.manage')
+            ->with(
+                'success',
+                'Consent template restored successfully.'
             );
     }
 

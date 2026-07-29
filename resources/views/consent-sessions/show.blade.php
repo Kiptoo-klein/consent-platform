@@ -1083,20 +1083,20 @@
                     </section>
 
                     {{-- Version protection --}}
-                    <section class="overflow-hidden rounded-2xl border border-indigo-200 bg-indigo-50 shadow-sm">
+                    <section class="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50 shadow-sm">
                         <div class="p-6">
-                            <h2 class="font-bold text-indigo-950">
+                            <h2 class="font-bold text-amber-950">
                                 Version Protected
                             </h2>
 
-                            <p class="mt-3 text-sm leading-6 text-indigo-800">
+                            <p class="mt-3 text-sm leading-6 text-amber-800">
                                 This record remains permanently linked to
                                 version
                                 {{ $publishedVersion?->version_number ?? '—' }}
                                 of the consent document.
                             </p>
 
-                            <p class="mt-3 text-sm leading-6 text-indigo-800">
+                            <p class="mt-3 text-sm leading-6 text-amber-800">
                                 Publishing or editing newer template versions will not alter this evidence.
                             </p>
                         </div>

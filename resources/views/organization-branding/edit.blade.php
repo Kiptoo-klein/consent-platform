@@ -185,7 +185,7 @@
                                                 <img
                                                     :src="logoPreview"
                                                     alt="Organization logo preview"
-                                                    class="h-full w-full object-contain p-2"
+                                                    class="h-full w-full object-cover"
                                                 >
                                             </template>
 
@@ -420,7 +420,7 @@
                                             id="primary_color_picker"
                                             type="color"
                                             x-model="primaryColor"
-                                            class="h-12 w-14 cursor-pointer rounded-lg border border-gray-300 bg-white p-1 dark:border-gray-700 dark:bg-gray-800"
+                                            class="branding-color-picker h-12 w-14 cursor-pointer rounded-xl border border-gray-300 bg-white"
                                             aria-label="Choose primary color"
                                         >
 
@@ -455,7 +455,7 @@
                                             id="secondary_color_picker"
                                             type="color"
                                             x-model="secondaryColor"
-                                            class="h-12 w-14 cursor-pointer rounded-lg border border-gray-300 bg-white p-1 dark:border-gray-700 dark:bg-gray-800"
+                                            class="branding-color-picker h-12 w-14 cursor-pointer rounded-xl border border-gray-300 bg-white"
                                             aria-label="Choose secondary color"
                                         >
 
@@ -490,7 +490,7 @@
                                             id="accent_color_picker"
                                             type="color"
                                             x-model="accentColor"
-                                            class="h-12 w-14 cursor-pointer rounded-lg border border-gray-300 bg-white p-1 dark:border-gray-700 dark:bg-gray-800"
+                                            class="branding-color-picker h-12 w-14 cursor-pointer rounded-xl border border-gray-300 bg-white"
                                             aria-label="Choose accent color"
                                         >
 
@@ -553,7 +553,7 @@
                                                 id="pdf_primary_color_picker"
                                                 type="color"
                                                 x-model="pdfPrimaryColor"
-                                                class="h-12 w-14 cursor-pointer rounded-lg border border-gray-300 bg-white p-1 dark:border-gray-700 dark:bg-gray-800"
+                                                class="branding-color-picker h-12 w-14 cursor-pointer rounded-xl border border-gray-300 bg-white"
                                                 aria-label="Choose PDF primary color"
                                             >
 
@@ -593,7 +593,7 @@
                                                 id="pdf_accent_color_picker"
                                                 type="color"
                                                 x-model="pdfAccentColor"
-                                                class="h-12 w-14 cursor-pointer rounded-lg border border-gray-300 bg-white p-1 dark:border-gray-700 dark:bg-gray-800"
+                                                class="branding-color-picker h-12 w-14 cursor-pointer rounded-xl border border-gray-300 bg-white"
                                                 aria-label="Choose PDF accent color"
                                             >
 
@@ -721,7 +721,7 @@
                                                     <img
                                                         :src="logoPreview"
                                                         alt=""
-                                                        class="h-full w-full object-contain p-1.5"
+                                                        class="h-full w-full object-cover"
                                                     >
                                                 </template>
 
@@ -804,7 +804,7 @@
                                 </h2>
                             </div>
 
-                            <div class="bg-gray-100 p-5 dark:bg-gray-950">
+                            <div class="bg-gray-100 dark:bg-gray-950">
                                 <div class="overflow-hidden rounded-sm bg-white shadow-sm">
                                     <div
                                         class="h-2"

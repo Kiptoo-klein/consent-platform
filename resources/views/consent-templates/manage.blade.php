@@ -1,12 +1,27 @@
 <x-app-layout>
+    @php
+        $showingArchived = $showingArchived ?? false;
+    @endphp
+
     <x-slot name="header">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 class="text-xl font-semibold leading-tight text-gray-800">
-                Manage Consent Templates
+                {{ $showingArchived
+                    ? 'Archived Consent Templates'
+                    : 'Manage Consent Templates' }}
             </h2>
 
             <div class="flex flex-wrap gap-2">
-                
+                <a
+                    href="{{ $showingArchived
+                        ? route('consent-templates.manage')
+                        : route('consent-templates.archived') }}"
+                    class="inline-flex justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                    {{ $showingArchived
+                        ? 'Active Templates'
+                        : 'Archived Templates' }}
+                </a>
 
                 <a
                     href="{{ route('consent-sessions.index') }}"
@@ -45,11 +60,15 @@
                 <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h1 class="text-3xl font-bold text-gray-900">
-                            Consent Templates
+                            {{ $showingArchived
+                                ? 'Archived Templates'
+                                : 'Consent Templates' }}
                         </h1>
 
                         <p class="mt-2 text-gray-500">
-                            Prepare changes privately while the current version remains live.
+                            {{ $showingArchived
+                                ? 'View consent templates removed from the active template list.'
+                                : 'Prepare changes privately while the current version remains live.' }}
                         </p>
                     </div>
 
@@ -60,6 +79,78 @@
                         + New Consent
                     </a>
                 </div>
+
+                <form
+                    method="GET"
+                    action="{{ $showingArchived
+                        ? route('consent-templates.archived')
+                        : route('consent-templates.manage') }}"
+                    class="mb-6 flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 md:flex-row md:items-end"
+                >
+                    <label class="min-w-0 flex-1">
+                        <span class="block text-sm font-medium text-gray-700">
+                            Search templates
+                        </span>
+
+                        <input
+                            type="search"
+                            name="search"
+                            value="{{ $search ?? '' }}"
+                            placeholder="Search by title, description, or category"
+                            class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        >
+                    </label>
+
+                    @unless ($showingArchived)
+                        <label class="md:w-56">
+                            <span class="block text-sm font-medium text-gray-700">
+                                Filter
+                            </span>
+
+                            <select
+                                name="filter"
+                                class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            >
+                                <option
+                                    value="all"
+                                    @selected(($filter ?? 'all') === 'all')
+                                >
+                                    All templates
+                                </option>
+
+                                <option
+                                    value="live"
+                                    @selected(($filter ?? 'all') === 'live')
+                                >
+                                    Live
+                                </option>
+
+                                <option
+                                    value="unpublished"
+                                    @selected(($filter ?? 'all') === 'unpublished')
+                                >
+                                    Unpublished
+                                </option>
+                            </select>
+                        </label>
+                    @endunless
+
+                    <button
+                        type="submit"
+                        class="inline-flex justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                        Search
+                    </button>
+
+                    <a
+                        href="{{ $showingArchived
+                            ? route('consent-templates.archived')
+                            : route('consent-templates.manage') }}"
+                        class="inline-flex justify-center rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    >
+                        Clear
+                    </a>
+                </form>
 
                 @if ($consentTemplates->isEmpty())
                     <div class="py-20 text-center">
@@ -113,19 +204,45 @@
                                 @foreach ($consentTemplates as $consentTemplate)
                                     <tr class="border-b hover:bg-gray-50">
                                         <td class="px-6 py-5">
-                                            <p class="font-semibold text-gray-900">
-                                                {{ $consentTemplate->title }}
-                                            </p>
+                                            @php
+                                                $templateIsLive =
+                                                    $consentTemplate->active_version_id !== null
+                                                    && $consentTemplate->status === 'published';
 
-                                            <p class="mt-1 text-sm text-gray-500">
-                                                {{ $consentTemplate->description ?: 'No description' }}
-                                            </p>
+                                                if ($consentTemplate->status === 'archived') {
+                                                    $templateStatusLabel = 'Archived';
+                                                    $templateStatusColor = '#6B7280';
+                                                } elseif (! $templateIsLive) {
+                                                    $templateStatusLabel = 'Offline';
+                                                    $templateStatusColor = '#9CA3AF';
+                                                } elseif ($consentTemplate->has_unpublished_changes) {
+                                                    $templateStatusLabel = 'Unpublished changes';
+                                                    $templateStatusColor = '#D97706';
+                                                } else {
+                                                    $templateStatusLabel = 'Live';
+                                                    $templateStatusColor = '#16A34A';
+                                                }
+                                            @endphp
 
-                                            @if ($consentTemplate->status === 'archived')
-                                                <span class="mt-2 inline-flex rounded-full bg-gray-200 px-3 py-1 text-xs font-medium text-gray-700">
-                                                    Archived
-                                                </span>
-                                            @endif
+                                            <div
+                                                style="border-left: 4px solid {{ $templateStatusColor }}; padding-left: 0.75rem;"
+                                            >
+                                                <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                    <p class="font-semibold text-gray-900">
+                                                        {{ $consentTemplate->title }}
+                                                    </p>
+
+                                                    <span class="text-xs font-semibold text-gray-600">
+                                                        {{ $templateStatusLabel }}
+                                                    </span>
+
+
+                                                </div>
+
+                                                <p class="mt-1 text-sm text-gray-500">
+                                                    {{ $consentTemplate->description ?: 'No description' }}
+                                                </p>
+                                            </div>
                                         </td>
 
                                         <td class="px-6 py-5">
@@ -186,42 +303,68 @@
                                         <td class="px-6 py-5">
                                             <div
                                                 x-data="{ open: false }"
-                                                class="flex items-center justify-center gap-2"
+                                                class="mx-auto grid w-[20rem] grid-cols-3 items-center justify-items-center gap-2"
                                             >
                                                 <a
                                                     href="{{ route('consent-templates.preview', $consentTemplate) }}"
-                                                    class="whitespace-nowrap rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                                                    class="col-start-1 inline-flex w-24 items-center justify-center whitespace-nowrap rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
                                                 >
                                                     Preview
                                                 </a>
 
-                                                @if (
-                                                    $consentTemplate->status !== 'archived'
-                                                    && $consentTemplate->has_unpublished_changes
+                                                @if ($consentTemplate->status === 'archived')
+                                                    <span
+                                                        class="col-start-2 inline-flex w-24 cursor-not-allowed items-center justify-center whitespace-nowrap rounded-lg border border-gray-200 bg-gray-100 px-4 py-2 text-sm font-medium text-gray-400"
+                                                        aria-disabled="true"
+                                                    >
+                                                        Archived
+                                                    </span>
+                                                @elseif (
+                                                    $consentTemplate->has_unpublished_changes
+                                                    || $consentTemplate->active_version_id === null
                                                 )
                                                     <form
                                                         method="POST"
                                                         action="{{ route('consent-templates.publish', $consentTemplate) }}"
-                                                        onsubmit="return confirm('Publish these changes as a new immutable version?');"
+                                                        class="col-start-2 w-24"
+                                                        onsubmit="return confirm('{{ $consentTemplate->has_unpublished_changes
+                                                            ? 'Publish these changes as a new immutable version?'
+                                                            : 'Make the latest published version live again?' }}');"
                                                     >
                                                         @csrf
 
                                                         <button
                                                             type="submit"
-                                                            class="whitespace-nowrap rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                                                            class="w-full whitespace-nowrap rounded-lg border border-blue-300 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
                                                         >
                                                             Publish
                                                         </button>
                                                     </form>
+                                                @else
+                                                    <form
+                                                        method="POST"
+                                                        action="{{ route('consent-templates.unpublish', $consentTemplate) }}"
+                                                        class="col-start-2 w-24"
+                                                        onsubmit="return confirm('Take this consent template offline? Published history will be preserved.');"
+                                                    >
+                                                        @csrf
+
+                                                        <button
+                                                            type="submit"
+                                                            class="w-full whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                                                        >
+                                                            Unpublish
+                                                        </button>
+                                                    </form>
                                                 @endif
 
-                                                <div class="relative">
+                                                <div class="relative col-start-3 w-24">
                                                     <button
                                                         type="button"
                                                         x-on:click="open = ! open"
                                                         x-on:click.outside="open = false"
                                                         x-on:keydown.escape.window="open = false"
-                                                        class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                                        class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                                                         aria-haspopup="true"
                                                         x-bind:aria-expanded="open"
                                                     >
@@ -246,7 +389,7 @@
                                                     <div
                                                         x-show="open"
                                                         x-cloak
-                                                        class="absolute right-0 z-20 mt-2 w-60 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
+                                                        class="absolute right-0 z-20 w-60 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg {{ $loop->remaining < 2 ? 'bottom-full mb-2' : 'mt-2' }}"
                                                     >
                                                         @if ($consentTemplate->status !== 'archived')
                                                             <a
@@ -284,10 +427,44 @@
                                                             </div>
                                                         @endif
 
+                                                        @if (
+                                                            $consentTemplate->status !== 'archived'
+                                                            && $consentTemplate->active_version_id === null
+                                                        )
+                                                            <form
+                                                                method="POST"
+                                                                action="{{ route('consent-templates.archive', $consentTemplate) }}"
+                                                                class="border-t border-gray-100"
+                                                                onsubmit="return confirm('Archive this consent template? It will be hidden from the normal template list, but its history will be preserved.');"
+                                                            >
+                                                                @csrf
+
+                                                                <button
+                                                                    type="submit"
+                                                                    class="block w-full px-4 py-3 text-left text-sm font-medium text-red-700 hover:bg-red-50"
+                                                                >
+                                                                    Archive
+                                                                </button>
+                                                            </form>
+                                                        @endif
+
                                                         @if ($consentTemplate->status === 'archived')
-                                                            <div class="px-4 py-3 text-sm text-gray-500">
-                                                                Archived template
-                                                            </div>
+                                                            <form
+                                                                method="POST"
+                                                                action="{{ route('consent-templates.restore', $consentTemplate) }}"
+                                                                class="border-t border-gray-100"
+                                                                onsubmit="return confirm('Restore this consent template to the active templates list? It will remain offline until published.');"
+                                                            >
+                                                                @csrf
+                                                                @method('PATCH')
+
+                                                                <button
+                                                                    type="submit"
+                                                                    class="block w-full px-4 py-3 text-left text-sm font-medium text-green-700 hover:bg-green-50"
+                                                                >
+                                                                    Restore
+                                                                </button>
+                                                            </form>
                                                         @endif
                                                     </div>
                                                 </div>

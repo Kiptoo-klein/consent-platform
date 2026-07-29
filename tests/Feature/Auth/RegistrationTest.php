@@ -6,14 +6,63 @@ test('registration screen can be rendered', function () {
     $response->assertStatus(200);
 });
 
-test('new users can register', function () {
+test('new organizations can register', function () {
+    $this->seed(
+        \Database\Seeders\SubscriptionPlanSeeder::class
+    );
+
     $response = $this->post('/register', [
-        'name' => 'Test User',
+        'organization_name' => 'Test Health Centre',
+        'name' => 'Test Administrator',
         'email' => 'test@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+
+    $organization = \App\Models\Organization::query()
+        ->where('name', 'Test Health Centre')
+        ->firstOrFail();
+
+    $user = \App\Models\User::query()
+        ->where('email', 'test@example.com')
+        ->firstOrFail();
+
+    expect($user->organization_id)->toBe($organization->id);
+
+    app(
+        \Spatie\Permission\PermissionRegistrar::class
+    )->setPermissionsTeamId($organization->id);
+
+    expect($user->fresh()->hasRole('Organization Admin'))
+        ->toBeTrue();
+
+    $subscription = $organization
+        ->subscription()
+        ->with('plan')
+        ->firstOrFail();
+
+    expect($subscription->plan->slug)->toBe('basic');
+
+    expect($subscription->status)->toBe(
+        \App\Enums\OrganizationSubscriptionStatus::TRIALING
+    );
+
+    expect($subscription->payment_status)->toBe(
+        \App\Enums\SubscriptionPaymentStatus::UNPAID
+    );
+
+    expect($subscription->billing_owner_user_id)
+        ->toBe($user->id);
+
+    expect($subscription->bypass_approved_at)->toBeNull();
+    expect($subscription->bypass_approved_by_user_id)->toBeNull();
+
+    expect($subscription->allowsOrganizationAccess())
+        ->toBeFalse();
+
+    $response->assertRedirect(
+        route('dashboard', absolute: false)
+    );
 });

@@ -11,26 +11,26 @@
                 </p>
             </div>
 
-            <a
-                href="{{ route('signing-stations.create') }}"
-                class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-            >
-                Create Signing Station
-            </a>
-        </div>
-    
-        {{-- KIOSK_ANALYTICS_RECOVERY_LINK --}}
-        @if (\Illuminate\Support\Facades\Route::has(
-            'signing-stations.analytics'
-        ))
-            <a
-                href="{{ route('signing-stations.analytics') }}"
-                class="inline-flex items-center rounded-lg border border-teal-700 bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
-            >
-                Kiosk Analytics
-            </a>
-        @endif
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                <a
+                    href="{{ route('signing-stations.create') }}"
+                    class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                >
+                    Create Signing Station
+                </a>
 
+                @if (\Illuminate\Support\Facades\Route::has(
+                    'signing-stations.analytics'
+                ))
+                    <a
+                        href="{{ route('signing-stations.analytics') }}"
+                        class="inline-flex items-center justify-center rounded-lg border border-teal-700 bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-800"
+                    >
+                        Kiosk Analytics
+                    </a>
+                @endif
+            </div>
+        </div>
     </x-slot>
 
     <div class="py-8">

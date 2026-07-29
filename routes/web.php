@@ -10,6 +10,7 @@ use App\Http\Controllers\ConsentTemplateCategoryController;
 use App\Http\Controllers\ConsentTemplateController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrganizationBrandingController;
+use App\Http\Controllers\OrganizationSubscriptionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicConsentSigningController;
 use App\Http\Controllers\PublicSigningStationController;
@@ -175,6 +176,27 @@ Route::get('/sign/{accessToken}/completed', [
 
 /*
 |--------------------------------------------------------------------------
+| Organization Subscription Status
+|--------------------------------------------------------------------------
+|
+| This route remains available when organization workflow access is
+| blocked because payment is required.
+|
+*/
+
+Route::middleware([
+    'auth',
+    'active.user',
+    'organization.user',
+])->group(function () {
+    Route::get('/organization/subscription', [
+        OrganizationSubscriptionController::class,
+        'show',
+    ])->name('organization-subscription.show');
+});
+
+/*
+|--------------------------------------------------------------------------
 | Authenticated Application Routes
 |--------------------------------------------------------------------------
 */
@@ -183,6 +205,7 @@ Route::middleware([
     'auth',
     'active.user',
     'organization.user',
+    'organization.subscription',
 ])->group(function () {
 
     /*
@@ -232,6 +255,12 @@ Route::get('/consent-templates/manage', [
     ConsentTemplateController::class,
     'manage',
 ])->name('consent-templates.manage');
+
+
+Route::get('/consent-templates/archived', [
+    ConsentTemplateController::class,
+    'archived',
+])->name('consent-templates.archived');
 
 Route::get('/consent-templates/create/individual', [
     \App\Http\Controllers\IndividualConsentWizardController::class,
@@ -289,6 +318,24 @@ Route::post('/consent-templates/{consentTemplate}/publish', [
     ConsentTemplateController::class,
     'publish',
 ])->name('consent-templates.publish');
+
+
+Route::post('/consent-templates/{consentTemplate}/unpublish', [
+    ConsentTemplateController::class,
+    'unpublish',
+])->name('consent-templates.unpublish');
+
+
+Route::post('/consent-templates/{consentTemplate}/archive', [
+    ConsentTemplateController::class,
+    'archive',
+])->name('consent-templates.archive');
+
+
+Route::patch('/consent-templates/{consentTemplate}/restore', [
+    ConsentTemplateController::class,
+    'restore',
+])->name('consent-templates.restore');
 
 /*
 |--------------------------------------------------------------------------
@@ -548,6 +595,22 @@ Route::prefix('platform')
             OrganizationController::class,
             'update',
         ])->name('organizations.update');
+
+        Route::patch(
+            '/organizations/{organization}/subscription-bypass',
+            [
+                OrganizationController::class,
+                'approveSubscriptionBypass',
+            ]
+        )->name('organizations.subscription-bypass.approve');
+
+        Route::delete(
+            '/organizations/{organization}/subscription-bypass',
+            [
+                OrganizationController::class,
+                'revokeSubscriptionBypass',
+            ]
+        )->name('organizations.subscription-bypass.revoke');
 
             /*
         |--------------------------------------------------------------------------
