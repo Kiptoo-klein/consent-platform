@@ -7,6 +7,7 @@ use App\Enums\SubscriptionPaymentStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class OrganizationSubscription extends Model
 {
@@ -81,6 +82,17 @@ class OrganizationSubscription extends Model
         return $this->belongsTo(
             User::class,
             'billing_owner_user_id'
+        );
+    }
+
+    /**
+     * Payment, renewal, refund, and adjustment history.
+     */
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(
+            SubscriptionTransaction::class,
+            'organization_subscription_id'
         );
     }
 

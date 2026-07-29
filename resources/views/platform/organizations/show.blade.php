@@ -159,14 +159,28 @@
                             </p>
                         </div>
 
-                        <span
-                            class="inline-flex w-fit rounded-full border px-3 py-1 text-sm font-semibold
-                                {{ $hasAccess
-                                    ? 'border-green-200 bg-green-100 text-green-800'
-                                    : 'border-amber-200 bg-amber-100 text-amber-900' }}"
-                        >
-                            {{ $hasAccess ? 'Access allowed' : 'Access blocked' }}
-                        </span>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <span
+                                class="inline-flex w-fit rounded-full border px-3 py-1 text-sm font-semibold
+                                    {{ $hasAccess
+                                        ? 'border-green-200 bg-green-100 text-green-800'
+                                        : 'border-amber-200 bg-amber-100 text-amber-900' }}"
+                            >
+                                {{ $hasAccess ? 'Access allowed' : 'Access blocked' }}
+                            </span>
+
+                            @if ($subscription)
+                                <a
+                                    href="{{ route(
+                                        'platform.organizations.subscription-transactions.index',
+                                        $organization
+                                    ) }}"
+                                    class="inline-flex rounded-lg border border-teal-700 bg-white px-4 py-2 text-sm font-semibold text-teal-700 transition hover:bg-teal-50"
+                                >
+                                    Payment History
+                                </a>
+                            @endif
+                        </div>
                     </div>
                 </div>
 
