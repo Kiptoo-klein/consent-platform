@@ -20,6 +20,7 @@ use App\Http\Controllers\EmailDiagnosticsController;
 use App\Http\Controllers\SecurityStatusController;
 use App\Http\Controllers\Platform\PlatformDashboardController;
 use App\Http\Controllers\Platform\OrganizationController;
+use App\Http\Controllers\Platform\SubscriptionTransactionController;
 use App\Http\Controllers\Platform\PlatformOrganizationUserController;
 use App\Http\Controllers\Platform\PlatformActivityLogController;
 use App\Http\Controllers\ConsentPdfController;
@@ -635,6 +636,30 @@ Route::prefix('platform')
                 'cancelSubscription',
             ]
         )->name('organizations.subscription-cancellation.update');
+
+        Route::get(
+            '/organizations/{organization}/subscription-transactions',
+            [
+                SubscriptionTransactionController::class,
+                'index',
+            ]
+        )->name('organizations.subscription-transactions.index');
+
+        Route::post(
+            '/organizations/{organization}/subscription-transactions',
+            [
+                SubscriptionTransactionController::class,
+                'store',
+            ]
+        )->name('organizations.subscription-transactions.store');
+
+        Route::get(
+            '/organizations/{organization}/subscription-transactions/{subscriptionTransaction}',
+            [
+                SubscriptionTransactionController::class,
+                'show',
+            ]
+        )->name('organizations.subscription-transactions.show');
 
         Route::patch(
             '/organizations/{organization}/subscription-bypass',
