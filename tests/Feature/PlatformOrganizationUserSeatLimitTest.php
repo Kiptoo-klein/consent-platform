@@ -637,3 +637,74 @@ test(
         );
     }
 );
+
+test(
+    'changing a user to auditor is blocked when the auditor role limit is reached',
+    function () {
+        $this->subscription->plan->update([
+            'max_users' => 10,
+            'max_staff' => 10,
+            'max_consent_managers' => 10,
+            'max_auditors' => 1,
+        ]);
+
+        $auditorRole = Role::query()
+            ->where(
+                'organization_id',
+                $this->organization->id
+            )
+            ->where('guard_name', 'web')
+            ->where('name', 'Auditor')
+            ->firstOrFail();
+
+        $staffRole = Role::query()
+            ->where(
+                'organization_id',
+                $this->organization->id
+            )
+            ->where('guard_name', 'web')
+            ->where('name', 'Staff')
+            ->firstOrFail();
+
+        app(PermissionRegistrar::class)
+            ->setPermissionsTeamId($this->organization->id);
+
+        $existingAuditor = User::factory()->create([
+            'organization_id' => $this->organization->id,
+            'is_active' => false,
+        ]);
+
+        $existingAuditor->assignRole($auditorRole);
+
+        $staff = User::factory()->create([
+            'organization_id' => $this->organization->id,
+            'name' => 'Role Change Staff',
+            'email' => 'role-change-staff@example.com',
+            'is_active' => false,
+        ]);
+
+        $staff->assignRole($staffRole);
+
+        $response = $this->put(
+            route(
+                'platform.organizations.users.update',
+                [$this->organization, $staff]
+            ),
+            [
+                'name' => $staff->name,
+                'email' => $staff->email,
+                'role_id' => $auditorRole->id,
+            ]
+        );
+
+        $response->assertSessionHasErrors('subscription');
+
+        app(PermissionRegistrar::class)
+            ->setPermissionsTeamId($this->organization->id);
+
+        $staff->refresh();
+
+        $this->assertTrue($staff->hasRole($staffRole));
+        $this->assertFalse($staff->hasRole($auditorRole));
+    }
+);
