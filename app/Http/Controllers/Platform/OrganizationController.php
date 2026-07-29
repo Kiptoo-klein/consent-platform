@@ -7,8 +7,10 @@ use App\Models\Organization;
 use App\Models\SigningStation;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -21,6 +23,14 @@ use Illuminate\View\View;
  */
 class OrganizationController extends Controller
 {
+    /**
+     * Create the Platform Organization controller.
+     */
+    public function __construct(
+        protected ActivityLogger $activityLogger
+    ) {
+    }
+
     /**
      * Display a paginated list of all organizations.
      */
@@ -198,12 +208,90 @@ class OrganizationController extends Controller
 
         $subscription = $organization
             ->subscription()
+            ->with('plan')
             ->firstOrFail();
 
-        $subscription->update([
-            'subscription_plan_id' =>
-                (int) $validated['subscription_plan_id'],
-        ]);
+        $previousPlan = $subscription->plan;
+
+        abort_if(
+            $previousPlan === null,
+            409,
+            'The current subscription plan is unavailable.'
+        );
+
+        $newPlan = SubscriptionPlan::query()
+            ->whereKey(
+                (int) $validated['subscription_plan_id']
+            )
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        /*
+         * Re-selecting the current plan is not a meaningful change and
+         * must not produce a duplicate audit event.
+         */
+        if (
+            $subscription->subscription_plan_id
+            === $newPlan->id
+        ) {
+            return redirect()
+                ->route(
+                    'platform.organizations.show',
+                    $organization
+                )
+                ->with(
+                    'success',
+                    'Organization is already assigned to this plan.'
+                );
+        }
+
+        $usage = $this->subscriptionUsage($organization);
+
+        $exceededLimits = $this->exceededLimitsForPlan(
+            $newPlan,
+            $usage
+        );
+
+        /*
+         * The plan change and audit record must either both succeed
+         * or both be rolled back.
+         */
+        DB::transaction(function () use (
+            $subscription,
+            $organization,
+            $previousPlan,
+            $newPlan,
+            $usage,
+            $exceededLimits
+        ): void {
+            $subscription->update([
+                'subscription_plan_id' => $newPlan->id,
+            ]);
+
+            $this->activityLogger->log(
+                action:
+                    'organization.subscription_plan_changed',
+                description:
+                    "Subscription plan changed from "
+                    ."{$previousPlan->name} to {$newPlan->name}.",
+                subject: $subscription,
+                organizationId: $organization->id,
+                properties: [
+                    'old' => [
+                        'plan_id' => $previousPlan->id,
+                        'plan_name' => $previousPlan->name,
+                        'plan_slug' => $previousPlan->slug,
+                    ],
+                    'new' => [
+                        'plan_id' => $newPlan->id,
+                        'plan_name' => $newPlan->name,
+                        'plan_slug' => $newPlan->slug,
+                    ],
+                    'usage_snapshot' => $usage,
+                    'exceeded_limits' => $exceededLimits,
+                ],
+            );
+        });
 
         return redirect()
             ->route(
@@ -347,6 +435,77 @@ class OrganizationController extends Controller
                 }
             )
             ->count();
+    }
+
+    /**
+     * Return only limits exceeded under the selected plan.
+     *
+     * Null limits represent unlimited capacity and are excluded.
+     *
+     * @param array<string, int> $usage
+     * @return array<string, array{
+     *     label: string,
+     *     used: int,
+     *     limit: int,
+     *     overage: int
+     * }>
+     */
+    private function exceededLimitsForPlan(
+        SubscriptionPlan $plan,
+        array $usage
+    ): array {
+        $definitions = [
+            'users' => [
+                'label' => 'Total users',
+                'used' => $usage['users'],
+                'limit' => $plan->max_users,
+            ],
+            'consent_managers' => [
+                'label' => 'Consent Managers',
+                'used' => $usage['consent_managers'],
+                'limit' => $plan->max_consent_managers,
+            ],
+            'staff' => [
+                'label' => 'Staff',
+                'used' => $usage['staff'],
+                'limit' => $plan->max_staff,
+            ],
+            'auditors' => [
+                'label' => 'Auditors',
+                'used' => $usage['auditors'],
+                'limit' => $plan->max_auditors,
+            ],
+            'active_kiosks' => [
+                'label' => 'Active kiosks',
+                'used' => $usage['active_kiosks'],
+                'limit' => $plan->max_active_kiosks,
+            ],
+        ];
+
+        $exceeded = [];
+
+        foreach ($definitions as $key => $definition) {
+            if ($definition['limit'] === null) {
+                continue;
+            }
+
+            $used = (int) $definition['used'];
+            $limit = (int) $definition['limit'];
+            $overage = max(0, $used - $limit);
+
+            if ($overage === 0) {
+                continue;
+            }
+
+            $exceeded[$key] = [
+                'label' => $definition['label'],
+                'used' => $used,
+                'limit' => $limit,
+                'overage' => $overage,
+            ];
+        }
+
+        return $exceeded;
     }
 
     /**
