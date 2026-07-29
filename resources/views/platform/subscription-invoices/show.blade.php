@@ -220,6 +220,9 @@
 
                     'showFailureDetails' =>
                         true,
+
+                    'showRetryControls' =>
+                        true,
                 ]
             )
 

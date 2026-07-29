@@ -14,6 +14,11 @@ use Throwable;
 
 class SubscriptionInvoiceNotificationService
 {
+    public function __construct(
+        private readonly ActivityLogger $activityLogger
+    ) {
+    }
+
     /**
      * @return list<int>
      */
@@ -365,6 +370,284 @@ class SubscriptionInvoiceNotificationService
 
                     reminderKey:
                         $reminderKey
+                )
+            );
+
+            $notification->forceFill([
+                'status' =>
+                    SubscriptionInvoiceNotification::STATUS_SENT,
+
+                'sent_at' =>
+                    now(),
+
+                'failed_at' => null,
+                'error_message' => null,
+            ])->save();
+        } catch (Throwable $exception) {
+            report($exception);
+
+            $notification->forceFill([
+                'status' =>
+                    SubscriptionInvoiceNotification::STATUS_FAILED,
+
+                'sent_at' => null,
+
+                'failed_at' =>
+                    now(),
+
+                'error_message' =>
+                    mb_substr(
+                        $exception->getMessage(),
+                        0,
+                        2000
+                    ),
+            ])->save();
+        }
+
+        return $notification->refresh();
+    }
+
+    public function retryFailedReminder(
+        SubscriptionInvoice $invoice,
+        SubscriptionInvoiceNotification $failedNotification,
+        int $requestedByUserId
+    ): SubscriptionInvoiceNotification {
+        $notification = DB::transaction(
+            function () use (
+                $invoice,
+                $failedNotification,
+                $requestedByUserId
+            ): SubscriptionInvoiceNotification {
+                $lockedInvoice =
+                    SubscriptionInvoice::query()
+                        ->whereKey(
+                            $invoice->id
+                        )
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                $lockedNotification =
+                    SubscriptionInvoiceNotification::query()
+                        ->whereKey(
+                            $failedNotification->id
+                        )
+                        ->where(
+                            'organization_id',
+                            $lockedInvoice->organization_id
+                        )
+                        ->where(
+                            'subscription_invoice_id',
+                            $lockedInvoice->id
+                        )
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                abort_unless(
+                    $lockedNotification->isFailed(),
+                    422,
+                    'Only failed reminder attempts can be retried.'
+                );
+
+                $retryMinutes = max(
+                    1,
+                    (int) config(
+                        'subscription-invoice-notifications.manual_retry_minutes',
+                        5
+                    )
+                );
+
+                $recentRetryExists =
+                    SubscriptionInvoiceNotification::query()
+                        ->where(
+                            'subscription_invoice_id',
+                            $lockedInvoice->id
+                        )
+                        ->where(
+                            'reminder_key',
+                            $lockedNotification->reminder_key
+                        )
+                        ->whereNotNull(
+                            'retry_of_notification_id'
+                        )
+                        ->where(
+                            'created_at',
+                            '>=',
+                            now()->subMinutes(
+                                $retryMinutes
+                            )
+                        )
+                        ->exists();
+
+                abort_if(
+                    $recentRetryExists,
+                    422,
+                    'This reminder was retried recently.'
+                );
+
+                $lockedInvoice->load([
+                    'organization',
+                    'plan',
+                    'subscription.billingOwner',
+                ]);
+
+                $recipient =
+                    $this->eligibleRecipient(
+                        $lockedInvoice
+                    );
+
+                abort_if(
+                    $recipient === null,
+                    422,
+                    'No eligible billing recipient is available.'
+                );
+
+                $mailable =
+                    new SubscriptionInvoiceReminderMail(
+                        invoice:
+                            $lockedInvoice,
+
+                        reminderKey:
+                            $lockedNotification->reminder_key
+                    );
+
+                $retry =
+                    SubscriptionInvoiceNotification::query()
+                        ->create([
+                            'organization_id' =>
+                                $lockedInvoice->organization_id,
+
+                            'subscription_invoice_id' =>
+                                $lockedInvoice->id,
+
+                            'recipient_user_id' =>
+                                $recipient->id,
+
+                            'retry_of_notification_id' =>
+                                $lockedNotification->id,
+
+                            'retry_requested_by_user_id' =>
+                                $requestedByUserId,
+
+                            'reminder_key' =>
+                                $lockedNotification->reminder_key,
+
+                            'status' =>
+                                SubscriptionInvoiceNotification::STATUS_PROCESSING,
+
+                            'recipient_email' =>
+                                trim(
+                                    (string) $recipient->email
+                                ),
+
+                            'subject' =>
+                                $mailable->subjectLine(),
+
+                            'message' =>
+                                $mailable->introMessage(),
+
+                            'scheduled_for' =>
+                                now(),
+
+                            'sent_at' => null,
+                            'failed_at' => null,
+                            'error_message' => null,
+
+                            'metadata' =>
+                                array_merge(
+                                    $lockedNotification->metadata
+                                        ?? [],
+                                    [
+                                        'invoice_number' =>
+                                            $lockedInvoice->invoice_number,
+
+                                        'due_date' =>
+                                            $lockedInvoice
+                                                ->due_date
+                                                ?->toDateString(),
+
+                                        'total_amount' =>
+                                            $lockedInvoice->total_amount,
+
+                                        'currency' =>
+                                            $lockedInvoice->currency,
+
+                                        'plan_name' =>
+                                            $lockedInvoice
+                                                ->plan
+                                                ?->name,
+
+                                        'retry_of_notification_id' =>
+                                            $lockedNotification->id,
+
+                                        'retry_requested_by_user_id' =>
+                                            $requestedByUserId,
+                                    ]
+                                ),
+                        ]);
+
+                $this->activityLogger->log(
+                    action:
+                        'organization.subscription_invoice_reminder_retried',
+
+                    description:
+                        'A failed subscription invoice reminder was retried.',
+
+                    subject:
+                        $retry,
+
+                    organizationId:
+                        $lockedInvoice->organization_id,
+
+                    properties: [
+                        'invoice_id' =>
+                            $lockedInvoice->id,
+
+                        'invoice_number' =>
+                            $lockedInvoice->invoice_number,
+
+                        'original_notification_id' =>
+                            $lockedNotification->id,
+
+                        'retry_notification_id' =>
+                            $retry->id,
+
+                        'reminder_key' =>
+                            $lockedNotification->reminder_key,
+
+                        'recipient_email' =>
+                            $retry->recipient_email,
+
+                        'requested_by_user_id' =>
+                            $requestedByUserId,
+                    ],
+                );
+
+                return $retry;
+            },
+            3
+        );
+
+        $invoiceForMail =
+            SubscriptionInvoice::query()
+                ->with([
+                    'organization',
+                    'plan',
+                    'subscription.billingOwner',
+                ])
+                ->findOrFail(
+                    $invoice->id
+                );
+
+        try {
+            Mail::to(
+                $notification->recipient_email
+            )->send(
+                new SubscriptionInvoiceReminderMail(
+                    invoice:
+                        $invoiceForMail,
+
+                    reminderKey:
+                        $notification->reminder_key
                 )
             );
 

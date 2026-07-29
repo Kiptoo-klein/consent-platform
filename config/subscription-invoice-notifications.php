@@ -46,6 +46,14 @@ return [
         )
     ),
 
+    'manual_retry_minutes' => max(
+        1,
+        (int) env(
+            'SUBSCRIPTION_INVOICE_MANUAL_RETRY_MINUTES',
+            5
+        )
+    ),
+
     'chunk_size' => max(
         1,
         (int) env(

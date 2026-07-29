@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SubscriptionInvoiceNotification extends Model
 {
@@ -32,6 +33,8 @@ class SubscriptionInvoiceNotification extends Model
         'organization_id',
         'subscription_invoice_id',
         'recipient_user_id',
+        'retry_of_notification_id',
+        'retry_requested_by_user_id',
         'reminder_key',
         'status',
         'recipient_email',
@@ -74,6 +77,30 @@ class SubscriptionInvoiceNotification extends Model
         return $this->belongsTo(
             User::class,
             'recipient_user_id'
+        );
+    }
+
+    public function retryOf(): BelongsTo
+    {
+        return $this->belongsTo(
+            self::class,
+            'retry_of_notification_id'
+        );
+    }
+
+    public function retries(): HasMany
+    {
+        return $this->hasMany(
+            self::class,
+            'retry_of_notification_id'
+        );
+    }
+
+    public function retryRequestedBy(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'retry_requested_by_user_id'
         );
     }
 

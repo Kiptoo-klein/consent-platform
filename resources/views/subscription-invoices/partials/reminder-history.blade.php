@@ -1,4 +1,8 @@
 @php
+    $showRetryControls =
+        $showRetryControls
+        ?? false;
+
     $reminderLabels = [
         \App\Models\SubscriptionInvoiceNotification::REMINDER_DUE_IN_3_DAYS =>
             'Due in 3 days',
@@ -64,6 +68,12 @@
                         @if ($showFailureDetails)
                             <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                                 Failure details
+                            </th>
+                        @endif
+
+                        @if ($showRetryControls)
+                            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                Action
                             </th>
                         @endif
                     </tr>
@@ -136,6 +146,42 @@
                                         <span class="whitespace-pre-wrap break-words text-red-700 dark:text-red-300">
                                             {{ $notification->error_message }}
                                         </span>
+                                    @else
+                                        <span class="text-gray-400">
+                                            —
+                                        </span>
+                                    @endif
+                                </td>
+                            @endif
+
+                            @if ($showRetryControls)
+                                <td class="whitespace-nowrap px-5 py-4 text-sm">
+                                    @if ($notification->isFailed())
+                                        <form
+                                            method="POST"
+                                            action="{{ route(
+                                                'platform.organizations.subscription-invoices.reminder-notifications.retry',
+                                                [
+                                                    'organization' =>
+                                                        $notification->organization_id,
+
+                                                    'subscriptionInvoice' =>
+                                                        $notification->subscription_invoice_id,
+
+                                                    'subscriptionInvoiceNotification' =>
+                                                        $notification->id,
+                                                ]
+                                            ) }}"
+                                        >
+                                            @csrf
+
+                                            <button
+                                                type="submit"
+                                                class="inline-flex rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2"
+                                            >
+                                                Retry reminder
+                                            </button>
+                                        </form>
                                     @else
                                         <span class="text-gray-400">
                                             —
