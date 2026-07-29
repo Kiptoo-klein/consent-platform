@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActivityLog;
 use App\Models\ConsentTemplate;
 use App\Models\Organization;
 use App\Models\OrganizationSubscription;
@@ -9,11 +10,14 @@ use App\Models\PlatformRole;
 use App\Models\SigningStation;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Database\Seeders\PlatformRoleSeeder;
 use Database\Seeders\SubscriptionPlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Mockery\MockInterface;
 use Spatie\Permission\Models\Role;
+use RuntimeException;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
@@ -284,6 +288,299 @@ class PlatformOrganizationPlanDowngradeTest extends TestCase
         $response->assertSeeText('Basic');
         $response->assertSeeText('Growth');
         $response->assertDontSeeText('Hidden Retired Plan');
+    }
+
+    public function test_plan_change_records_audit_activity_with_usage_context(): void
+    {
+        $this->populateUsageAboveBasicLimits();
+
+        $response = $this
+            ->actingAs($this->platformAdmin)
+            ->patch(
+                "/platform/organizations/"
+                    ."{$this->organization->id}/subscription-plan",
+                [
+                    'subscription_plan_id' =>
+                        $this->basicPlan->id,
+                ]
+            );
+
+        $response->assertRedirect(
+            route(
+                'platform.organizations.show',
+                $this->organization
+            )
+        );
+
+        $activity = ActivityLog::query()
+            ->where(
+                'action',
+                'organization.subscription_plan_changed'
+            )
+            ->sole();
+
+        $this->assertSame(
+            $this->organization->id,
+            $activity->organization_id
+        );
+
+        $this->assertSame(
+            $this->platformAdmin->id,
+            $activity->user_id
+        );
+
+        $this->assertSame(
+            $this->subscription->getMorphClass(),
+            $activity->subject_type
+        );
+
+        $this->assertSame(
+            $this->subscription->id,
+            $activity->subject_id
+        );
+
+        $this->assertSame(
+            'Subscription plan changed from Growth to Basic.',
+            $activity->description
+        );
+
+        $this->assertSame(
+            [
+                'old' => [
+                    'plan_id' => $this->growthPlan->id,
+                    'plan_name' => 'Growth',
+                    'plan_slug' => 'growth',
+                ],
+                'new' => [
+                    'plan_id' => $this->basicPlan->id,
+                    'plan_name' => 'Basic',
+                    'plan_slug' => 'basic',
+                ],
+                'usage_snapshot' => [
+                    'users' => 8,
+                    'consent_managers' => 2,
+                    'staff' => 3,
+                    'auditors' => 2,
+                    'active_kiosks' => 2,
+                ],
+                'exceeded_limits' => [
+                    'users' => [
+                        'label' => 'Total users',
+                        'used' => 8,
+                        'limit' => 5,
+                        'overage' => 3,
+                    ],
+                    'consent_managers' => [
+                        'label' => 'Consent Managers',
+                        'used' => 2,
+                        'limit' => 1,
+                        'overage' => 1,
+                    ],
+                    'staff' => [
+                        'label' => 'Staff',
+                        'used' => 3,
+                        'limit' => 2,
+                        'overage' => 1,
+                    ],
+                    'auditors' => [
+                        'label' => 'Auditors',
+                        'used' => 2,
+                        'limit' => 1,
+                        'overage' => 1,
+                    ],
+                    'active_kiosks' => [
+                        'label' => 'Active kiosks',
+                        'used' => 2,
+                        'limit' => 1,
+                        'overage' => 1,
+                    ],
+                ],
+            ],
+            $activity->properties
+        );
+    }
+
+    public function test_invalid_plan_assignment_does_not_create_audit_activity(): void
+    {
+        $inactivePlan = SubscriptionPlan::create([
+            'name' => 'Audit Retired Plan',
+            'slug' => 'audit-retired-plan',
+            'description' => 'Unavailable for assignment.',
+            'max_users' => 2,
+            'max_consent_managers' => 1,
+            'max_staff' => 1,
+            'max_auditors' => 1,
+            'max_active_kiosks' => 1,
+            'is_active' => false,
+            'sort_order' => 101,
+        ]);
+
+        $response = $this
+            ->actingAs($this->platformAdmin)
+            ->patch(
+                "/platform/organizations/"
+                    ."{$this->organization->id}/subscription-plan",
+                [
+                    'subscription_plan_id' =>
+                        $inactivePlan->id,
+                ]
+            );
+
+        $response->assertSessionHasErrors(
+            'subscription_plan_id'
+        );
+
+        $this->assertDatabaseMissing('activity_logs', [
+            'organization_id' => $this->organization->id,
+            'action' =>
+                'organization.subscription_plan_changed',
+        ]);
+    }
+
+    public function test_reselecting_current_plan_does_not_create_audit_activity(): void
+    {
+        $response = $this
+            ->actingAs($this->platformAdmin)
+            ->patch(
+                "/platform/organizations/"
+                    ."{$this->organization->id}/subscription-plan",
+                [
+                    'subscription_plan_id' =>
+                        $this->growthPlan->id,
+                ]
+            );
+
+        $response->assertRedirect(
+            route(
+                'platform.organizations.show',
+                $this->organization
+            )
+        );
+
+        $this->assertSame(
+            $this->growthPlan->id,
+            $this->subscription
+                ->fresh()
+                ->subscription_plan_id
+        );
+
+        $this->assertDatabaseMissing('activity_logs', [
+            'organization_id' => $this->organization->id,
+            'action' =>
+                'organization.subscription_plan_changed',
+        ]);
+    }
+
+    public function test_plan_change_rolls_back_when_audit_logging_fails(): void
+    {
+        $activityCountBefore = ActivityLog::query()->count();
+
+        $this->mock(
+            ActivityLogger::class,
+            function (MockInterface $mock): void {
+                $mock
+                    ->shouldReceive('log')
+                    ->once()
+                    ->andThrow(
+                        new RuntimeException(
+                            'Simulated activity-log failure.'
+                        )
+                    );
+            }
+        );
+
+        $exceptionWasThrown = false;
+
+        $this->withoutExceptionHandling();
+
+        try {
+            $this
+                ->actingAs($this->platformAdmin)
+                ->patch(
+                    "/platform/organizations/"
+                        ."{$this->organization->id}/subscription-plan",
+                    [
+                        'subscription_plan_id' =>
+                            $this->basicPlan->id,
+                    ]
+                );
+        } catch (RuntimeException $exception) {
+            $exceptionWasThrown = true;
+
+            $this->assertSame(
+                'Simulated activity-log failure.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertTrue(
+            $exceptionWasThrown,
+            'The simulated audit failure was not thrown.'
+        );
+
+        $this->assertSame(
+            $this->growthPlan->id,
+            $this->subscription
+                ->fresh()
+                ->subscription_plan_id
+        );
+
+        $this->assertSame(
+            $activityCountBefore,
+            ActivityLog::query()->count()
+        );
+    }
+
+    public function test_plan_change_context_is_visible_on_activity_details_page(): void
+    {
+        $this->populateUsageAboveBasicLimits();
+
+        $this
+            ->actingAs($this->platformAdmin)
+            ->patch(
+                "/platform/organizations/"
+                    ."{$this->organization->id}/subscription-plan",
+                [
+                    'subscription_plan_id' =>
+                        $this->basicPlan->id,
+                ]
+            );
+
+        $activity = ActivityLog::query()
+            ->where(
+                'action',
+                'organization.subscription_plan_changed'
+            )
+            ->sole();
+
+        $response = $this
+            ->actingAs($this->platformAdmin)
+            ->get(
+                route(
+                    'platform.activity-logs.show',
+                    $activity
+                )
+            );
+
+        $response->assertOk();
+
+        $response->assertSeeText(
+            'Organization Subscription Plan Changed'
+        );
+
+        $response->assertSeeText(
+            'Subscription plan changed from Growth to Basic.'
+        );
+
+        $response->assertSeeTextInOrder([
+            'Plan Name',
+            'Growth',
+            'Basic',
+        ]);
+
+        $response->assertSeeText('Usage Snapshot');
+        $response->assertSeeText('Exceeded Limits');
+        $response->assertSeeText('3 over limit');
     }
 
     private function populateUsageAboveBasicLimits(): void

@@ -88,6 +88,17 @@
             ->unique()
             ->values();
 
+        $usageSnapshot = $properties['usage_snapshot'] ?? [];
+        $exceededLimits = $properties['exceeded_limits'] ?? [];
+
+        $usageSnapshot = is_array($usageSnapshot)
+            ? $usageSnapshot
+            : [];
+
+        $exceededLimits = is_array($exceededLimits)
+            ? $exceededLimits
+            : [];
+
         $formatActivityValue = static function ($value) {
             if (is_bool($value)) {
                 return $value ? 'Yes' : 'No';
@@ -313,6 +324,73 @@
                     </p>
                 @endif
             </section>
+              @if (! empty($usageSnapshot))
+                  <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                      <h2 class="font-semibold text-gray-900">
+                          Usage Snapshot
+                      </h2>
+
+                      <p class="mt-1 text-sm text-gray-500">
+                          Organization usage recorded when the plan changed.
+                      </p>
+
+                      <dl class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                          @foreach ($usageSnapshot as $key => $value)
+                              <div class="rounded-xl bg-gray-50 p-4">
+                                  <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                      {{ str($key)
+                                          ->replace('_', ' ')
+                                          ->title() }}
+                                  </dt>
+
+                                  <dd class="mt-2 text-xl font-bold text-gray-900">
+                                      {{ number_format((int) $value) }}
+                                  </dd>
+                              </div>
+                          @endforeach
+                      </dl>
+                  </section>
+              @endif
+
+              @if (! empty($exceededLimits))
+                  <section class="rounded-2xl border border-red-200 bg-red-50 p-6 shadow-sm">
+                      <h2 class="font-semibold text-red-900">
+                          Exceeded Limits
+                      </h2>
+
+                      <p class="mt-1 text-sm text-red-800">
+                          Capacity exceeded immediately after the plan change.
+                      </p>
+
+                      <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                          @foreach ($exceededLimits as $limit)
+                              <div class="rounded-xl border border-red-200 bg-white p-4">
+                                  <p class="text-sm font-semibold text-gray-900">
+                                      {{ $limit['label'] ?? 'Plan limit' }}
+                                  </p>
+
+                                  <p class="mt-2 text-sm text-gray-600">
+                                      {{ number_format(
+                                          (int) ($limit['used'] ?? 0)
+                                      ) }}
+                                      of
+                                      {{ number_format(
+                                          (int) ($limit['limit'] ?? 0)
+                                      ) }}
+                                  </p>
+
+                                  <p class="mt-2 text-sm font-bold text-red-700">
+                                      {{ number_format(
+                                          (int) ($limit['overage'] ?? 0)
+                                      ) }}
+                                      over limit
+                                  </p>
+                              </div>
+                          @endforeach
+                      </div>
+                  </section>
+              @endif
+
         </div>
     </div>
 </x-app-layout>
