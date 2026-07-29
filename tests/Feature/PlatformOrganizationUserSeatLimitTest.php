@@ -452,3 +452,55 @@ test(
         $this->assertFalse($restoredState->is_active);
     }
 );
+
+test(
+    'restoring an archived auditor is blocked when the auditor role limit is reached',
+    function () {
+        $this->subscription->plan->update([
+            'max_users' => 10,
+            'max_auditors' => 1,
+        ]);
+
+        $auditorRole = Role::query()
+            ->where(
+                'organization_id',
+                $this->organization->id
+            )
+            ->where('guard_name', 'web')
+            ->where('name', 'Auditor')
+            ->firstOrFail();
+
+        app(PermissionRegistrar::class)
+            ->setPermissionsTeamId($this->organization->id);
+
+        $existingAuditor = User::factory()->create([
+            'organization_id' => $this->organization->id,
+            'is_active' => false,
+        ]);
+
+        $existingAuditor->assignRole($auditorRole);
+
+        $archivedAuditor = User::factory()->create([
+            'organization_id' => $this->organization->id,
+            'is_active' => false,
+        ]);
+
+        $archivedAuditor->assignRole($auditorRole);
+        $archivedAuditor->delete();
+
+        $response = $this->patch(
+            route(
+                'platform.organizations.users.restore',
+                [$this->organization, $archivedAuditor]
+            )
+        );
+
+        $response->assertSessionHasErrors('subscription');
+
+        $restoredState = User::withTrashed()
+            ->findOrFail($archivedAuditor->id);
+
+        $this->assertTrue($restoredState->trashed());
+        $this->assertFalse($restoredState->is_active);
+    }
+);

@@ -859,6 +859,53 @@ class PlatformOrganizationUserController extends Controller
                 }
             }
 
+            $maximumAuditors =
+                $subscription?->plan?->max_auditors;
+
+            if (
+                $restoredRole?->name === 'Auditor'
+                && $maximumAuditors !== null
+            ) {
+                /*
+                 * Disabled Auditors occupy role seats. Archived users
+                 * remain excluded until they are restored.
+                 */
+                $currentAuditors = User::query()
+                    ->where(
+                        'users.organization_id',
+                        $organization->id
+                    )
+                    ->whereHas(
+                        'roles',
+                        function ($query) use ($organization): void {
+                            $query
+                                ->where(
+                                    'roles.organization_id',
+                                    $organization->id
+                                )
+                                ->where(
+                                    'roles.guard_name',
+                                    'web'
+                                )
+                                ->where(
+                                    'roles.name',
+                                    'Auditor'
+                                );
+                        }
+                    )
+                    ->count();
+
+                if ($currentAuditors >= $maximumAuditors) {
+                    throw ValidationException::withMessages([
+                        'subscription' =>
+                            'This organization has reached its Auditor '
+                            ."role limit of {$maximumAuditors}. "
+                            .'Archive another Auditor or upgrade the '
+                            .'subscription before restoring this account.',
+                    ]);
+                }
+            }
+
             $oldValues = [
                 'is_active' => (bool) $user->is_active,
                 'deleted_at' => $user->deleted_at?->toDateTimeString(),
