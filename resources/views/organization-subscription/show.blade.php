@@ -146,19 +146,82 @@
 
                     <div class="grid gap-px bg-gray-200 sm:grid-cols-2 lg:grid-cols-5 dark:bg-gray-800">
                         @foreach ([
-                            'Total users' => $plan->max_users,
-                            'Consent Managers' => $plan->max_consent_managers,
-                            'Staff' => $plan->max_staff,
-                            'Auditors' => $plan->max_auditors,
-                            'Active kiosks' => $plan->max_active_kiosks,
-                        ] as $label => $limit)
+                            [
+                                'label' => 'Total users',
+                                'used' => $usage['users'],
+                                'limit' => $plan->max_users,
+                            ],
+                            [
+                                'label' => 'Consent Managers',
+                                'used' => $usage['consent_managers'],
+                                'limit' => $plan->max_consent_managers,
+                            ],
+                            [
+                                'label' => 'Staff',
+                                'used' => $usage['staff'],
+                                'limit' => $plan->max_staff,
+                            ],
+                            [
+                                'label' => 'Auditors',
+                                'used' => $usage['auditors'],
+                                'limit' => $plan->max_auditors,
+                            ],
+                            [
+                                'label' => 'Active kiosks',
+                                'used' => $usage['active_kiosks'],
+                                'limit' => $plan->max_active_kiosks,
+                            ],
+                        ] as $capacity)
+                            @php
+                                $used = $capacity['used'];
+                                $limit = $capacity['limit'];
+
+                                $percentage = $limit > 0
+                                    ? min(
+                                        100,
+                                        (int) round(($used / $limit) * 100)
+                                    )
+                                    : 100;
+
+                                $remaining = max(0, $limit - $used);
+
+                                $barClass = $used >= $limit
+                                    ? 'bg-red-500'
+                                    : (
+                                        $percentage >= 80
+                                            ? 'bg-amber-500'
+                                            : 'bg-emerald-500'
+                                    );
+                            @endphp
+
                             <div class="bg-white p-6 dark:bg-gray-900">
                                 <p class="text-sm font-medium text-gray-500">
-                                    {{ $label }}
+                                    {{ $capacity['label'] }}
                                 </p>
 
                                 <p class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">
-                                    {{ number_format($limit) }}
+                                    {{ number_format($used) }}
+                                    <span class="text-base font-semibold text-gray-500">
+                                        of {{ number_format($limit) }}
+                                    </span>
+                                </p>
+
+                                <div
+                                    class="mt-4 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"
+                                    role="progressbar"
+                                    aria-label="{{ $capacity['label'] }} usage"
+                                    aria-valuemin="0"
+                                    aria-valuemax="{{ $limit }}"
+                                    aria-valuenow="{{ $used }}"
+                                >
+                                    <div
+                                        class="h-full rounded-full {{ $barClass }}"
+                                        style="width: {{ $percentage }}%"
+                                    ></div>
+                                </div>
+
+                                <p class="mt-3 text-xs font-medium text-gray-500">
+                                    {{ number_format($remaining) }} remaining
                                 </p>
                             </div>
                         @endforeach
