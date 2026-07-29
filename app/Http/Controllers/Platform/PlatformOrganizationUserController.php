@@ -495,6 +495,81 @@ class PlatformOrganizationUserController extends Controller
             $user,
             $newRole
         ): void {
+            /*
+             * Serialize role changes so concurrent requests cannot exceed
+             * the organization's subscription role limits.
+             */
+            Organization::query()
+                ->whereKey($organization->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            app(PermissionRegistrar::class)
+                ->setPermissionsTeamId($organization->id);
+
+            $currentRole = $user
+                ->roles()
+                ->where(
+                    'roles.organization_id',
+                    $organization->id
+                )
+                ->where('roles.guard_name', 'web')
+                ->first();
+
+            /*
+             * A role limit is consumed only when moving into that role.
+             * Editing a user who is already Staff must remain allowed.
+             */
+            if (
+                $newRole->name === 'Staff'
+                && $currentRole?->id !== $newRole->id
+            ) {
+                $subscription = $organization
+                    ->subscription()
+                    ->with('plan')
+                    ->first();
+
+                $maximumStaff =
+                    $subscription?->plan?->max_staff;
+
+                if ($maximumStaff !== null) {
+                    $currentStaff = User::query()
+                        ->where(
+                            'users.organization_id',
+                            $organization->id
+                        )
+                        ->whereHas(
+                            'roles',
+                            function ($query) use ($organization): void {
+                                $query
+                                    ->where(
+                                        'roles.organization_id',
+                                        $organization->id
+                                    )
+                                    ->where(
+                                        'roles.guard_name',
+                                        'web'
+                                    )
+                                    ->where(
+                                        'roles.name',
+                                        'Staff'
+                                    );
+                            }
+                        )
+                        ->count();
+
+                    if ($currentStaff >= $maximumStaff) {
+                        throw ValidationException::withMessages([
+                            'subscription' =>
+                                'This organization has reached its Staff '
+                                ."role limit of {$maximumStaff}. "
+                                .'Archive a Staff user or upgrade the '
+                                .'subscription before changing this role.',
+                        ]);
+                    }
+                }
+            }
+
             $user->name = $validated['name'];
             $user->email = $validated['email'];
 
