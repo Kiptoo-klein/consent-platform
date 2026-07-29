@@ -6,6 +6,7 @@ use App\Enums\SubscriptionPaymentStatus;
 
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
+use App\Models\OrganizationSubscription;
 use App\Models\SigningStation;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
@@ -15,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -527,6 +529,411 @@ class OrganizationController extends Controller
     }
 
     /**
+     * Suspend an active organization subscription immediately.
+     */
+    public function suspendSubscription(
+        Request $request,
+        Organization $organization
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'reason' => [
+                'required',
+                'string',
+                'max:2000',
+            ],
+        ]);
+
+        $changed = DB::transaction(function () use (
+            $organization,
+            $validated
+        ): bool {
+            $subscription = $organization
+                ->subscription()
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (
+                $subscription->status
+                    === OrganizationSubscriptionStatus::SUSPENDED
+            ) {
+                return false;
+            }
+
+            if (
+                $subscription->status
+                    !== OrganizationSubscriptionStatus::ACTIVE
+            ) {
+                throw ValidationException::withMessages([
+                    'subscription' =>
+                        'Only an active subscription can be suspended.',
+                ]);
+            }
+
+            $oldValues =
+                $this->subscriptionLifecycleSnapshot(
+                    $subscription
+                );
+
+            $subscription->update([
+                'status' =>
+                    OrganizationSubscriptionStatus::SUSPENDED,
+            ]);
+
+            $subscription->refresh();
+
+            $this->activityLogger->log(
+                action:
+                    'organization.subscription_suspended',
+
+                description:
+                    'Organization subscription suspended.',
+
+                subject:
+                    $subscription,
+
+                organizationId:
+                    $organization->id,
+
+                properties: [
+                    'reason' =>
+                        trim($validated['reason']),
+
+                    'old' =>
+                        $oldValues,
+
+                    'new' =>
+                        $this->subscriptionLifecycleSnapshot(
+                            $subscription
+                        ),
+                ],
+            );
+
+            return true;
+        });
+
+        return redirect()
+            ->route(
+                'platform.organizations.show',
+                $organization
+            )
+            ->with(
+                'success',
+                $changed
+                    ? 'Organization subscription suspended successfully.'
+                    : 'Organization subscription is already suspended.'
+            );
+    }
+
+    /**
+     * Resume a suspended subscription when payment and dates remain valid.
+     */
+    public function resumeSubscription(
+        Organization $organization
+    ): RedirectResponse {
+        $changed = DB::transaction(
+            function () use ($organization): bool {
+                $subscription = $organization
+                    ->subscription()
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if (
+                    $subscription->status
+                        !== OrganizationSubscriptionStatus::SUSPENDED
+                ) {
+                    return false;
+                }
+
+                if (
+                    $subscription->payment_status
+                        !== SubscriptionPaymentStatus::PAID
+                ) {
+                    throw ValidationException::withMessages([
+                        'subscription' =>
+                            'The subscription must be paid before it can be resumed.',
+                    ]);
+                }
+
+                if (
+                    $subscription->current_period_ends_at !== null
+                    && ! $subscription
+                        ->current_period_ends_at
+                        ->isFuture()
+                ) {
+                    throw ValidationException::withMessages([
+                        'subscription' =>
+                            'The billing period has expired. Renew the subscription before resuming it.',
+                    ]);
+                }
+
+                if (
+                    $subscription->ends_at !== null
+                    && ! $subscription->ends_at->isFuture()
+                ) {
+                    throw ValidationException::withMessages([
+                        'subscription' =>
+                            'The subscription end date has passed. Renew it before resuming.',
+                    ]);
+                }
+
+                $oldValues =
+                    $this->subscriptionLifecycleSnapshot(
+                        $subscription
+                    );
+
+                $subscription->update([
+                    'status' =>
+                        OrganizationSubscriptionStatus::ACTIVE,
+                ]);
+
+                $subscription->refresh();
+
+                $this->activityLogger->log(
+                    action:
+                        'organization.subscription_resumed',
+
+                    description:
+                        'Organization subscription resumed.',
+
+                    subject:
+                        $subscription,
+
+                    organizationId:
+                        $organization->id,
+
+                    properties: [
+                        'old' =>
+                            $oldValues,
+
+                        'new' =>
+                            $this->subscriptionLifecycleSnapshot(
+                                $subscription
+                            ),
+                    ],
+                );
+
+                return true;
+            }
+        );
+
+        return redirect()
+            ->route(
+                'platform.organizations.show',
+                $organization
+            )
+            ->with(
+                'success',
+                $changed
+                    ? 'Organization subscription resumed successfully.'
+                    : 'Organization subscription is not suspended.'
+            );
+    }
+
+    /**
+     * Cancel a subscription immediately or at its billing-period end.
+     */
+    public function cancelSubscription(
+        Request $request,
+        Organization $organization
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'mode' => [
+                'required',
+                Rule::in([
+                    'immediate',
+                    'period_end',
+                ]),
+            ],
+
+            'reason' => [
+                'required',
+                'string',
+                'max:2000',
+            ],
+        ]);
+
+        $result = DB::transaction(function () use (
+            $organization,
+            $validated
+        ): array {
+            $subscription = $organization
+                ->subscription()
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $mode = $validated['mode'];
+            $reason = trim($validated['reason']);
+
+            if ($mode === 'immediate') {
+                if (
+                    $subscription->status
+                        === OrganizationSubscriptionStatus::CANCELLED
+                ) {
+                    return [
+                        'changed' => false,
+                        'message' =>
+                            'Organization subscription is already cancelled.',
+                    ];
+                }
+
+                $oldValues =
+                    $this->subscriptionLifecycleSnapshot(
+                        $subscription
+                    );
+
+                $cancelledAt = now();
+
+                $subscription->update([
+                    'status' =>
+                        OrganizationSubscriptionStatus::CANCELLED,
+
+                    'cancelled_at' =>
+                        $cancelledAt,
+
+                    'ends_at' =>
+                        $cancelledAt,
+                ]);
+
+                $subscription->refresh();
+
+                $this->activityLogger->log(
+                    action:
+                        'organization.subscription_cancelled',
+
+                    description:
+                        'Organization subscription cancelled immediately.',
+
+                    subject:
+                        $subscription,
+
+                    organizationId:
+                        $organization->id,
+
+                    properties: [
+                        'cancellation_mode' =>
+                            'immediate',
+
+                        'reason' =>
+                            $reason,
+
+                        'old' =>
+                            $oldValues,
+
+                        'new' =>
+                            $this->subscriptionLifecycleSnapshot(
+                                $subscription
+                            ),
+                    ],
+                );
+
+                return [
+                    'changed' => true,
+                    'message' =>
+                        'Organization subscription cancelled immediately.',
+                ];
+            }
+
+            if (
+                $subscription->status
+                    !== OrganizationSubscriptionStatus::ACTIVE
+            ) {
+                throw ValidationException::withMessages([
+                    'subscription' =>
+                        'Only an active subscription can be cancelled at period end.',
+                ]);
+            }
+
+            if (
+                $subscription->current_period_ends_at === null
+                || ! $subscription
+                    ->current_period_ends_at
+                    ->isFuture()
+            ) {
+                throw ValidationException::withMessages([
+                    'subscription' =>
+                        'A future billing-period end is required for scheduled cancellation.',
+                ]);
+            }
+
+            $alreadyScheduled =
+                $subscription->cancelled_at !== null
+                && $subscription->ends_at !== null
+                && $subscription->ends_at->equalTo(
+                    $subscription->current_period_ends_at
+                );
+
+            if ($alreadyScheduled) {
+                return [
+                    'changed' => false,
+                    'message' =>
+                        'Subscription cancellation is already scheduled for period end.',
+                ];
+            }
+
+            $oldValues =
+                $this->subscriptionLifecycleSnapshot(
+                    $subscription
+                );
+
+            $subscription->update([
+                'cancelled_at' =>
+                    now(),
+
+                'ends_at' =>
+                    $subscription->current_period_ends_at,
+            ]);
+
+            $subscription->refresh();
+
+            $this->activityLogger->log(
+                action:
+                    'organization.subscription_cancellation_scheduled',
+
+                description:
+                    'Organization subscription cancellation scheduled for period end.',
+
+                subject:
+                    $subscription,
+
+                organizationId:
+                    $organization->id,
+
+                properties: [
+                    'cancellation_mode' =>
+                        'period_end',
+
+                    'reason' =>
+                        $reason,
+
+                    'old' =>
+                        $oldValues,
+
+                    'new' =>
+                        $this->subscriptionLifecycleSnapshot(
+                            $subscription
+                        ),
+                ],
+            );
+
+            return [
+                'changed' => true,
+                'message' =>
+                    'Subscription cancellation scheduled for period end.',
+            ];
+        });
+
+        return redirect()
+            ->route(
+                'platform.organizations.show',
+                $organization
+            )
+            ->with(
+                'success',
+                $result['message']
+            );
+    }
+
+    /**
      * Allow an organization to operate without confirmed payment.
      */
     public function approveSubscriptionBypass(
@@ -588,6 +995,43 @@ class OrganizationController extends Controller
                 'success',
                 'Organization subscription bypass revoked.'
             );
+    }
+
+    /**
+     * Return lifecycle values suitable for activity-log comparison.
+     *
+     * @return array<string, string|null>
+     */
+    private function subscriptionLifecycleSnapshot(
+        OrganizationSubscription $subscription
+    ): array {
+        return [
+            'status' =>
+                $subscription->status?->value,
+
+            'payment_status' =>
+                $subscription->payment_status?->value,
+
+            'trial_ends_at' =>
+                $subscription->trial_ends_at
+                    ?->toIso8601String(),
+
+            'current_period_starts_at' =>
+                $subscription->current_period_starts_at
+                    ?->toIso8601String(),
+
+            'current_period_ends_at' =>
+                $subscription->current_period_ends_at
+                    ?->toIso8601String(),
+
+            'cancelled_at' =>
+                $subscription->cancelled_at
+                    ?->toIso8601String(),
+
+            'ends_at' =>
+                $subscription->ends_at
+                    ?->toIso8601String(),
+        ];
     }
 
     /**

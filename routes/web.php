@@ -613,6 +613,30 @@ Route::prefix('platform')
         )->name('organizations.subscription-renewal.update');
 
         Route::patch(
+            '/organizations/{organization}/subscription-suspension',
+            [
+                OrganizationController::class,
+                'suspendSubscription',
+            ]
+        )->name('organizations.subscription-suspension.suspend');
+
+        Route::delete(
+            '/organizations/{organization}/subscription-suspension',
+            [
+                OrganizationController::class,
+                'resumeSubscription',
+            ]
+        )->name('organizations.subscription-suspension.resume');
+
+        Route::patch(
+            '/organizations/{organization}/subscription-cancellation',
+            [
+                OrganizationController::class,
+                'cancelSubscription',
+            ]
+        )->name('organizations.subscription-cancellation.update');
+
+        Route::patch(
             '/organizations/{organization}/subscription-bypass',
             [
                 OrganizationController::class,
