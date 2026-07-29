@@ -220,6 +220,120 @@
                     </div>
 
                     <div class="border-t border-gray-200 p-6">
+                        <h3 class="text-base font-semibold text-gray-900">
+                            Change Subscription Plan
+                        </h3>
+
+                        <p class="mt-1 text-sm text-gray-500">
+                            Changing to a lower-capacity plan does not delete
+                            users or pause kiosks. New usage remains blocked
+                            until the organization returns within its limits.
+                        </p>
+
+                        <form
+                            method="POST"
+                            action="{{ route(
+                                'platform.organizations.subscription-plan.update',
+                                $organization
+                            ) }}"
+                            class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+                        >
+                            @csrf
+                            @method('PATCH')
+
+                            <div class="min-w-0 flex-1">
+                                <label
+                                    for="subscription_plan_id"
+                                    class="block text-sm font-semibold text-gray-900"
+                                >
+                                    Subscription plan
+                                </label>
+
+                                <select
+                                    id="subscription_plan_id"
+                                    name="subscription_plan_id"
+                                    required
+                                    class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                >
+                                    @foreach ($subscriptionPlans as $availablePlan)
+                                        <option
+                                            value="{{ $availablePlan->id }}"
+                                            @selected(
+                                                (int) old(
+                                                    'subscription_plan_id',
+                                                    $subscription->subscription_plan_id
+                                                ) === $availablePlan->id
+                                            )
+                                        >
+                                            {{ $availablePlan->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+
+                                @error('subscription_plan_id')
+                                    <p class="mt-2 text-sm font-medium text-red-700">
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
+
+                            <button
+                                type="submit"
+                                class="inline-flex justify-center rounded-lg border border-teal-700 bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-800"
+                            >
+                                Update Plan
+                            </button>
+                        </form>
+                    </div>
+
+                    @if ($plan && ! empty($capacity))
+                        <div class="border-t border-gray-200 p-6">
+                            @if ($hasCapacityOverage)
+                                <div class="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-red-900">
+                                    <h3 class="font-semibold">
+                                        Plan capacity exceeded
+                                    </h3>
+
+                                    <p class="mt-1 text-sm">
+                                        Existing records remain available, but
+                                        additional users, role assignments and
+                                        active kiosks are restricted.
+                                    </p>
+                                </div>
+                            @endif
+
+                            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                                @foreach ($capacity as $item)
+                                    <div class="rounded-xl border border-gray-200 p-4">
+                                        <p class="text-sm font-medium text-gray-500">
+                                            {{ $item['label'] }}
+                                        </p>
+
+                                        <p class="mt-2 text-xl font-bold text-gray-900">
+                                            {{ number_format($item['used']) }}
+                                            <span class="text-sm font-semibold text-gray-500">
+                                                of {{ number_format($item['limit']) }}
+                                            </span>
+                                        </p>
+
+                                        @if ($item['overage'] > 0)
+                                            <p class="mt-2 text-sm font-semibold text-red-700">
+                                                {{ number_format($item['overage']) }}
+                                                over limit
+                                            </p>
+                                        @else
+                                            <p class="mt-2 text-sm font-medium text-gray-500">
+                                                {{ number_format($item['remaining']) }}
+                                                remaining
+                                            </p>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                    <div class="border-t border-gray-200 p-6">
                         @if ($hasBypass)
                             <div class="rounded-xl border border-green-200 bg-green-50 p-5">
                                 <h3 class="font-semibold text-green-900">

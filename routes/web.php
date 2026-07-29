@@ -597,6 +597,14 @@ Route::prefix('platform')
         ])->name('organizations.update');
 
         Route::patch(
+            '/organizations/{organization}/subscription-plan',
+            [
+                OrganizationController::class,
+                'updateSubscriptionPlan',
+            ]
+        )->name('organizations.subscription-plan.update');
+
+        Route::patch(
             '/organizations/{organization}/subscription-bypass',
             [
                 OrganizationController::class,

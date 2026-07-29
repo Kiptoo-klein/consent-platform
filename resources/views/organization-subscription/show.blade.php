@@ -184,6 +184,7 @@
                                     : 100;
 
                                 $remaining = max(0, $limit - $used);
+                                $overage = max(0, $used - $limit);
 
                                 $barClass = $used >= $limit
                                     ? 'bg-red-500'
@@ -220,9 +221,15 @@
                                     ></div>
                                 </div>
 
-                                <p class="mt-3 text-xs font-medium text-gray-500">
-                                    {{ number_format($remaining) }} remaining
-                                </p>
+                                @if ($overage > 0)
+                                    <p class="mt-3 text-xs font-semibold text-red-600 dark:text-red-400">
+                                        {{ number_format($overage) }} over limit
+                                    </p>
+                                @else
+                                    <p class="mt-3 text-xs font-medium text-gray-500">
+                                        {{ number_format($remaining) }} remaining
+                                    </p>
+                                @endif
                             </div>
                         @endforeach
                     </div>
