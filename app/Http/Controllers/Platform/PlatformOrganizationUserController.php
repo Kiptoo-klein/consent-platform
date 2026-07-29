@@ -634,6 +634,65 @@ class PlatformOrganizationUserController extends Controller
                 }
             }
 
+            /*
+             * A role limit is consumed only when moving into the Auditor
+             * role. Editing an existing Auditor must remain allowed.
+             */
+            if (
+                $newRole->name === 'Auditor'
+                && $currentRole?->id !== $newRole->id
+            ) {
+                $subscription = $organization
+                    ->subscription()
+                    ->with('plan')
+                    ->first();
+
+                $maximumAuditors =
+                    $subscription?->plan?->max_auditors;
+
+                if ($maximumAuditors !== null) {
+                    /*
+                     * Disabled Auditors still occupy role seats. Archived
+                     * users are excluded by the User model's SoftDeletes
+                     * scope.
+                     */
+                    $currentAuditors = User::query()
+                        ->where(
+                            'users.organization_id',
+                            $organization->id
+                        )
+                        ->whereHas(
+                            'roles',
+                            function ($query) use ($organization): void {
+                                $query
+                                    ->where(
+                                        'roles.organization_id',
+                                        $organization->id
+                                    )
+                                    ->where(
+                                        'roles.guard_name',
+                                        'web'
+                                    )
+                                    ->where(
+                                        'roles.name',
+                                        'Auditor'
+                                    );
+                            }
+                        )
+                        ->count();
+
+                    if ($currentAuditors >= $maximumAuditors) {
+                        throw ValidationException::withMessages([
+                            'subscription' =>
+                                'This organization has reached its Auditor '
+                                ."role limit of {$maximumAuditors}. "
+                                .'Archive an Auditor or upgrade the '
+                                .'subscription before changing this role.',
+                        ]);
+                    }
+                }
+            }
+
             $user->name = $validated['name'];
             $user->email = $validated['email'];
 
