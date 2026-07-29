@@ -90,4 +90,12 @@ class SubscriptionInvoice extends Model
             'subscription_invoice_id'
         );
     }
+
+    public function reminderNotifications(): HasMany
+    {
+        return $this->hasMany(
+            SubscriptionInvoiceNotification::class,
+            'subscription_invoice_id'
+        );
+    }
 }

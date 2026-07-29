@@ -269,8 +269,16 @@ class SubscriptionInvoiceController extends Controller
             'subscription',
             'plan',
             'issuedBy',
+
             'transactions' => function ($query): void {
                 $query->latest('id');
+            },
+
+            'reminderNotifications' => function ($query): void {
+                $query
+                    ->orderByDesc('created_at')
+                    ->orderByDesc('id')
+                    ->limit(20);
             },
         ]);
 
