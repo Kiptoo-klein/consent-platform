@@ -535,7 +535,31 @@
                             @endif
                         </p>
 
-                        <form
+                                                @php
+                            $renewalPeriodStartValue = old(
+                                'current_period_starts_at',
+                                now()->format('d/m/Y')
+                            );
+
+                            $renewalPeriodEndValue = old(
+                                'current_period_ends_at',
+                                now()
+                                    ->copy()
+                                    ->addMonth()
+                                    ->format('d/m/Y')
+                            );
+
+                            $renewalFinalEndValue = old(
+                                'ends_at',
+                                $subscription->ends_at
+                                    ? $subscription
+                                        ->ends_at
+                                        ->format('d/m/Y')
+                                    : ''
+                            );
+                        @endphp
+
+<form
                             method="POST"
                             action="{{ route(
                                 'platform.organizations.subscription-renewal.update',
@@ -554,25 +578,99 @@
                                     Period starts
                                 </label>
 
-                                <input
-                                    id="current_period_starts_at"
-                                    name="current_period_starts_at"
-                                    type="text"
-                                    required
-                                    inputmode="numeric"
-                                    autocomplete="off"
-                                    placeholder="dd/mm/yyyy"
-                                    pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}"
-                                    value="{{ old(
-                                        'current_period_starts_at',
-                                        now()->format('d/m/Y')
-                                    ) }}"
-                                    class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
-                                >current_period_starts_at
-                                            ?->format('Y-m-d\TH:i')
-                                    ) }}"
-                                    class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
-                                >
+                                <div class="relative mt-2">
+                                    <input
+                                        id="current_period_starts_at"
+                                        name="current_period_starts_at"
+                                        type="text"
+                                        required
+                                        inputmode="numeric"
+                                        autocomplete="off"
+                                        placeholder="dd/mm/yyyy"
+                                        pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}"
+                                        value="{{ $renewalPeriodStartValue }}"
+                                        class="block w-full rounded-lg border-gray-300 pr-12 shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                    >
+
+                                    <input
+                                        id="current_period_starts_at_picker"
+                                        type="date"
+                                        aria-label="Choose period start date"
+                                        tabindex="-1"
+                                        onpointerdown="
+                                            const target =
+                                                document.getElementById(
+                                                    'current_period_starts_at'
+                                                );
+
+                                            const parts =
+                                                target.value.split('/');
+
+                                            this.value =
+                                                parts.length === 3
+                                                    ? parts[2]
+                                                        + '-'
+                                                        + parts[1]
+                                                        + '-'
+                                                        + parts[0]
+                                                    : '';
+                                        "
+                                        onfocus="
+                                            const target =
+                                                document.getElementById(
+                                                    'current_period_starts_at'
+                                                );
+
+                                            const parts =
+                                                target.value.split('/');
+
+                                            this.value =
+                                                parts.length === 3
+                                                    ? parts[2]
+                                                        + '-'
+                                                        + parts[1]
+                                                        + '-'
+                                                        + parts[0]
+                                                    : '';
+                                        "
+                                        onchange="
+                                            const parts =
+                                                this.value.split('-');
+
+                                            if (parts.length === 3) {
+                                                document.getElementById(
+                                                    'current_period_starts_at'
+                                                ).value =
+                                                    parts[2]
+                                                    + '/'
+                                                    + parts[1]
+                                                    + '/'
+                                                    + parts[0];
+                                            }
+                                        "
+                                        class="absolute inset-y-0 right-0 z-10 h-full w-12 cursor-pointer opacity-0"
+                                    >
+
+                                    <span
+                                        aria-hidden="true"
+                                        class="pointer-events-none absolute inset-y-0 right-0 flex w-12 items-center justify-center text-gray-500"
+                                    >
+                                        <svg
+                                            class="h-5 w-5"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="1.8"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M6.75 3.75v3m10.5-3v3M4.5 9h15m-13.5-4.5h12A1.5 1.5 0 0 1 19.5 6v13.5h-15V6A1.5 1.5 0 0 1 6 4.5Z"
+                                            />
+                                        </svg>
+                                    </span>
+                                </div>
+
 
                                 @error('current_period_starts_at')
                                     <p class="mt-2 text-sm font-medium text-red-700">
@@ -589,27 +687,99 @@
                                     Period ends
                                 </label>
 
-                                <input
-                                    id="current_period_ends_at"
-                                    name="current_period_ends_at"
-                                    type="text"
-                                    required
-                                    inputmode="numeric"
-                                    autocomplete="off"
-                                    placeholder="dd/mm/yyyy"
-                                    pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}"
-                                    value="{{ old(
-                                        'current_period_ends_at',
-                                        now()
-                                            ->addMonth()
-                                            ->format('d/m/Y')
-                                    ) }}"
-                                    class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
-                                >current_period_ends_at
-                                            ?->format('Y-m-d\TH:i')
-                                    ) }}"
-                                    class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
-                                >
+                                <div class="relative mt-2">
+                                    <input
+                                        id="current_period_ends_at"
+                                        name="current_period_ends_at"
+                                        type="text"
+                                        required
+                                        inputmode="numeric"
+                                        autocomplete="off"
+                                        placeholder="dd/mm/yyyy"
+                                        pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}"
+                                        value="{{ $renewalPeriodEndValue }}"
+                                        class="block w-full rounded-lg border-gray-300 pr-12 shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                    >
+
+                                    <input
+                                        id="current_period_ends_at_picker"
+                                        type="date"
+                                        aria-label="Choose period end date"
+                                        tabindex="-1"
+                                        onpointerdown="
+                                            const target =
+                                                document.getElementById(
+                                                    'current_period_ends_at'
+                                                );
+
+                                            const parts =
+                                                target.value.split('/');
+
+                                            this.value =
+                                                parts.length === 3
+                                                    ? parts[2]
+                                                        + '-'
+                                                        + parts[1]
+                                                        + '-'
+                                                        + parts[0]
+                                                    : '';
+                                        "
+                                        onfocus="
+                                            const target =
+                                                document.getElementById(
+                                                    'current_period_ends_at'
+                                                );
+
+                                            const parts =
+                                                target.value.split('/');
+
+                                            this.value =
+                                                parts.length === 3
+                                                    ? parts[2]
+                                                        + '-'
+                                                        + parts[1]
+                                                        + '-'
+                                                        + parts[0]
+                                                    : '';
+                                        "
+                                        onchange="
+                                            const parts =
+                                                this.value.split('-');
+
+                                            if (parts.length === 3) {
+                                                document.getElementById(
+                                                    'current_period_ends_at'
+                                                ).value =
+                                                    parts[2]
+                                                    + '/'
+                                                    + parts[1]
+                                                    + '/'
+                                                    + parts[0];
+                                            }
+                                        "
+                                        class="absolute inset-y-0 right-0 z-10 h-full w-12 cursor-pointer opacity-0"
+                                    >
+
+                                    <span
+                                        aria-hidden="true"
+                                        class="pointer-events-none absolute inset-y-0 right-0 flex w-12 items-center justify-center text-gray-500"
+                                    >
+                                        <svg
+                                            class="h-5 w-5"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="1.8"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M6.75 3.75v3m10.5-3v3M4.5 9h15m-13.5-4.5h12A1.5 1.5 0 0 1 19.5 6v13.5h-15V6A1.5 1.5 0 0 1 6 4.5Z"
+                                            />
+                                        </svg>
+                                    </span>
+                                </div>
+
 
                                 @error('current_period_ends_at')
                                     <p class="mt-2 text-sm font-medium text-red-700">
@@ -626,32 +796,98 @@
                                     Final subscription end (optional)
                                 </label>
 
-                                <input
-                                    id="ends_at"
-                                    name="ends_at"
-                                    type="text"
-                                    inputmode="numeric"
-                                    autocomplete="off"
-                                    placeholder="dd/mm/yyyy"
-                                    pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}"
-                                    value="{{ old(
-                                        'ends_at',
-                                        $subscription
-                                            ->ends_at
-                                            ?->format('d/m/Y')
-                                            ?? ''
-                                    ) }}"
-                                    class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
-                                >ends_at
-                                            ?->format('Y-m-d\TH:i')
-                                    ) }}"
-                                    class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
-                                >
+                                <div class="relative mt-2">
+                                    <input
+                                        id="ends_at"
+                                        name="ends_at"
+                                        type="text"
+                                        inputmode="numeric"
+                                        autocomplete="off"
+                                        placeholder="dd/mm/yyyy"
+                                        pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}"
+                                        value="{{ $renewalFinalEndValue }}"
+                                        class="block w-full rounded-lg border-gray-300 pr-12 shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                    >
 
-                                <p class="mt-2 text-xs text-gray-500">
-                                    Leave blank unless the subscription must
-                                    permanently end on a specific date.
-                                </p>
+                                    <input
+                                        id="ends_at_picker"
+                                        type="date"
+                                        aria-label="Choose final subscription end date"
+                                        tabindex="-1"
+                                        onpointerdown="
+                                            const target =
+                                                document.getElementById(
+                                                    'ends_at'
+                                                );
+
+                                            const parts =
+                                                target.value.split('/');
+
+                                            this.value =
+                                                parts.length === 3
+                                                    ? parts[2]
+                                                        + '-'
+                                                        + parts[1]
+                                                        + '-'
+                                                        + parts[0]
+                                                    : '';
+                                        "
+                                        onfocus="
+                                            const target =
+                                                document.getElementById(
+                                                    'ends_at'
+                                                );
+
+                                            const parts =
+                                                target.value.split('/');
+
+                                            this.value =
+                                                parts.length === 3
+                                                    ? parts[2]
+                                                        + '-'
+                                                        + parts[1]
+                                                        + '-'
+                                                        + parts[0]
+                                                    : '';
+                                        "
+                                        onchange="
+                                            const parts =
+                                                this.value.split('-');
+
+                                            if (parts.length === 3) {
+                                                document.getElementById(
+                                                    'ends_at'
+                                                ).value =
+                                                    parts[2]
+                                                    + '/'
+                                                    + parts[1]
+                                                    + '/'
+                                                    + parts[0];
+                                            }
+                                        "
+                                        class="absolute inset-y-0 right-0 z-10 h-full w-12 cursor-pointer opacity-0"
+                                    >
+
+                                    <span
+                                        aria-hidden="true"
+                                        class="pointer-events-none absolute inset-y-0 right-0 flex w-12 items-center justify-center text-gray-500"
+                                    >
+                                        <svg
+                                            class="h-5 w-5"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="1.8"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M6.75 3.75v3m10.5-3v3M4.5 9h15m-13.5-4.5h12A1.5 1.5 0 0 1 19.5 6v13.5h-15V6A1.5 1.5 0 0 1 6 4.5Z"
+                                            />
+                                        </svg>
+                                    </span>
+                                </div>
+
 
                                 @error('ends_at')
                                     <p class="mt-2 text-sm font-medium text-red-700">
