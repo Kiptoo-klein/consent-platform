@@ -11,12 +11,23 @@
                 </p>
             </div>
 
-            <a
-                href="{{ route('organization-subscription.show') }}"
-                class="inline-flex rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
-            >
-                Subscription Status
-            </a>
+            <div class="flex flex-wrap gap-3">
+                <a
+                    href="{{ route(
+                        'organization-billing.reminder-preferences.index'
+                    ) }}"
+                    class="inline-flex rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
+                >
+                    Reminder Preferences
+                </a>
+
+                <a
+                    href="{{ route('organization-subscription.show') }}"
+                    class="inline-flex rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                >
+                    Subscription Status
+                </a>
+            </div>
         </div>
     </x-slot>
 

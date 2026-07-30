@@ -4,13 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Enums\SubscriptionInvoiceStatus;
 use App\Models\Organization;
+use App\Models\OrganizationInvoiceReminderPreference;
 use App\Models\OrganizationSubscription;
 use App\Models\SubscriptionInvoice;
 use App\Models\SubscriptionTransaction;
 use App\Services\ActivityLogger;
+use App\Services\OrganizationInvoiceReminderPreferenceService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -433,6 +437,150 @@ class OrganizationBillingController extends Controller
             180,
             ''
         ).'.pdf';
+    }
+
+    /**
+     * Display invoice reminder preferences for the billing owner.
+     */
+    public function reminderPreferences(
+        Request $request,
+        OrganizationInvoiceReminderPreferenceService $preferenceService
+    ): View {
+        [
+            $organization,
+            $subscription,
+        ] = $this->billingContext($request);
+
+        return view(
+            'organization-billing.reminder-preferences',
+            [
+                'organization' =>
+                    $organization,
+
+                'subscription' =>
+                    $subscription,
+
+                'preferences' =>
+                    $preferenceService->preferencesFor(
+                        $organization->id
+                    ),
+            ]
+        );
+    }
+
+    /**
+     * Update invoice reminder preferences for the billing owner.
+     */
+    public function updateReminderPreferences(
+        Request $request,
+        OrganizationInvoiceReminderPreferenceService $preferenceService
+    ): RedirectResponse {
+        [
+            $organization,
+        ] = $this->billingContext($request);
+
+        $request->validate([
+            'before_due_reminders_enabled' => [
+                'required',
+                'boolean',
+            ],
+
+            'overdue_reminders_enabled' => [
+                'required',
+                'boolean',
+            ],
+        ]);
+
+        $oldPreferences =
+            $preferenceService->preferencesFor(
+                $organization->id
+            );
+
+        $newPreferences = [
+            'before_due_reminders_enabled' =>
+                $request->boolean(
+                    'before_due_reminders_enabled'
+                ),
+
+            'overdue_reminders_enabled' =>
+                $request->boolean(
+                    'overdue_reminders_enabled'
+                ),
+        ];
+
+        DB::transaction(
+            function () use (
+                $request,
+                $organization,
+                $oldPreferences,
+                $newPreferences
+            ): void {
+                $preference =
+                    OrganizationInvoiceReminderPreference::query()
+                        ->where(
+                            'organization_id',
+                            $organization->id
+                        )
+                        ->lockForUpdate()
+                        ->first();
+
+                if ($preference === null) {
+                    $preference =
+                        new OrganizationInvoiceReminderPreference();
+
+                    $preference->organization_id =
+                        $organization->id;
+                }
+
+                $preference->fill(
+                    array_merge(
+                        $newPreferences,
+                        [
+                            'updated_by_user_id' =>
+                                $request->user()->id,
+                        ]
+                    )
+                );
+
+                $preference->save();
+
+                $this->activityLogger->log(
+                    action:
+                        'organization.subscription_invoice_reminder_preferences_updated',
+
+                    description:
+                        'The organization invoice reminder preferences were updated.',
+
+                    subject:
+                        $preference,
+
+                    organizationId:
+                        $organization->id,
+
+                    properties: [
+                        'old' =>
+                            $oldPreferences,
+
+                        'new' =>
+                            $newPreferences,
+                    ],
+                );
+            },
+            3
+        );
+
+        $preferenceService->forgetCache(
+            $organization->id
+        );
+
+        return redirect()
+            ->route(
+                'organization-billing.reminder-preferences.index'
+            )
+            ->with(
+                'success',
+                'Invoice reminder preferences updated successfully.'
+            );
     }
 
     /**

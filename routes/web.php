@@ -204,6 +204,26 @@ Route::middleware([
     ])->name('organization-billing.index');
 
     Route::get(
+        '/subscription/billing/reminder-preferences',
+        [
+            OrganizationBillingController::class,
+            'reminderPreferences',
+        ]
+    )->name(
+        'organization-billing.reminder-preferences.index'
+    );
+
+    Route::patch(
+        '/subscription/billing/reminder-preferences',
+        [
+            OrganizationBillingController::class,
+            'updateReminderPreferences',
+        ]
+    )->name(
+        'organization-billing.reminder-preferences.update'
+    );
+
+    Route::get(
         '/subscription/billing/invoices/{subscriptionInvoice}',
         [
             OrganizationBillingController::class,
