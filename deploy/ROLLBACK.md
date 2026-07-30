@@ -1,46 +1,65 @@
 # Emergency Rollback
 
+Prefer release directories or a verified Git revision so the previous code is
+always available.
+
+## Before rollback
+
+Record:
+
+- the current Git commit
+- the previous known-good Git commit
+- the latest verified backup directory
+- the migrations introduced by the failed release
+
 ## Application code rollback
-
-Keep the previous release directory or Git revision available.
-
-1. Enable maintenance mode.
-2. Stop or pause the queue worker.
-3. Restore the previous application release.
-4. Restore the pre-deployment database backup when the migration
-   cannot safely be reversed.
-5. Rebuild Laravel caches.
-6. Restart queue workers.
-7. Disable maintenance mode.
 
 ```bash
 php artisan down --retry=60
+php artisan queue:restart
 php artisan optimize:clear
 
-# Restore previous code release here.
+git switch --detach PREVIOUS_KNOWN_GOOD_COMMIT
+
+composer install \
+    --no-dev \
+    --prefer-dist \
+    --no-interaction \
+    --optimize-autoloader
+
+npm ci
+npm run build
 
 php artisan optimize
 php artisan queue:restart
 php artisan up
 ```
 
-## Migration rollback
+Do not run `git reset --hard` when the server contains unreviewed tracked
+changes.
 
-Only use Laravel migration rollback when the migration's `down`
-operation is known to be safe:
+## Database rollback
+
+Use Laravel migration rollback only when every affected migration has a tested,
+non-destructive `down` method:
 
 ```bash
-php artisan migrate:rollback --step=1 --force
+php artisan migrate:rollback \
+    --step=NUMBER_OF_RELEASE_MIGRATIONS \
+    --force
 ```
 
-For destructive or uncertain migrations, restore the verified
-pre-deployment database backup instead.
+When rollback may lose or corrupt data, restore the verified pre-deployment
+database backup instead.
 
 ## Failed deployment
 
-The deployment script automatically attempts to disable maintenance
-mode when a command fails. Confirm with:
+`deploy/production-deploy.sh` attempts to disable maintenance mode whenever a
+command fails. Confirm access manually:
 
 ```bash
 php artisan up
+php artisan production:check
 ```
+
+Inspect the queue worker and Nginx logs before retrying.
