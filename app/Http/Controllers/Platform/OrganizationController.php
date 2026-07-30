@@ -74,6 +74,17 @@ class OrganizationController extends Controller
             ->orderBy('name')
             ->get();
 
+        $billingOwners = $organization
+            ->users()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->orderBy('email')
+            ->get([
+                'id',
+                'name',
+                'email',
+            ]);
+
         $usage = $this->subscriptionUsage($organization);
 
         $capacity = $this->capacityForPlan(
@@ -91,6 +102,7 @@ class OrganizationController extends Controller
             compact(
                 'organization',
                 'subscriptionPlans',
+                'billingOwners',
                 'capacity',
                 'hasCapacityOverage'
             )
@@ -184,6 +196,219 @@ class OrganizationController extends Controller
         return redirect()
             ->route('platform.organizations.show', $organization)
             ->with('success', 'Organization updated successfully.');
+    }
+
+    /**
+     * Create the organization's initial subscription record.
+     *
+     * The initial record is unpaid. An optional future trial end grants
+     * temporary trial access. A Platform Admin can later record payment,
+     * renew the subscription, change its plan, or approve a bypass.
+     */
+    public function storeSubscription(
+        Request $request,
+        Organization $organization
+    ): RedirectResponse {
+        /*
+         * Non-browser callers may omit the start date. Treat that as
+         * today's date, matching the default displayed by the form.
+         */
+        if (! $request->filled('starts_at')) {
+            $request->merge([
+                'starts_at' => now()->toDateString(),
+            ]);
+        }
+
+        $validated = $request->validate([
+            'subscription_plan_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'subscription_plans',
+                    'id'
+                )->where(
+                    fn ($query) =>
+                        $query->where('is_active', true)
+                ),
+            ],
+
+            'billing_owner_user_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'users',
+                    'id'
+                )->where(
+                    fn ($query) =>
+                        $query
+                            ->where(
+                                'organization_id',
+                                $organization->id
+                            )
+                            ->where('is_active', true)
+                            ->whereNull('deleted_at')
+                ),
+            ],
+
+            'starts_at' => [
+                'required',
+                'date_format:Y-m-d',
+                'before_or_equal:today',
+            ],
+
+            'trial_ends_at' => [
+                'nullable',
+                'date_format:Y-m-d',
+                'after:starts_at',
+            ],
+        ]);
+
+        $plan = SubscriptionPlan::query()
+            ->whereKey(
+                (int) $validated['subscription_plan_id']
+            )
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        $billingOwner = User::query()
+            ->whereKey(
+                (int) $validated['billing_owner_user_id']
+            )
+            ->where(
+                'organization_id',
+                $organization->id
+            )
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        $startsAt = Carbon::createFromFormat(
+            'Y-m-d',
+            $validated['starts_at']
+        )->startOfDay();
+
+        $trialEndsAt = filled(
+            $validated['trial_ends_at'] ?? null
+        )
+            ? Carbon::createFromFormat(
+                'Y-m-d',
+                $validated['trial_ends_at']
+            )->startOfDay()
+            : null;
+
+        DB::transaction(function () use (
+            $organization,
+            $plan,
+            $billingOwner,
+            $startsAt,
+            $trialEndsAt
+        ): void {
+            $lockedOrganization = Organization::query()
+                ->whereKey($organization->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (
+                $lockedOrganization
+                    ->subscription()
+                    ->exists()
+            ) {
+                throw ValidationException::withMessages([
+                    'subscription' =>
+                        'This organization already has a subscription record.',
+                ]);
+            }
+
+            $subscription = $lockedOrganization
+                ->subscription()
+                ->create([
+                    'subscription_plan_id' =>
+                        $plan->id,
+
+                    'billing_owner_user_id' =>
+                        $billingOwner->id,
+
+                    'status' =>
+                        OrganizationSubscriptionStatus::TRIALING,
+
+                    'payment_status' =>
+                        SubscriptionPaymentStatus::UNPAID,
+
+                    'starts_at' =>
+                        $startsAt,
+
+                    'trial_ends_at' =>
+                        $trialEndsAt,
+                ]);
+
+            $this->activityLogger->log(
+                action:
+                    'organization.subscription_created',
+
+                description:
+                    "Initial subscription assigned on the "
+                    ."{$plan->name} plan.",
+
+                subject:
+                    $subscription,
+
+                organizationId:
+                    $lockedOrganization->id,
+
+                properties: [
+                    'plan' => [
+                        'id' =>
+                            $plan->id,
+
+                        'name' =>
+                            $plan->name,
+
+                        'slug' =>
+                            $plan->slug,
+                    ],
+
+                    'billing_owner' => [
+                        'user_id' =>
+                            $billingOwner->id,
+
+                        'name' =>
+                            $billingOwner->name,
+
+                        'email' =>
+                            $billingOwner->email,
+                    ],
+
+                    'status' =>
+                        OrganizationSubscriptionStatus::TRIALING
+                            ->value,
+
+                    'payment_status' =>
+                        SubscriptionPaymentStatus::UNPAID
+                            ->value,
+
+                    'starts_at' =>
+                        $subscription
+                            ->starts_at
+                            ?->toIso8601String(),
+
+                    'trial_ends_at' =>
+                        $subscription
+                            ->trial_ends_at
+                            ?->toIso8601String(),
+                ],
+            );
+        });
+
+        return redirect()
+            ->route(
+                'platform.organizations.show',
+                $organization
+            )
+            ->with(
+                'success',
+                'Initial organization subscription created successfully.'
+            );
     }
 
     /**

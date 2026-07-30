@@ -196,8 +196,201 @@
 
                 @if (! $subscription)
                     <div class="p-6">
-                        <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-                            This organization does not have a subscription record.
+                        <div class="rounded-xl border border-amber-200 bg-amber-50 p-5">
+                            <h3 class="text-base font-semibold text-amber-950">
+                                Assign Initial Subscription
+                            </h3>
+
+                            <p class="mt-1 text-sm text-amber-900">
+                                Select an active plan and billing owner. The
+                                subscription starts unpaid. You can optionally
+                                provide a future trial end date, or activate
+                                payment later through renewal or transaction
+                                management.
+                            </p>
+
+                            @error('subscription')
+                                <p class="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+                                    {{ $message }}
+                                </p>
+                            @enderror
+
+                            @if ($subscriptionPlans->isEmpty())
+                                <div class="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+                                    No active subscription plans are available.
+                                    Run the subscription plan seeder before
+                                    assigning a subscription.
+                                </div>
+                            @elseif ($billingOwners->isEmpty())
+                                <div class="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+                                    This organization has no active user who can
+                                    be assigned as the billing owner.
+                                </div>
+                            @else
+                                <form
+                                    method="POST"
+                                    action="{{ route(
+                                        'platform.organizations.subscription.store',
+                                        $organization
+                                    ) }}"
+                                    class="mt-5 grid gap-4 lg:grid-cols-4"
+                                >
+                                    @csrf
+
+                                    <div>
+                                        <label
+                                            for="initial_subscription_plan_id"
+                                            class="block text-sm font-semibold text-amber-950"
+                                        >
+                                            Subscription plan
+                                        </label>
+
+                                        <select
+                                            id="initial_subscription_plan_id"
+                                            name="subscription_plan_id"
+                                            required
+                                            class="mt-2 block w-full rounded-lg border-amber-300 bg-white shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                        >
+                                            <option value="">
+                                                Select a plan
+                                            </option>
+
+                                            @foreach ($subscriptionPlans as $availablePlan)
+                                                <option
+                                                    value="{{ $availablePlan->id }}"
+                                                    @selected(
+                                                        (int) old(
+                                                            'subscription_plan_id'
+                                                        ) === $availablePlan->id
+                                                    )
+                                                >
+                                                    {{ $availablePlan->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+
+                                        @error('subscription_plan_id')
+                                            <p class="mt-2 text-sm font-medium text-red-700">
+                                                {{ $message }}
+                                            </p>
+                                        @enderror
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            for="billing_owner_user_id"
+                                            class="block text-sm font-semibold text-amber-950"
+                                        >
+                                            Billing owner
+                                        </label>
+
+                                        <select
+                                            id="billing_owner_user_id"
+                                            name="billing_owner_user_id"
+                                            required
+                                            class="mt-2 block w-full rounded-lg border-amber-300 bg-white shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                        >
+                                            <option value="">
+                                                Select a billing owner
+                                            </option>
+
+                                            @foreach ($billingOwners as $billingOwner)
+                                                <option
+                                                    value="{{ $billingOwner->id }}"
+                                                    @selected(
+                                                        (int) old(
+                                                            'billing_owner_user_id'
+                                                        ) === $billingOwner->id
+                                                    )
+                                                >
+                                                    {{ $billingOwner->name }}
+                                                    — {{ $billingOwner->email }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+
+                                        @error('billing_owner_user_id')
+                                            <p class="mt-2 text-sm font-medium text-red-700">
+                                                {{ $message }}
+                                            </p>
+                                        @enderror
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            for="starts_at"
+                                            class="block text-sm font-semibold text-amber-950"
+                                        >
+                                            Subscription start date
+                                        </label>
+
+                                        <input
+                                            id="starts_at"
+                                            name="starts_at"
+                                            type="date"
+                                            required
+                                            max="{{ now()->toDateString() }}"
+                                            value="{{ old(
+                                                'starts_at',
+                                                now()->toDateString()
+                                            ) }}"
+                                            class="mt-2 block w-full rounded-lg border-amber-300 bg-white shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                        >
+
+                                        <p class="mt-2 text-xs text-amber-900">
+                                            Defaults to today. You may select
+                                            an earlier date when backdating a
+                                            subscription. It is stored at
+                                            midnight (00:00).
+                                        </p>
+
+                                        @error('starts_at')
+                                            <p class="mt-2 text-sm font-medium text-red-700">
+                                                {{ $message }}
+                                            </p>
+                                        @enderror
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            for="trial_ends_at"
+                                            class="block text-sm font-semibold text-amber-950"
+                                        >
+                                            Trial end date
+                                        </label>
+
+                                        <input
+                                            id="trial_ends_at"
+                                            name="trial_ends_at"
+                                            type="date"
+                                            value="{{ old('trial_ends_at') }}"
+                                            class="mt-2 block w-full rounded-lg border-amber-300 bg-white shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                        >
+
+                                        <p class="mt-2 text-xs text-amber-900">
+                                            Optional. The selected date is
+                                            automatically stored at midnight
+                                            (00:00). Leave blank to keep access
+                                            blocked until payment or bypass.
+                                        </p>
+
+                                        @error('trial_ends_at')
+                                            <p class="mt-2 text-sm font-medium text-red-700">
+                                                {{ $message }}
+                                            </p>
+                                        @enderror
+                                    </div>
+
+                                    <div class="lg:col-span-4">
+                                        <button
+                                            type="submit"
+                                            class="inline-flex rounded-lg border border-teal-700 bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-800"
+                                        >
+                                            Assign Subscription
+                                        </button>
+                                    </div>
+                                </form>
+                            @endif
                         </div>
                     </div>
                 @else

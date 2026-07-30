@@ -697,6 +697,14 @@ Route::prefix('platform')
             'update',
         ])->name('organizations.update');
 
+        Route::post(
+            '/organizations/{organization}/subscription',
+            [
+                OrganizationController::class,
+                'storeSubscription',
+            ]
+        )->name('organizations.subscription.store');
+
         Route::patch(
             '/organizations/{organization}/subscription-plan',
             [
