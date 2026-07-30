@@ -16,7 +16,8 @@ class SubscriptionInvoiceNotificationService
 {
     public function __construct(
         private readonly ActivityLogger $activityLogger,
-        private readonly SubscriptionInvoiceReminderSettingsService $settingsService
+        private readonly SubscriptionInvoiceReminderSettingsService $settingsService,
+        private readonly OrganizationInvoiceReminderPreferenceService $preferenceService
     ) {
     }
 
@@ -174,6 +175,16 @@ class SubscriptionInvoiceNotificationService
         SubscriptionInvoice $invoice,
         string $reminderKey
     ): ?SubscriptionInvoiceNotification {
+        if (
+            ! $this->preferenceService
+                ->allowsReminder(
+                    (int) $invoice->organization_id,
+                    $reminderKey
+                )
+        ) {
+            return null;
+        }
+
         $notification = DB::transaction(
             function () use (
                 $invoice,
