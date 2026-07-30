@@ -144,6 +144,17 @@
                     $status
                         ? ucwords(str_replace('_', ' ', $status))
                         : 'Unavailable';
+
+                /*
+                 * This is an initial activation only when the subscription
+                 * has never had a billing period. Unpaid, past-due, expired,
+                 * or cancelled subscriptions with previous period dates are
+                 * renewals rather than first-time activations.
+                 */
+                $isInitialBillingActivation =
+                    $subscription !== null
+                    && $subscription->current_period_starts_at === null
+                    && $subscription->current_period_ends_at === null;
             @endphp
 
             <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -198,15 +209,15 @@
                     <div class="p-6">
                         <div class="rounded-xl border border-amber-200 bg-amber-50 p-5">
                             <h3 class="text-base font-semibold text-amber-950">
-                                Assign Initial Subscription
+                                Create Subscription Record
                             </h3>
 
                             <p class="mt-1 text-sm text-amber-900">
-                                Select an active plan and billing owner. The
-                                subscription starts unpaid. You can optionally
-                                provide a future trial end date, or activate
-                                payment later through renewal or transaction
-                                management.
+                                Choose a plan, billing owner, and start
+                                date. This creates the subscription record but
+                                does not record payment. Add an optional trial
+                                end date, then activate the paid subscription
+                                when payment is confirmed.
                             </p>
 
                             @error('subscription')
@@ -386,7 +397,7 @@
                                             type="submit"
                                             class="inline-flex rounded-lg border border-teal-700 bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-800"
                                         >
-                                            Assign Subscription
+                                            Create Subscription Record
                                         </button>
                                     </div>
                                 </form>
@@ -505,13 +516,23 @@
 
                     <div class="border-t border-gray-200 p-6">
                         <h3 class="text-base font-semibold text-gray-900">
-                            Renew Subscription
+                            {{ $isInitialBillingActivation
+                                ? 'Activate Paid Subscription'
+                                : 'Renew Subscription' }}
                         </h3>
 
                         <p class="mt-1 text-sm text-gray-500">
-                            Confirm payment and define the new active billing
-                            period. Renewal preserves the current plan,
-                            organization records, and any approved bypass.
+                            @if ($isInitialBillingActivation)
+                                Confirm payment and set the first active billing
+                                period. Activation changes the subscription to
+                                Active and Paid while preserving its plan and
+                                organization records.
+                            @else
+                                Confirm payment and define the next active
+                                billing period. Renewal preserves the current
+                                plan, organization records, and any approved
+                                bypass.
+                            @endif
                         </p>
 
                         <form
@@ -621,7 +642,9 @@
                                     type="submit"
                                     class="inline-flex rounded-lg border border-teal-700 bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-800"
                                 >
-                                    Renew Subscription
+                                    {{ $isInitialBillingActivation
+                                        ? 'Activate Subscription'
+                                        : 'Renew Subscription' }}
                                 </button>
                             </div>
                         </form>

@@ -134,7 +134,7 @@ class PlatformOrganizationInitialSubscriptionTest extends TestCase
         $response
             ->assertOk()
             ->assertSeeText(
-                'Assign Initial Subscription'
+                'Create Subscription Record'
             )
             ->assertSeeText(
                 'Basic'
@@ -285,6 +285,25 @@ class PlatformOrganizationInitialSubscriptionTest extends TestCase
             'Initial subscription assigned on the Basic plan.',
             $activity->description
         );
+
+        $this
+            ->actingAs($this->platformAdmin)
+            ->get(
+                route(
+                    'platform.organizations.show',
+                    $this->organization
+                )
+            )
+            ->assertOk()
+            ->assertSeeText(
+                'Activate Paid Subscription'
+            )
+            ->assertSeeText(
+                'Activate Subscription'
+            )
+            ->assertDontSeeText(
+                'Create Subscription Record'
+            );
     }
 
     public function test_inactive_plan_and_invalid_billing_owner_are_rejected(): void
