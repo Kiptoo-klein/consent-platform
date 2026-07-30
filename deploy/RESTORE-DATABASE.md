@@ -2,80 +2,108 @@
 
 Always restore into a separate test environment first.
 
-## Before restoring
+Each backup set is stored below:
 
-```bash
-php artisan down
-php artisan queue:restart
+```text
+storage/app/private/production-backups/backup-*
 ```
 
-Copy the selected backup directory somewhere safe before changing it.
+A PostgreSQL backup contains:
 
-Each backup directory contains a `manifest.json` file with SHA-256
-checksums. Verify the files before restoration:
+- `database.sql`
+- optionally `private-files.tar.gz`
+- `manifest.json` with SHA-256 checksums
+
+## Verify the backup manifest
+
+From the repository root:
 
 ```bash
-cd storage/app/private/production-backups/BACKUP_DIRECTORY
-sha256sum database.sqlite
+BACKUP_DIRECTORY="storage/app/private/production-backups/BACKUP_DIRECTORY"
+
+php -r '
+$directory = $argv[1];
+$manifest = json_decode(
+    file_get_contents($directory."/manifest.json"),
+    true,
+    512,
+    JSON_THROW_ON_ERROR
+);
+
+foreach ($manifest["files"] as $file) {
+    $path = $directory."/".$file["name"];
+    $actual = hash_file("sha256", $path);
+
+    if (! hash_equals($file["sha256"], $actual)) {
+        fwrite(STDERR, "Checksum failed: ".$file["name"].PHP_EOL);
+        exit(1);
+    }
+
+    echo "Verified: ".$file["name"].PHP_EOL;
+}
+' "$BACKUP_DIRECTORY"
 ```
 
-Compare the result with `manifest.json`.
+Do not continue if any checksum fails.
 
-## SQLite
+## PostgreSQL restore
 
-1. Stop queue workers.
-2. Back up the current database file.
-3. Replace it with `database.sqlite` from the selected backup.
-4. Correct ownership and permissions.
-5. Clear cached configuration.
+1. Enable maintenance mode.
+2. Stop the Supervisor queue worker.
+3. Back up the current database.
+4. Restore into a new empty database.
+5. Point the application to the restored database.
+6. Validate migrations and application health.
 
 Example:
 
 ```bash
-cp database/database.sqlite database/database-before-restore.sqlite
-cp storage/app/private/production-backups/BACKUP_DIRECTORY/database.sqlite database/database.sqlite
-chmod 600 database/database.sqlite
+php artisan down --retry=60
+sudo supervisorctl stop consent-platform-worker:*
 
-php artisan optimize:clear
-php artisan migrate:status
-php artisan up
+createdb \
+    --host=DB_HOST \
+    --port=5432 \
+    --username=DB_ADMIN_USER \
+    RESTORED_DATABASE_NAME
+
+psql \
+    --host=DB_HOST \
+    --port=5432 \
+    --username=DB_ADMIN_USER \
+    --dbname=RESTORED_DATABASE_NAME \
+    --set=ON_ERROR_STOP=1 \
+    --file="$BACKUP_DIRECTORY/database.sql"
 ```
 
-## MySQL or MariaDB
-
-Create a fresh empty database and import:
-
-```bash
-mysql -u DATABASE_USER -p DATABASE_NAME < database.sql
-```
-
-## PostgreSQL
-
-Create a fresh empty database and import:
-
-```bash
-psql -U DATABASE_USER -d DATABASE_NAME < database.sql
-```
+Use environment variables or a protected PostgreSQL password file. Do not place
+database passwords directly in shell history.
 
 ## Private application files
 
-Restore the archive outside the live directory first:
+Extract outside the live directory first:
 
 ```bash
-mkdir /tmp/consent-private-restore
+RESTORE_DIRECTORY="$(mktemp -d)"
 
-tar -xzf private-files.tar.gz \
-    -C /tmp/consent-private-restore
+tar -xzf \
+    "$BACKUP_DIRECTORY/private-files.tar.gz" \
+    -C "$RESTORE_DIRECTORY"
 ```
 
 Inspect the extracted files before copying them into
-`storage/app/private`.
+`storage/app/private`. Preserve ownership and restrictive permissions.
 
 ## Final validation
 
 ```bash
 php artisan optimize:clear
+php artisan migrate:status
 php artisan production:check
 php artisan queue:restart
 php artisan up
+
+sudo supervisorctl start consent-platform-worker:*
 ```
+
+Verify `/up`, a queued PDF job, email delivery, and the production heartbeat.

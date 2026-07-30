@@ -1,4 +1,8 @@
-# Run Laravel's scheduler every minute.
-# Replace /var/www/consent-platform with the real server path.
+# Laravel scheduler entry.
+#
+# Install this line in the crontab of the application user:
+#   crontab -e
+#
+# Replace APP_PATH and PHP_BIN before installation.
 
-* * * * * cd /var/www/consent-platform && /usr/bin/php artisan schedule:run >> /dev/null 2>&1
+* * * * * cd APP_PATH && PHP_BIN artisan schedule:run >> /dev/null 2>&1
