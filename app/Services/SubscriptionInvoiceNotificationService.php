@@ -124,56 +124,116 @@ class SubscriptionInvoiceNotificationService
         return $recipient;
     }
 
+    public function eligibleRecipientById(
+        SubscriptionInvoice $invoice,
+        int $recipientUserId
+    ): ?User {
+        $recipient =
+            User::query()
+                ->whereKey(
+                    $recipientUserId
+                )
+                ->where(
+                    'organization_id',
+                    $invoice->organization_id
+                )
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->first();
+
+        if ($recipient === null) {
+            return null;
+        }
+
+        $email = trim(
+            (string) $recipient->email
+        );
+
+        if (
+            ! filter_var(
+                $email,
+                FILTER_VALIDATE_EMAIL
+            )
+        ) {
+            return null;
+        }
+
+        return $recipient;
+    }
+
     public function automaticReminderAlreadySent(
         SubscriptionInvoice $invoice,
-        string $reminderKey
+        string $reminderKey,
+        ?int $recipientUserId = null
     ): bool {
-        return SubscriptionInvoiceNotification::query()
-            ->where(
-                'subscription_invoice_id',
-                $invoice->id
-            )
-            ->where(
-                'reminder_key',
-                $reminderKey
-            )
-            ->where(
-                'status',
-                SubscriptionInvoiceNotification::STATUS_SENT
-            )
-            ->exists();
+        $query =
+            SubscriptionInvoiceNotification::query()
+                ->where(
+                    'subscription_invoice_id',
+                    $invoice->id
+                )
+                ->where(
+                    'reminder_key',
+                    $reminderKey
+                )
+                ->where(
+                    'status',
+                    SubscriptionInvoiceNotification::STATUS_SENT
+                );
+
+        if ($recipientUserId !== null) {
+            $query->where(
+                'recipient_user_id',
+                $recipientUserId
+            );
+        }
+
+        return $query->exists();
     }
 
     public function recentAttemptExists(
         SubscriptionInvoice $invoice,
-        string $reminderKey
+        string $reminderKey,
+        ?int $recipientUserId = null
     ): bool {
         $retryMinutes =
             $this->settingsService
                 ->automaticRetryMinutes();
 
-        return SubscriptionInvoiceNotification::query()
-            ->where(
-                'subscription_invoice_id',
-                $invoice->id
-            )
-            ->where(
-                'reminder_key',
-                $reminderKey
-            )
-            ->where(
-                'created_at',
-                '>=',
-                now()->subMinutes(
-                    $retryMinutes
+        $query =
+            SubscriptionInvoiceNotification::query()
+                ->where(
+                    'subscription_invoice_id',
+                    $invoice->id
                 )
-            )
-            ->exists();
+                ->where(
+                    'reminder_key',
+                    $reminderKey
+                )
+                ->where(
+                    'created_at',
+                    '>=',
+                    now()->subMinutes(
+                        $retryMinutes
+                    )
+                );
+
+        if ($recipientUserId !== null) {
+            $query->where(
+                'recipient_user_id',
+                $recipientUserId
+            );
+        }
+
+        return $query->exists();
     }
 
     public function sendAutomaticReminder(
         SubscriptionInvoice $invoice,
-        string $reminderKey
+        string $reminderKey,
+        ?User $recipient = null
     ): ?SubscriptionInvoiceNotification {
         if (
             ! $this->preferenceService
@@ -188,7 +248,8 @@ class SubscriptionInvoiceNotificationService
         $notification = DB::transaction(
             function () use (
                 $invoice,
-                $reminderKey
+                $reminderKey,
+                $recipient
             ): ?SubscriptionInvoiceNotification {
                 $lockedInvoice =
                     SubscriptionInvoice::query()
@@ -212,23 +273,30 @@ class SubscriptionInvoiceNotificationService
                     return null;
                 }
 
-                $recipient =
-                    $this->eligibleRecipient(
-                        $lockedInvoice
-                    );
+                $resolvedRecipient =
+                    $recipient === null
+                        ? $this->eligibleRecipient(
+                            $lockedInvoice
+                        )
+                        : $this->eligibleRecipientById(
+                            $lockedInvoice,
+                            (int) $recipient->id
+                        );
 
-                if ($recipient === null) {
+                if ($resolvedRecipient === null) {
                     return null;
                 }
 
                 if (
                     $this->automaticReminderAlreadySent(
                         $lockedInvoice,
-                        $reminderKey
+                        $reminderKey,
+                        (int) $resolvedRecipient->id
                     )
                     || $this->recentAttemptExists(
                         $lockedInvoice,
-                        $reminderKey
+                        $reminderKey,
+                        (int) $resolvedRecipient->id
                     )
                 ) {
                     return null;
@@ -252,7 +320,7 @@ class SubscriptionInvoiceNotificationService
                             $lockedInvoice->id,
 
                         'recipient_user_id' =>
-                            $recipient->id,
+                            $resolvedRecipient->id,
 
                         'reminder_key' =>
                             $reminderKey,
@@ -262,7 +330,7 @@ class SubscriptionInvoiceNotificationService
 
                         'recipient_email' =>
                             trim(
-                                (string) $recipient->email
+                                (string) $resolvedRecipient->email
                             ),
 
                         'subject' =>

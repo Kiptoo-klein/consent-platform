@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Enums\SubscriptionInvoiceStatus;
 use App\Models\SubscriptionInvoice;
 use App\Models\SubscriptionInvoiceNotification;
+use App\Services\OrganizationInvoiceReminderRecipientService;
 use App\Services\SubscriptionInvoiceNotificationService;
 use App\Services\SubscriptionInvoiceReminderSettingsService;
 use Illuminate\Console\Command;
@@ -21,7 +22,8 @@ class SendSubscriptionInvoiceReminders extends Command
 
     public function handle(
         SubscriptionInvoiceNotificationService $notificationService,
-        SubscriptionInvoiceReminderSettingsService $settingsService
+        SubscriptionInvoiceReminderSettingsService $settingsService,
+        OrganizationInvoiceReminderRecipientService $recipientService
     ): int {
         if (
             ! $settingsService
@@ -129,6 +131,7 @@ class SendSubscriptionInvoiceReminders extends Command
                 $chunkSize,
                 function ($invoices) use (
                     $notificationService,
+                    $recipientService,
                     &$sent,
                     &$failed,
                     &$skipped
@@ -149,68 +152,100 @@ class SendSubscriptionInvoiceReminders extends Command
                             continue;
                         }
 
-                        $recipient =
-                            $notificationService
-                                ->eligibleRecipient(
+                        $recipients =
+                            $recipientService
+                                ->eligibleAutomaticRecipients(
                                     $invoice
                                 );
 
-                        if ($recipient === null) {
+                        if ($recipients->isEmpty()) {
                             $skipped++;
 
                             continue;
                         }
 
-                        if (
-                            $notificationService
-                                ->automaticReminderAlreadySent(
-                                    $invoice,
-                                    $reminderKey
+                        $pendingRecipients =
+                            $recipients
+                                ->filter(
+                                    function ($recipient) use (
+                                        $notificationService,
+                                        $invoice,
+                                        $reminderKey
+                                    ): bool {
+                                        return ! $notificationService
+                                            ->automaticReminderAlreadySent(
+                                                $invoice,
+                                                $reminderKey,
+                                                (int) $recipient->id
+                                            )
+                                            && ! $notificationService
+                                                ->recentAttemptExists(
+                                                    $invoice,
+                                                    $reminderKey,
+                                                    (int) $recipient->id
+                                                );
+                                    }
                                 )
-                            || $notificationService
-                                ->recentAttemptExists(
-                                    $invoice,
-                                    $reminderKey
-                                )
-                        ) {
+                                ->values();
+
+                        if ($pendingRecipients->isEmpty()) {
                             $skipped++;
 
                             continue;
                         }
 
                         if ($this->option('dry-run')) {
-                            $this->line(
-                                "Due: invoice #{$invoice->id} - {$reminderKey} reminder to {$recipient->email}"
-                            );
-
-                            $skipped++;
-
-                            continue;
-                        }
-
-                        $notification =
-                            $notificationService
-                                ->sendAutomaticReminder(
-                                    invoice:
-                                        $invoice,
-
-                                    reminderKey:
-                                        $reminderKey
+                            foreach (
+                                $pendingRecipients
+                                as $recipient
+                            ) {
+                                $this->line(
+                                    "Due: invoice #{$invoice->id} - {$reminderKey} reminder to {$recipient->email}"
                                 );
+                            }
 
-                        if ($notification === null) {
                             $skipped++;
 
                             continue;
                         }
 
-                        if (
-                            $notification->status
-                                === SubscriptionInvoiceNotification::STATUS_SENT
+                        $attempted = false;
+
+                        foreach (
+                            $pendingRecipients
+                            as $recipient
                         ) {
-                            $sent++;
-                        } else {
-                            $failed++;
+                            $notification =
+                                $notificationService
+                                    ->sendAutomaticReminder(
+                                        invoice:
+                                            $invoice,
+
+                                        reminderKey:
+                                            $reminderKey,
+
+                                        recipient:
+                                            $recipient
+                                    );
+
+                            if ($notification === null) {
+                                continue;
+                            }
+
+                            $attempted = true;
+
+                            if (
+                                $notification->status
+                                    === SubscriptionInvoiceNotification::STATUS_SENT
+                            ) {
+                                $sent++;
+                            } else {
+                                $failed++;
+                            }
+                        }
+
+                        if (! $attempted) {
+                            $skipped++;
                         }
                     }
                 }
