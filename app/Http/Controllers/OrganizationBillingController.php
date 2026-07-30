@@ -5,16 +5,20 @@ namespace App\Http\Controllers;
 use App\Enums\SubscriptionInvoiceStatus;
 use App\Models\Organization;
 use App\Models\OrganizationInvoiceReminderPreference;
+use App\Models\OrganizationInvoiceReminderRecipient;
 use App\Models\OrganizationSubscription;
 use App\Models\SubscriptionInvoice;
 use App\Models\SubscriptionTransaction;
+use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\OrganizationInvoiceReminderPreferenceService;
+use App\Services\OrganizationInvoiceReminderRecipientService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -580,6 +584,228 @@ class OrganizationBillingController extends Controller
             ->with(
                 'success',
                 'Invoice reminder preferences updated successfully.'
+            );
+    }
+
+    /**
+     * Display optional invoice reminder recipients for the billing owner.
+     */
+    public function reminderRecipients(
+        Request $request,
+        OrganizationInvoiceReminderRecipientService $recipientService
+    ): View {
+        [
+            $organization,
+            $subscription,
+        ] = $this->billingContext($request);
+
+        $eligibleUsers =
+            User::query()
+                ->where(
+                    'organization_id',
+                    $organization->id
+                )
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->where(
+                    'id',
+                    '!=',
+                    $subscription->billing_owner_user_id
+                )
+                ->orderBy('name')
+                ->orderBy('email')
+                ->get()
+                ->filter(
+                    static fn (User $user): bool =>
+                        filter_var(
+                            trim(
+                                (string) $user->email
+                            ),
+                            FILTER_VALIDATE_EMAIL
+                        ) !== false
+                )
+                ->values();
+
+        return view(
+            'organization-billing.reminder-recipients',
+            [
+                'organization' =>
+                    $organization,
+
+                'subscription' =>
+                    $subscription,
+
+                'billingOwner' =>
+                    $subscription
+                        ->billingOwner()
+                        ->firstOrFail(),
+
+                'eligibleUsers' =>
+                    $eligibleUsers,
+
+                'configuredRecipientUserIds' =>
+                    $recipientService
+                        ->configuredRecipientUserIds(
+                            $organization->id
+                        ),
+            ]
+        );
+    }
+
+    /**
+     * Replace optional invoice reminder recipients for the billing owner.
+     */
+    public function updateReminderRecipients(
+        Request $request,
+        OrganizationInvoiceReminderRecipientService $recipientService
+    ): RedirectResponse {
+        [
+            $organization,
+            $subscription,
+        ] = $this->billingContext($request);
+
+        $validated = $request->validate([
+            'recipient_user_ids' => [
+                'nullable',
+                'array',
+            ],
+
+            'recipient_user_ids.*' => [
+                'required',
+                'integer',
+                'distinct',
+
+                Rule::exists(
+                    'users',
+                    'id'
+                )->where(
+                    function ($query) use (
+                        $organization,
+                        $subscription
+                    ): void {
+                        $query
+                            ->where(
+                                'organization_id',
+                                $organization->id
+                            )
+                            ->where(
+                                'is_active',
+                                true
+                            )
+                            ->whereNull(
+                                'deleted_at'
+                            )
+                            ->where(
+                                'id',
+                                '!=',
+                                $subscription
+                                    ->billing_owner_user_id
+                            );
+                    }
+                ),
+            ],
+        ]);
+
+        $oldRecipientUserIds =
+            $recipientService
+                ->configuredRecipientUserIds(
+                    $organization->id
+                );
+
+        $newRecipientUserIds =
+            collect(
+                $validated[
+                    'recipient_user_ids'
+                ] ?? []
+            )
+                ->map(
+                    static fn ($id): int =>
+                        (int) $id
+                )
+                ->sort()
+                ->values()
+                ->all();
+
+        DB::transaction(
+            function () use (
+                $request,
+                $organization,
+                $oldRecipientUserIds,
+                $newRecipientUserIds
+            ): void {
+                Organization::query()
+                    ->whereKey(
+                        $organization->id
+                    )
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                OrganizationInvoiceReminderRecipient::query()
+                    ->where(
+                        'organization_id',
+                        $organization->id
+                    )
+                    ->delete();
+
+                foreach (
+                    $newRecipientUserIds
+                    as $recipientUserId
+                ) {
+                    OrganizationInvoiceReminderRecipient::query()
+                        ->create([
+                            'organization_id' =>
+                                $organization->id,
+
+                            'user_id' =>
+                                $recipientUserId,
+
+                            'created_by_user_id' =>
+                                $request->user()->id,
+                        ]);
+                }
+
+                $this->activityLogger->log(
+                    action:
+                        'organization.subscription_invoice_reminder_recipients_updated',
+
+                    description:
+                        'The organization invoice reminder recipients were updated.',
+
+                    subject:
+                        $organization,
+
+                    organizationId:
+                        $organization->id,
+
+                    properties: [
+                        'old' => [
+                            'recipient_user_ids' =>
+                                $oldRecipientUserIds,
+                        ],
+
+                        'new' => [
+                            'recipient_user_ids' =>
+                                $newRecipientUserIds,
+                        ],
+                    ],
+                );
+            },
+            3
+        );
+
+        $recipientService->forgetCache(
+            $organization->id
+        );
+
+        return redirect()
+            ->route(
+                'organization-billing.reminder-recipients.index'
+            )
+            ->with(
+                'success',
+                'Invoice reminder recipients updated successfully.'
             );
     }
 

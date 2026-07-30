@@ -224,6 +224,26 @@ Route::middleware([
     );
 
     Route::get(
+        '/subscription/billing/reminder-recipients',
+        [
+            OrganizationBillingController::class,
+            'reminderRecipients',
+        ]
+    )->name(
+        'organization-billing.reminder-recipients.index'
+    );
+
+    Route::patch(
+        '/subscription/billing/reminder-recipients',
+        [
+            OrganizationBillingController::class,
+            'updateReminderRecipients',
+        ]
+    )->name(
+        'organization-billing.reminder-recipients.update'
+    );
+
+    Route::get(
         '/subscription/billing/invoices/{subscriptionInvoice}',
         [
             OrganizationBillingController::class,

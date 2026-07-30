@@ -22,6 +22,15 @@
                 </a>
 
                 <a
+                    href="{{ route(
+                        'organization-billing.reminder-recipients.index'
+                    ) }}"
+                    class="inline-flex rounded-lg border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-700 transition hover:bg-teal-100 dark:border-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                >
+                    Reminder Recipients
+                </a>
+
+                <a
                     href="{{ route('organization-subscription.show') }}"
                     class="inline-flex rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
                 >
