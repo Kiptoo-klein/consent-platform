@@ -1,4 +1,14 @@
 <x-app-layout>
+    @php
+        $organizationUserRoutePrefix =
+            request()->routeIs('platform.*')
+                ? 'platform.organizations.users'
+                : 'organization-users';
+
+        $organizationUserIsPlatformContext =
+            request()->routeIs('platform.*');
+    @endphp
+
     <x-slot name="header">
         <div>
             <h1 class="text-xl font-semibold text-gray-900">
@@ -27,7 +37,7 @@
                 <form
                     method="POST"
                     action="{{ route(
-                        'platform.organizations.users.update',
+                        $organizationUserRoutePrefix.'.update',
                         [$organization, $user]
                     ) }}"
                     class="space-y-6"
@@ -82,30 +92,108 @@
                             Organization Role
                         </label>
 
-                        <select
-                            id="role_id"
-                            name="role_id"
-                            required
-                            class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-700 focus:ring-teal-700"
-                        >
-                            <option value="">
-                                Select a role
-                            </option>
+                        {{-- ORGANIZATION_ADMIN_ROLE_WARNING --}}
+                        @php
+                            $orderedRoles = $roles
+                                ->sortBy(
+                                    fn ($role) =>
+                                        $role->name ===
+                                        'Organization Admin'
+                                            ? 1
+                                            : 0
+                                )
+                                ->values();
 
-                            @foreach ($roles as $role)
-                                <option
-                                    value="{{ $role->id }}"
-                                    @selected(
-                                        (string) old(
-                                            'role_id',
-                                            $currentRole?->id
-                                        ) === (string) $role->id
-                                    )
-                                >
-                                    {{ $role->name }}
+                            $organizationAdminRoleId =
+                                (string) (
+                                    $orderedRoles
+                                        ->firstWhere(
+                                            'name',
+                                            'Organization Admin'
+                                        )
+                                        ?->id ?? ''
+                                );
+
+                            $selectedRoleId =
+                                (string) old(
+                                    'role_id',
+                                    $currentRole?->id
+                                );
+                        @endphp
+
+                        <div
+                            x-data="{
+                                selectedRoleId:
+                                    @js($selectedRoleId),
+
+                                organizationAdminRoleId:
+                                    @js($organizationAdminRoleId),
+                            }"
+                        >
+                            <select
+                                id="role_id"
+                                name="role_id"
+                                required
+                                x-model="selectedRoleId"
+                                class="mt-2 block w-full rounded-lg shadow-sm"
+                                :class="
+                                    selectedRoleId ===
+                                        organizationAdminRoleId
+                                        ? 'border-red-400 text-red-700 focus:border-red-500 focus:ring-red-500'
+                                        : 'border-gray-300 text-gray-900 focus:border-teal-700 focus:ring-teal-700'
+                                "
+                            >
+                                <option value="">
+                                    Select a role
                                 </option>
-                            @endforeach
-                        </select>
+
+                                @foreach ($orderedRoles as $role)
+                                    <option
+                                        value="{{ $role->id }}"
+                                        @selected(
+                                            $selectedRoleId ===
+                                            (string) $role->id
+                                        )
+                                        @class([
+                                            'font-semibold text-red-700' =>
+                                                $role->name ===
+                                                'Organization Admin',
+                                        ])
+                                    >
+                                        {{ $role->name ===
+                                            'Organization Admin'
+                                                ? 'Organization Admin — Full access (use with caution)'
+                                                : $role->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+
+                            <div
+                                x-cloak
+                                x-show="
+                                    organizationAdminRoleId !== ''
+                                    && selectedRoleId ===
+                                        organizationAdminRoleId
+                                "
+                                role="alert"
+                                aria-live="polite"
+                                class="mt-4 rounded-xl border-2 border-red-300 bg-red-50 p-4 text-red-900"
+                            >
+                                <p class="font-bold">
+                                    Warning: Organization Admin grants
+                                    full organizational control.
+                                </p>
+
+                                <p class="mt-2 text-sm leading-6">
+                                    This user can manage users, roles,
+                                    subscription access, branding, settings,
+                                    and organizational workflows. Assign this
+                                    role only to a highly trusted person.
+                                    Assigning this role does not automatically
+                                    change the current billing owner.
+                                </p>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-5">
@@ -158,7 +246,7 @@
                     <div class="flex flex-wrap justify-end gap-3 border-t border-gray-200 pt-6">
                         <a
                             href="{{ route(
-                                'platform.organizations.users.index',
+                                $organizationUserRoutePrefix.'.index',
                                 $organization
                             ) }}"
                             class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"

@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Handles platform-level organization administration.
@@ -74,18 +75,71 @@ class OrganizationController extends Controller
             ->orderBy('name')
             ->get();
 
+        app(PermissionRegistrar::class)
+            ->setPermissionsTeamId($organization->id);
+
+        /*
+         * The oldest active Organization Admin is the default billing
+         * owner, but a Platform Admin may explicitly select another active
+         * organization user.
+         */
+        $defaultBillingOwner = $organization
+            ->users()
+            ->where('is_active', true)
+            ->whereHas(
+                'roles',
+                function ($query) use (
+                    $organization
+                ): void {
+                    $query
+                        ->where(
+                            'roles.organization_id',
+                            $organization->id
+                        )
+                        ->where(
+                            'roles.guard_name',
+                            'web'
+                        )
+                        ->where(
+                            'roles.name',
+                            \App\Enums\OrganizationRole::
+                                ORGANIZATION_ADMINISTRATOR
+                                ->label()
+                        );
+                }
+            )
+            ->orderBy('users.created_at')
+            ->orderBy('users.id')
+            ->first([
+                'users.id',
+            ]);
+
+        $defaultInitialBillingOwnerId =
+            $defaultBillingOwner?->id;
+
         $billingOwners = $organization
             ->users()
             ->where('is_active', true)
-            ->orderBy('name')
-            ->orderBy('email')
+            ->orderByRaw(
+                'CASE WHEN users.id = ? THEN 0 ELSE 1 END',
+                [
+                    (int) (
+                        $defaultInitialBillingOwnerId ?? 0
+                    ),
+                ]
+            )
+            ->orderBy('users.name')
+            ->orderBy('users.email')
             ->get([
-                'id',
-                'name',
-                'email',
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.created_at',
             ]);
 
-        $usage = $this->subscriptionUsage($organization);
+        $usage = $this->subscriptionUsage(
+            $organization
+        );
 
         $capacity = $this->capacityForPlan(
             $organization->subscription?->plan,
@@ -103,6 +157,7 @@ class OrganizationController extends Controller
                 'organization',
                 'subscriptionPlans',
                 'billingOwners',
+                'defaultInitialBillingOwnerId',
                 'capacity',
                 'hasCapacityOverage'
             )
@@ -217,6 +272,54 @@ class OrganizationController extends Controller
             $request->merge([
                 'starts_at' => now()->toDateString(),
             ]);
+        }
+
+        app(PermissionRegistrar::class)
+            ->setPermissionsTeamId($organization->id);
+
+        /*
+         * DEFAULT_ORGANIZATION_ADMIN_BILLING_OWNER
+         *
+         * When no billing owner is submitted, use the oldest active
+         * Organization Admin belonging to this organization. An explicitly
+         * selected valid owner continues to take precedence.
+         */
+        if (! $request->filled('billing_owner_user_id')) {
+            $defaultBillingOwner = $organization
+                ->users()
+                ->where('is_active', true)
+                ->whereHas(
+                    'roles',
+                    function ($query) use (
+                        $organization
+                    ): void {
+                        $query
+                            ->where(
+                                'roles.organization_id',
+                                $organization->id
+                            )
+                            ->where(
+                                'roles.guard_name',
+                                'web'
+                            )
+                            ->where(
+                                'roles.name',
+                                \App\Enums\OrganizationRole::
+                                    ORGANIZATION_ADMINISTRATOR
+                                    ->label()
+                            );
+                    }
+                )
+                ->orderBy('users.created_at')
+                ->orderBy('users.id')
+                ->first();
+
+            if ($defaultBillingOwner !== null) {
+                $request->merge([
+                    'billing_owner_user_id' =>
+                        $defaultBillingOwner->id,
+                ]);
+            }
         }
 
         $validated = $request->validate([

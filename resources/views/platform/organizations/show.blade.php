@@ -238,7 +238,9 @@
                                     be assigned as the billing owner.
                                 </div>
                             @else
-                                <form
+
+
+<form
                                     method="POST"
                                     action="{{ route(
                                         'platform.organizations.subscription.store',
@@ -310,8 +312,9 @@
                                                     value="{{ $billingOwner->id }}"
                                                     @selected(
                                                         (int) old(
-                                                            'billing_owner_user_id'
-                                                        ) === $billingOwner->id
+                                                    'billing_owner_user_id',
+                                                    $defaultInitialBillingOwnerId
+                                                ) === $billingOwner->id
                                                     )
                                                 >
                                                     {{ $billingOwner->name }}

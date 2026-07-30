@@ -75,7 +75,7 @@ class OrganizationSubscription extends Model
     }
 
     /**
-     * The Organization Admin responsible for billing.
+     * The user assigned the Billing Owner role for this subscription.
      */
     public function billingOwner(): BelongsTo
     {

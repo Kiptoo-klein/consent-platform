@@ -81,7 +81,7 @@ class User extends Authenticatable
     }
 
     /**
-     * The organization subscription owned by this Organization Admin.
+     * The organization subscription for which this user is Billing Owner.
      */
     public function billingSubscription(): HasOne
     {

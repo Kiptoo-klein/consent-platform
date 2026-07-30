@@ -203,6 +203,16 @@ Route::middleware([
         'index',
     ])->name('organization-billing.index');
 
+
+    Route::patch('/subscription/billing/owner', [
+        OrganizationBillingController::class,
+        'updateBillingOwner',
+    ])
+        ->middleware(
+            'organization.role:organization_administrator'
+        )
+        ->name('organization-billing.owner.update');
+
     Route::get(
         '/subscription/billing/reminder-preferences',
         [
@@ -274,6 +284,99 @@ Route::middleware([
             'download',
         ]
     )->name('organization-billing.receipts.download');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Organization Administrator User Management
+    |--------------------------------------------------------------------------
+    |
+    | Organization Administrators may manage users belonging only to their
+    | own organization. The platform controller is reused so subscription
+    | seat limits and administrator safety rules remain consistent.
+    |
+    */
+
+    Route::middleware(
+        'organization.role:organization_administrator'
+    )
+        ->prefix('/organization/{organization}/users')
+        ->name('organization-users.')
+        ->group(function () {
+            Route::get(
+                '/',
+                [
+                    PlatformOrganizationUserController::class,
+                    'index',
+                ]
+            )->name('index');
+
+            Route::get(
+                '/archived',
+                [
+                    PlatformOrganizationUserController::class,
+                    'archived',
+                ]
+            )->name('archived');
+
+            Route::get(
+                '/create',
+                [
+                    PlatformOrganizationUserController::class,
+                    'create',
+                ]
+            )->name('create');
+
+            Route::post(
+                '/',
+                [
+                    PlatformOrganizationUserController::class,
+                    'store',
+                ]
+            )->name('store');
+
+            Route::get(
+                '/{user}/edit',
+                [
+                    PlatformOrganizationUserController::class,
+                    'edit',
+                ]
+            )->name('edit');
+
+            Route::put(
+                '/{user}',
+                [
+                    PlatformOrganizationUserController::class,
+                    'update',
+                ]
+            )->name('update');
+
+            Route::patch(
+                '/{user}/status',
+                [
+                    PlatformOrganizationUserController::class,
+                    'updateStatus',
+                ]
+            )->name('status');
+
+            Route::delete(
+                '/{user}',
+                [
+                    PlatformOrganizationUserController::class,
+                    'destroy',
+                ]
+            )->name('destroy');
+
+            Route::patch(
+                '/{user}/restore',
+                [
+                    PlatformOrganizationUserController::class,
+                    'restore',
+                ]
+            )
+                ->withTrashed()
+                ->name('restore');
+        });
+
 });
 
 /*
@@ -592,7 +695,7 @@ Route::middleware([
     'auth',
     'active.user',
 ])->group(function () {
-    
+
     Route::get('/profile', [
         ProfileController::class,
         'edit',
@@ -883,7 +986,7 @@ Route::prefix('platform')
         )
             ->withTrashed()
             ->name('organizations.users.restore');
-        
+
         /*
         |--------------------------------------------------------------------------
         | Platform Security and Email Diagnostics
@@ -908,7 +1011,7 @@ Route::prefix('platform')
             ->middleware('throttle:6,1')
             ->name('email-diagnostics.test');
 
-    
+
         /*
         |--------------------------------------------------------------------------
         | Production Readiness

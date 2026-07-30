@@ -26,6 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'platform.role' => EnsurePlatformRole::class,
             'active.user' => EnsureUserIsActive::class,
             'organization.user' => EnsureOrganizationUser::class,
+            'organization.role' =>
+                \App\Http\Middleware\EnsureOrganizationRole::class,
             'organization.subscription' =>
                 EnsureOrganizationSubscriptionAccess::class,
         ]);

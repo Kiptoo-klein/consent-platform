@@ -64,6 +64,33 @@
         $homeRoute = 'dashboard';
         $accountRoute = 'profile.edit';
 
+        $organizationUser = Auth::user();
+
+        $organizationUser->loadMissing(
+            'organization.subscription'
+        );
+
+        app(
+            \Spatie\Permission\PermissionRegistrar::class
+        )->setPermissionsTeamId(
+            $organizationUser->organization_id
+        );
+
+        $isOrganizationAdministrator =
+            $organizationUser->hasRole(
+                \App\Enums\OrganizationRole::
+                    ORGANIZATION_ADMINISTRATOR->label()
+            );
+
+        $organizationSubscription =
+            $organizationUser->organization?->subscription;
+
+        $isBillingOwner =
+            $organizationSubscription !== null
+            && (int) $organizationSubscription
+                ->billing_owner_user_id
+                === (int) $organizationUser->id;
+
         $navigationItems = [
             [
                 'label' => 'Dashboard',
@@ -89,12 +116,45 @@
                 'active' => 'signing-stations.*',
                 'icon' => 'station',
             ],
-            [
-                'label' => 'Organization Branding',
-                'route' => 'organization-branding.edit',
-                'active' => 'organization-branding.*',
-                'icon' => 'templates',
-            ],
+        ];
+
+        if ($isOrganizationAdministrator) {
+            $navigationItems[] = [
+                'label' => 'Manage Users',
+                'route' => 'organization-users.index',
+                'parameters' => [
+                    'organization' =>
+                        $organizationUser->organization_id,
+                ],
+                'active' => 'organization-users.*',
+                'icon' => 'records',
+            ];
+        }
+
+        $navigationItems[] = [
+            'label' => 'Subscription',
+            'route' => 'organization-subscription.show',
+            'active' => 'organization-subscription.*',
+            'icon' => 'templates',
+        ];
+
+        if (
+            $isBillingOwner
+            || $isOrganizationAdministrator
+        ) {
+            $navigationItems[] = [
+                'label' => 'Billing',
+                'route' => 'organization-billing.index',
+                'active' => 'organization-billing.*',
+                'icon' => 'records',
+            ];
+        }
+
+        $navigationItems[] = [
+            'label' => 'Organization Branding',
+            'route' => 'organization-branding.edit',
+            'active' => 'organization-branding.*',
+            'icon' => 'templates',
         ];
     }
 @endphp
@@ -132,7 +192,10 @@
     <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-5">
         @foreach ($navigationItems as $item)
             <a
-                href="{{ route($item['route']) }}"
+                href="{{ route(
+                    $item['route'],
+                    $item['parameters'] ?? []
+                ) }}"
                 title="{{ $item['label'] }}"
                 @class([
                     'group flex h-11 items-center rounded-lg px-3 text-sm font-medium transition',
@@ -404,7 +467,10 @@
     <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-5">
         @foreach ($navigationItems as $item)
             <a
-                href="{{ route($item['route']) }}"
+                href="{{ route(
+                    $item['route'],
+                    $item['parameters'] ?? []
+                ) }}"
                 @click="mobileSidebarOpen = false"
                 @class([
                     'flex h-12 items-center gap-3 rounded-lg px-3 text-sm font-medium transition',

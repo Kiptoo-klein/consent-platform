@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\OrganizationRole;
 use App\Enums\SubscriptionInvoiceStatus;
 use App\Models\Organization;
 use App\Models\OrganizationInvoiceReminderPreference;
@@ -20,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
+use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpFoundation\Response;
 
 class OrganizationBillingController extends Controller
@@ -38,6 +40,39 @@ class OrganizationBillingController extends Controller
             $organization,
             $subscription,
         ] = $this->billingContext($request);
+
+
+        $subscription->loadMissing([
+            'billingOwner.roles',
+        ]);
+
+        $billingOwner =
+            $subscription->billingOwner;
+
+        $billingUsers = $organization
+            ->users()
+            ->where('is_active', true)
+            ->with('roles')
+            ->orderByRaw(
+                'CASE WHEN users.id = ? THEN 0 ELSE 1 END',
+                [
+                    (int) $subscription
+                        ->billing_owner_user_id,
+                ]
+            )
+            ->orderBy('users.name')
+            ->orderBy('users.email')
+            ->get([
+                'users.id',
+                'users.name',
+                'users.email',
+            ]);
+
+        $isOrganizationAdministrator =
+            $this->isOrganizationAdministrator(
+                $request->user(),
+                $organization
+            );
 
         $transactions = SubscriptionTransaction::query()
             ->where(
@@ -94,8 +129,157 @@ class OrganizationBillingController extends Controller
 
                 'invoices' =>
                     $invoices,
+
+
+                'billingOwner' =>
+                    $billingOwner,
+
+                'billingUsers' =>
+                    $billingUsers,
+
+                'isOrganizationAdministrator' =>
+                    $isOrganizationAdministrator,
             ]
         );
+    }
+
+    /**
+     * Assign the Billing Owner role to one active organization user.
+     *
+     * This billing assignment is separate from the user's normal
+     * organization role.
+     */
+    public function updateBillingOwner(
+        Request $request
+    ): RedirectResponse {
+        [
+            $organization,
+            $subscription,
+        ] = $this->billingContext($request);
+
+        abort_unless(
+            $this->isOrganizationAdministrator(
+                $request->user(),
+                $organization
+            ),
+            403,
+            'Only an Organization Admin can assign the Billing Owner.'
+        );
+
+        $validated = $request->validate([
+            'billing_owner_user_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'users',
+                    'id'
+                )->where(
+                    fn ($query) =>
+                        $query
+                            ->where(
+                                'organization_id',
+                                $organization->id
+                            )
+                            ->where('is_active', true)
+                            ->whereNull('deleted_at')
+                ),
+            ],
+        ]);
+
+        $newBillingOwner = User::query()
+            ->whereKey(
+                (int) $validated[
+                    'billing_owner_user_id'
+                ]
+            )
+            ->where(
+                'organization_id',
+                $organization->id
+            )
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        if (
+            (int) $subscription->billing_owner_user_id
+            === (int) $newBillingOwner->id
+        ) {
+            return redirect()
+                ->route('organization-billing.index')
+                ->with(
+                    'success',
+                    'This user is already the Billing Owner.'
+                );
+        }
+
+        DB::transaction(function () use (
+            $organization,
+            $subscription,
+            $newBillingOwner
+        ): void {
+            $lockedSubscription =
+                OrganizationSubscription::query()
+                    ->whereKey($subscription->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+            $previousBillingOwner = User::query()
+                ->find(
+                    $lockedSubscription
+                        ->billing_owner_user_id
+                );
+
+            $lockedSubscription->update([
+                'billing_owner_user_id' =>
+                    $newBillingOwner->id,
+            ]);
+
+            $this->activityLogger->log(
+                action:
+                    'organization.billing_owner_assigned',
+
+                description:
+                    "Assigned {$newBillingOwner->name} "
+                    .'as the Billing Owner.',
+
+                subject:
+                    $lockedSubscription,
+
+                organizationId:
+                    $organization->id,
+
+                properties: [
+                    'old' => [
+                        'billing_owner_user_id' =>
+                            $previousBillingOwner?->id,
+
+                        'billing_owner_name' =>
+                            $previousBillingOwner?->name,
+
+                        'billing_owner_email' =>
+                            $previousBillingOwner?->email,
+                    ],
+
+                    'new' => [
+                        'billing_owner_user_id' =>
+                            $newBillingOwner->id,
+
+                        'billing_owner_name' =>
+                            $newBillingOwner->name,
+
+                        'billing_owner_email' =>
+                            $newBillingOwner->email,
+                    ],
+                ],
+            );
+        });
+
+        return redirect()
+            ->route('organization-billing.index')
+            ->with(
+                'success',
+                "{$newBillingOwner->name} is now the Billing Owner."
+            );
     }
 
     /**
@@ -128,7 +312,7 @@ class OrganizationBillingController extends Controller
                 'organization.subscription_receipt_viewed',
 
             description:
-                'An Organization Admin viewed a subscription receipt.',
+                'An authorized billing user viewed a subscription receipt.',
 
             subject:
                 $subscriptionTransaction,
@@ -194,7 +378,7 @@ class OrganizationBillingController extends Controller
                 'organization.subscription_receipt_downloaded',
 
             description:
-                'An Organization Admin downloaded a subscription receipt.',
+                'An authorized billing user downloaded a subscription receipt.',
 
             subject:
                 $subscriptionTransaction,
@@ -282,7 +466,7 @@ class OrganizationBillingController extends Controller
                 'organization.subscription_invoice_viewed',
 
             description:
-                'An Organization Admin viewed a subscription invoice.',
+                'An authorized billing user viewed a subscription invoice.',
 
             subject:
                 $subscriptionInvoice,
@@ -354,7 +538,7 @@ class OrganizationBillingController extends Controller
                 'organization.subscription_invoice_downloaded',
 
             description:
-                'An Organization Admin downloaded a subscription invoice.',
+                'An authorized billing user downloaded a subscription invoice.',
 
             subject:
                 $subscriptionInvoice,
@@ -810,32 +994,85 @@ class OrganizationBillingController extends Controller
     }
 
     /**
-     * Resolve and authorize the current organization's billing owner.
+     * Determine whether the user is an Organization Admin.
+     */
+    private function isOrganizationAdministrator(
+        User $user,
+        Organization $organization
+    ): bool {
+        app(PermissionRegistrar::class)
+            ->setPermissionsTeamId(
+                $organization->id
+            );
+
+        return $user->hasRole(
+            OrganizationRole::
+                ORGANIZATION_ADMINISTRATOR
+                ->label()
+        );
+    }
+
+    /**
+     * Resolve the current organization's billing context.
      *
-     * @return array{
-     *     0: Organization,
-     *     1: OrganizationSubscription
-     * }
+     * Billing is available to the assigned Billing Owner and to an
+     * Organization Admin for oversight and reassignment.
+     *
+     * @return array{0: Organization, 1: OrganizationSubscription}
      */
     private function billingContext(
         Request $request
     ): array {
         $user = $request->user();
 
-        $organization = $user
-            ->organization()
-            ->with([
-                'subscription.plan',
-            ])
-            ->firstOrFail();
+        abort_if(
+            $user === null
+            || $user->organization_id === null,
+            403,
+            'An organization account is required.'
+        );
 
-        $subscription = $organization->subscription;
+        $organization = Organization::query()
+            ->findOrFail(
+                (int) $user->organization_id
+            );
+
+        $subscription = $organization
+            ->subscription()
+            ->with([
+                'plan',
+                'billingOwner',
+            ])
+            ->first();
+
+        abort_if(
+            $subscription === null,
+            404,
+            'This organization has no subscription record.'
+        );
+
+        app(PermissionRegistrar::class)
+            ->setPermissionsTeamId(
+                $organization->id
+            );
+
+        $isOrganizationAdministrator =
+            $this->isOrganizationAdministrator(
+                $user,
+                $organization
+            );
+
+        $isBillingOwner =
+            (int) $subscription
+                ->billing_owner_user_id
+            === (int) $user->id;
 
         abort_unless(
-            $subscription !== null
-            && (int) $subscription->billing_owner_user_id
-                === (int) $user->id,
-            403
+            $isBillingOwner
+            || $isOrganizationAdministrator,
+            403,
+            'Only the Billing Owner or an Organization Admin '
+            .'can access organization billing.'
         );
 
         return [
