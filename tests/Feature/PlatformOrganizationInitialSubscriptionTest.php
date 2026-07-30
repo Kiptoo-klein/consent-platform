@@ -306,6 +306,73 @@ class PlatformOrganizationInitialSubscriptionTest extends TestCase
             );
     }
 
+    public function test_activation_dates_default_correctly(): void
+    {
+        $this
+            ->actingAs($this->platformAdmin)
+            ->post(
+                route(
+                    'platform.organizations.subscription.store',
+                    $this->organization
+                ),
+                [
+                    'subscription_plan_id' =>
+                        $this->basicPlan->id,
+
+                    'billing_owner_user_id' =>
+                        $this->billingOwner->id,
+
+                    'starts_at' =>
+                        '2026-07-30',
+                ]
+            )
+            ->assertRedirect(
+                route(
+                    'platform.organizations.show',
+                    $this->organization
+                )
+            );
+
+        $response = $this
+            ->actingAs($this->platformAdmin)
+            ->get(
+                route(
+                    'platform.organizations.show',
+                    $this->organization
+                )
+            );
+
+        $response->assertOk();
+
+        $html = $response->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/id="current_period_starts_at".*?'
+                .'value="30\/07\/2026"/s',
+            $html
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/id="current_period_ends_at".*?'
+                .'value="30\/08\/2026"/s',
+            $html
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/id="ends_at".*?value=""/s',
+            $html
+        );
+
+        $response->assertSee(
+            'placeholder="dd/mm/yyyy"',
+            false
+        );
+
+        $response->assertSeeText(
+            'Final subscription end (optional)'
+        );
+    }
+
     public function test_inactive_plan_and_invalid_billing_owner_are_rejected(): void
     {
         $inactivePlan = SubscriptionPlan::query()->create([

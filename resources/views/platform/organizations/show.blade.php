@@ -557,12 +557,18 @@
                                 <input
                                     id="current_period_starts_at"
                                     name="current_period_starts_at"
-                                    type="datetime-local"
+                                    type="text"
                                     required
+                                    inputmode="numeric"
+                                    autocomplete="off"
+                                    placeholder="dd/mm/yyyy"
+                                    pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}"
                                     value="{{ old(
                                         'current_period_starts_at',
-                                        $subscription
-                                            ->current_period_starts_at
+                                        now()->format('d/m/Y')
+                                    ) }}"
+                                    class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                >current_period_starts_at
                                             ?->format('Y-m-d\TH:i')
                                     ) }}"
                                     class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
@@ -586,12 +592,20 @@
                                 <input
                                     id="current_period_ends_at"
                                     name="current_period_ends_at"
-                                    type="datetime-local"
+                                    type="text"
                                     required
+                                    inputmode="numeric"
+                                    autocomplete="off"
+                                    placeholder="dd/mm/yyyy"
+                                    pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}"
                                     value="{{ old(
                                         'current_period_ends_at',
-                                        $subscription
-                                            ->current_period_ends_at
+                                        now()
+                                            ->addMonth()
+                                            ->format('d/m/Y')
+                                    ) }}"
+                                    class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                >current_period_ends_at
                                             ?->format('Y-m-d\TH:i')
                                     ) }}"
                                     class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
@@ -609,25 +623,34 @@
                                     for="ends_at"
                                     class="block text-sm font-semibold text-gray-900"
                                 >
-                                    Final subscription end
+                                    Final subscription end (optional)
                                 </label>
 
                                 <input
                                     id="ends_at"
                                     name="ends_at"
-                                    type="datetime-local"
+                                    type="text"
+                                    inputmode="numeric"
+                                    autocomplete="off"
+                                    placeholder="dd/mm/yyyy"
+                                    pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}"
                                     value="{{ old(
                                         'ends_at',
                                         $subscription
                                             ->ends_at
+                                            ?->format('d/m/Y')
+                                            ?? ''
+                                    ) }}"
+                                    class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                >ends_at
                                             ?->format('Y-m-d\TH:i')
                                     ) }}"
                                     class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
                                 >
 
                                 <p class="mt-2 text-xs text-gray-500">
-                                    Optional. Leave blank for no scheduled final
-                                    subscription end.
+                                    Leave blank unless the subscription must
+                                    permanently end on a specific date.
                                 </p>
 
                                 @error('ends_at')

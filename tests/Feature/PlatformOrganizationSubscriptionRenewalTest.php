@@ -631,6 +631,27 @@ class PlatformOrganizationSubscriptionRenewalTest extends TestCase
         );
 
         $response->assertSee(
+            'placeholder="dd/mm/yyyy"',
+            false
+        );
+
+        $response->assertSeeText(
+            'Final subscription end (optional)'
+        );
+
+        $response->assertDontSee(
+            'type="datetime-local"',
+            false
+        );
+
+        $html = $response->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/id="ends_at".*?value=""/s',
+            $html
+        );
+
+        $response->assertSee(
             'name="current_period_ends_at"',
             false
         );

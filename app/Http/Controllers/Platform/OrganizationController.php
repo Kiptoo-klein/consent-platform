@@ -547,19 +547,17 @@ class OrganizationController extends Controller
         $validated = $request->validate([
             'current_period_starts_at' => [
                 'required',
-                'date_format:Y-m-d\TH:i',
+                'date_format:d/m/Y,Y-m-d\TH:i',
             ],
 
             'current_period_ends_at' => [
                 'required',
-                'date_format:Y-m-d\TH:i',
-                'after:current_period_starts_at',
+                'date_format:d/m/Y,Y-m-d\TH:i',
             ],
 
             'ends_at' => [
                 'nullable',
-                'date_format:Y-m-d\TH:i',
-                'after_or_equal:current_period_ends_at',
+                'date_format:d/m/Y,Y-m-d\TH:i',
             ],
         ]);
 
@@ -567,22 +565,56 @@ class OrganizationController extends Controller
             ->subscription()
             ->firstOrFail();
 
-        $periodStart = Carbon::createFromFormat(
-            'Y-m-d\TH:i',
+        /*
+         * The browser form uses dd/mm/yyyy. Existing ISO datetime
+         * submissions remain accepted for backwards compatibility.
+         * Date-only values are stored at midnight.
+         */
+        $parseSubscriptionDate =
+            static function (string $value): Carbon {
+                if (str_contains($value, '/')) {
+                    return Carbon::createFromFormat(
+                        'd/m/Y',
+                        $value
+                    )->startOfDay();
+                }
+
+                return Carbon::createFromFormat(
+                    'Y-m-d\TH:i',
+                    $value
+                );
+            };
+
+        $periodStart = $parseSubscriptionDate(
             $validated['current_period_starts_at']
         );
 
-        $periodEnd = Carbon::createFromFormat(
-            'Y-m-d\TH:i',
+        $periodEnd = $parseSubscriptionDate(
             $validated['current_period_ends_at']
         );
 
         $finalEnd = filled($validated['ends_at'] ?? null)
-            ? Carbon::createFromFormat(
-                'Y-m-d\TH:i',
+            ? $parseSubscriptionDate(
                 $validated['ends_at']
             )
             : null;
+
+        if (! $periodEnd->greaterThan($periodStart)) {
+            throw ValidationException::withMessages([
+                'current_period_ends_at' =>
+                    'The period end date must be after the period start date.',
+            ]);
+        }
+
+        if (
+            $finalEnd !== null
+            && $finalEnd->lessThan($periodEnd)
+        ) {
+            throw ValidationException::withMessages([
+                'ends_at' =>
+                    'The final subscription end date cannot be before the period end date.',
+            ]);
+        }
 
         $datesMatch = static function (
             ?Carbon $current,
