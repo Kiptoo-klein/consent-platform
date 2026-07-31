@@ -623,11 +623,92 @@ class PlatformOrganizationSubscriptionRenewalTest extends TestCase
 
         $response->assertOk();
 
+        $response->assertSee(
+            'id="current_period_starts_at_picker"',
+            false
+        );
+
+        $response->assertSee(
+            'id="current_period_ends_at_picker"',
+            false
+        );
+
+        $response->assertSee(
+            'id="ends_at_picker"',
+            false
+        );
+
+        $html = $response->getContent();
+
+        $this->assertStringNotContainsString(
+            '>current_period_starts_at',
+            $html
+        );
+
+        $this->assertStringNotContainsString(
+            '>current_period_ends_at',
+            $html
+        );
+
+        $this->assertStringNotContainsString(
+            '>ends_at',
+            $html
+        );
+
+        $this->assertStringNotContainsString(
+            "?->format('Y-m-d\\TH:i')",
+            $html
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/<input(?=[^>]*'
+                .'id="current_period_starts_at")'
+                .'(?=[^>]*value="[^"]+")'
+                .'[^>]*>/s',
+            $html
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/<input(?=[^>]*'
+                .'id="current_period_ends_at")'
+                .'(?=[^>]*value="[^"]+")'
+                .'[^>]*>/s',
+            $html
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/<input(?=[^>]*id="ends_at")'
+                .'(?=[^>]*value="")'
+                .'[^>]*>/s',
+            $html
+        );
+
         $response->assertSeeText('Renew Subscription');
 
         $response->assertSee(
             'name="current_period_starts_at"',
             false
+        );
+
+        $response->assertSee(
+            'placeholder="dd/mm/yyyy"',
+            false
+        );
+
+        $response->assertSeeText(
+            'Final subscription end (optional)'
+        );
+
+        $response->assertDontSee(
+            'type="datetime-local"',
+            false
+        );
+
+        $html = $response->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/id="ends_at".*?value=""/s',
+            $html
         );
 
         $response->assertSee(

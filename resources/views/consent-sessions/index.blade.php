@@ -11,12 +11,15 @@
                 </p>
             </div>
 
-            <a
-                href="{{ route('consent-sessions.select-template') }}"
-                class="inline-flex justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            >
-                New Individual Consent
-            </a>
+            <div class="flex flex-wrap gap-2">
+                <a
+                    href="{{ route('consent-campaigns.index') }}"
+                    class="inline-flex justify-center rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+                >
+                    Bulk Campaigns
+                </a>
+
+            </div>
         </div>
     </x-slot>
 

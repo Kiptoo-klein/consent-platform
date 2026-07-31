@@ -263,5 +263,9 @@
             </p>
         </div>
     </footer>
+    @include(
+        'public-signing-stations.partials.device-lease-heartbeat'
+    )
+
 </body>
 </html>

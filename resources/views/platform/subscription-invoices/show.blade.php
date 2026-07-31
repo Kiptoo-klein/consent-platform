@@ -212,6 +212,218 @@
                 </section>
             @endif
 
+            @if ($canRecordInvoicePayment)
+                <section
+                    class="rounded-2xl border border-emerald-300 bg-emerald-50 p-6 shadow-sm"
+                    data-invoice-payment-form
+                >
+                    <div>
+                        <h2 class="text-lg font-semibold text-emerald-950">
+                            Record Payment
+                        </h2>
+
+                        <p class="mt-1 text-sm text-emerald-900">
+                            The invoice, amount, billing cycle and
+                            subscription dates are controlled by the
+                            system. The actual payment time will be
+                            recorded when you submit this form.
+                        </p>
+                    </div>
+
+                    <dl class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        @foreach ([
+                            [
+                                'label' => 'Organization',
+                                'value' => $organization->name,
+                            ],
+                            [
+                                'label' => 'Invoice',
+                                'value' => $invoice->invoice_number,
+                            ],
+                            [
+                                'label' => 'Plan',
+                                'value' =>
+                                    $planRequest
+                                        ->requestedPlan
+                                        ?->name
+                                    ?? $invoice->plan->name,
+                            ],
+                            [
+                                'label' => 'Billing cycle',
+                                'value' => ucfirst(
+                                    $planRequest->billing_cycle
+                                ),
+                            ],
+                            [
+                                'label' => 'Amount to record',
+                                'value' =>
+                                    $invoice->currency
+                                    .' '
+                                    .number_format(
+                                        (float) $invoiceOutstandingAmount,
+                                        2
+                                    ),
+                            ],
+                            [
+                                'label' => 'Payment date',
+                                'value' =>
+                                    $invoicePaymentPreview[
+                                        'paid_at'
+                                    ]->format(
+                                        'M d, Y H:i:s'
+                                    ),
+                            ],
+                            [
+                                'label' => 'Subscription starts',
+                                'value' =>
+                                    $invoicePaymentPreview[
+                                        'period_starts_at'
+                                    ]->format(
+                                        'M d, Y H:i:s'
+                                    ),
+                            ],
+                            [
+                                'label' => 'Subscription ends',
+                                'value' =>
+                                    $invoicePaymentPreview[
+                                        'period_ends_at'
+                                    ]->format(
+                                        'M d, Y H:i:s'
+                                    ),
+                            ],
+                        ] as $paymentDetail)
+                            <div class="rounded-xl border border-emerald-200 bg-white p-4">
+                                <dt class="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                                    {{ $paymentDetail['label'] }}
+                                </dt>
+
+                                <dd class="mt-2 font-semibold text-gray-900">
+                                    {{ $paymentDetail['value'] }}
+                                </dd>
+                            </div>
+                        @endforeach
+                    </dl>
+
+                    @error('invoice')
+                        <p class="mt-5 rounded-lg border border-red-300 bg-red-50 p-3 text-sm font-semibold text-red-800">
+                            {{ $message }}
+                        </p>
+                    @enderror
+
+                    <form
+                        method="POST"
+                        action="{{ route(
+                            'platform.organizations.subscription-invoices.payment.store',
+                            [
+                                $organization,
+                                $invoice,
+                            ]
+                        ) }}"
+                        class="mt-6 grid gap-5 sm:grid-cols-2"
+                    >
+                        @csrf
+
+                        <div>
+                            <label
+                                for="payment_reference"
+                                class="block text-sm font-semibold text-emerald-950"
+                            >
+                                Payment reference
+                            </label>
+
+                            <input
+                                id="payment_reference"
+                                name="reference"
+                                type="text"
+                                required
+                                maxlength="120"
+                                autocomplete="off"
+                                value="{{ old('reference') }}"
+                                class="mt-2 block w-full rounded-lg border-emerald-300 bg-white shadow-sm focus:border-emerald-600 focus:ring-emerald-600"
+                            >
+
+                            <p class="mt-2 text-xs text-emerald-900">
+                                Enter the M-Pesa code, bank reference,
+                                receipt number or other unique payment
+                                identifier.
+                            </p>
+
+                            @error('reference')
+                                <p class="mt-2 text-sm font-medium text-red-700">
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label
+                                for="invoice_payment_method"
+                                class="block text-sm font-semibold text-emerald-950"
+                            >
+                                Payment method
+                            </label>
+
+                            <input
+                                id="invoice_payment_method"
+                                name="payment_method"
+                                type="text"
+                                required
+                                maxlength="100"
+                                list="invoice-payment-method-options"
+                                autocomplete="off"
+                                value="{{ old('payment_method') }}"
+                                class="mt-2 block w-full rounded-lg border-emerald-300 bg-white shadow-sm focus:border-emerald-600 focus:ring-emerald-600"
+                            >
+
+                            <datalist id="invoice-payment-method-options">
+                                <option value="M-Pesa">
+                                <option value="Bank transfer">
+                                <option value="Card">
+                                <option value="Cash">
+                            </datalist>
+
+                            @error('payment_method')
+                                <p class="mt-2 text-sm font-medium text-red-700">
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
+
+                        <div class="sm:col-span-2">
+                            <label
+                                for="invoice_payment_notes"
+                                class="block text-sm font-semibold text-emerald-950"
+                            >
+                                Notes
+                            </label>
+
+                            <textarea
+                                id="invoice_payment_notes"
+                                name="notes"
+                                rows="3"
+                                maxlength="5000"
+                                class="mt-2 block w-full rounded-lg border-emerald-300 bg-white shadow-sm focus:border-emerald-600 focus:ring-emerald-600"
+                            >{{ old('notes') }}</textarea>
+
+                            @error('notes')
+                                <p class="mt-2 text-sm font-medium text-red-700">
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
+
+                        <div class="sm:col-span-2">
+                            <button
+                                type="submit"
+                                class="inline-flex rounded-lg border border-emerald-700 bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800"
+                            >
+                                Record Payment and Activate Subscription
+                            </button>
+                        </div>
+                    </form>
+                </section>
+            @endif
+
             @include(
                 'subscription-invoices.partials.reminder-history',
                 [

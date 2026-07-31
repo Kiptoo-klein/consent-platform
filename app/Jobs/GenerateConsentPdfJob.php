@@ -16,7 +16,7 @@ class GenerateConsentPdfJob implements ShouldQueue
     use Queueable;
 
     /**
-     * Number of times Laravel may attempt this job.
+     * Number of times the queue worker may attempt this job.
      */
     public int $tries = 3;
 

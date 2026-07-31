@@ -27,6 +27,7 @@ class ConsentSession extends Model
         'consent_template_id',
         'consent_template_version_id',
         'signing_station_id',
+        'consent_campaign_id',
         'created_by',
         'signer_name',
         'signer_email',
@@ -71,6 +72,13 @@ class ConsentSession extends Model
         );
     }
 
+    public function consentCampaign(): BelongsTo
+    {
+        return $this->belongsTo(
+            ConsentCampaign::class
+        );
+    }
+
     public function signingStation(): BelongsTo
     {
         return $this->belongsTo(
@@ -83,6 +91,13 @@ class ConsentSession extends Model
         return $this->belongsTo(
             User::class,
             'created_by'
+        );
+    }
+
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(
+            ConsentNotification::class
         );
     }
 

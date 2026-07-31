@@ -3,11 +3,11 @@
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 class="text-xl font-semibold leading-tight text-gray-800">
-                    New Individual Consent
+                    New Consent
                 </h2>
 
                 <p class="mt-1 text-sm text-gray-500">
-                    Choose a published template enabled for individual consent.
+                    Choose a published template, then send it to one person or a group.
                 </p>
             </div>
 
@@ -93,12 +93,21 @@
                                     </p>
                                 </div>
 
-                                <a
-                                    href="{{ route('consent-sessions.create', $consentTemplate) }}"
-                                    class="inline-flex shrink-0 items-center justify-center rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
-                                >
-                                    Use Template
-                                </a>
+                                <div class="flex shrink-0 flex-col gap-2 sm:min-w-44">
+                                    <a
+                                        href="{{ route('consent-sessions.create', $consentTemplate) }}"
+                                        class="inline-flex items-center justify-center rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
+                                    >
+                                        One Person
+                                    </a>
+
+                                    <a
+                                        href="{{ route('consent-campaigns.create', $consentTemplate) }}"
+                                        class="inline-flex items-center justify-center rounded-lg border border-indigo-300 bg-indigo-50 px-5 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
+                                    >
+                                        Up to 20 People
+                                    </a>
+                                </div>
                             </article>
                         @endforeach
                     </div>

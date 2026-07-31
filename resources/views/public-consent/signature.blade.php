@@ -179,12 +179,18 @@
                     By submitting this signature, you confirm that you reviewed the consent information and that this electronic signature represents your agreement.
                 </div>
 
-                <label class="flex items-start gap-3 rounded-lg border border-gray-200 p-4">
+                <label
+                    id="confirmation-container"
+                    class="flex items-start gap-3 rounded-lg border border-gray-200 p-4 transition"
+                >
                     <input
                         type="checkbox"
+                        id="signature-confirmation"
                         name="confirmation"
                         value="1"
                         @checked(old('confirmation'))
+                        aria-describedby="confirmation-error"
+                        aria-invalid="{{ $errors->has('confirmation') ? 'true' : 'false' }}"
                         class="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                     >
 
@@ -195,11 +201,15 @@
                     </span>
                 </label>
 
-                @error('confirmation')
-                    <p class="-mt-4 text-sm text-red-600">
-                        {{ $message }}
-                    </p>
-                @enderror
+                <p
+                    id="confirmation-error"
+                    class="-mt-4 text-sm text-red-600 {{ $errors->has('confirmation') ? '' : 'hidden' }}"
+                    role="alert"
+                    aria-live="polite"
+                >
+                    {{ $errors->first('confirmation')
+                        ?: 'Please confirm that the signature is yours before submitting.' }}
+                </p>
 
                 <div class="grid gap-3 sm:grid-cols-2">
                     <a
@@ -249,6 +259,12 @@
                 const signatureInput = document.getElementById('signature_data');
                 const signatureStatus = document.getElementById('signature-status');
                 const form = document.getElementById('signature-form');
+                const confirmationCheckbox =
+                    document.getElementById('signature-confirmation');
+                const confirmationContainer =
+                    document.getElementById('confirmation-container');
+                const confirmationError =
+                    document.getElementById('confirmation-error');
 
                 if (
                     !canvas ||
@@ -257,7 +273,10 @@
                     !submitButton ||
                     !signatureInput ||
                     !signatureStatus ||
-                    !form
+                    !form ||
+                    !confirmationCheckbox ||
+                    !confirmationContainer ||
+                    !confirmationError
                 ) {
                     return;
                 }
@@ -459,6 +478,86 @@
                     }
                 }
 
+                function showConfirmationError() {
+                    confirmationError.textContent =
+                        'Please confirm that the signature is yours before submitting.';
+
+                    confirmationError.classList.remove('hidden');
+
+                    confirmationContainer.classList.remove(
+                        'border-gray-200'
+                    );
+
+                    confirmationContainer.classList.add(
+                        'border-red-400',
+                        'bg-red-50'
+                    );
+
+                    confirmationCheckbox.setAttribute(
+                        'aria-invalid',
+                        'true'
+                    );
+                }
+
+                function clearConfirmationError() {
+                    confirmationError.classList.add('hidden');
+
+                    confirmationContainer.classList.remove(
+                        'border-red-400',
+                        'bg-red-50'
+                    );
+
+                    confirmationContainer.classList.add(
+                        'border-gray-200'
+                    );
+
+                    confirmationCheckbox.setAttribute(
+                        'aria-invalid',
+                        'false'
+                    );
+                }
+
+                function restoreSignatureData() {
+                    const storedSignature =
+                        signatureInput.value.trim();
+
+                    if (
+                        !storedSignature.startsWith(
+                            'data:image/png;base64,'
+                        )
+                    ) {
+                        return;
+                    }
+
+                    const image = new Image();
+
+                    image.onload = function () {
+                        const rect =
+                            container.getBoundingClientRect();
+
+                        context.clearRect(
+                            0,
+                            0,
+                            canvas.width,
+                            canvas.height
+                        );
+
+                        context.drawImage(
+                            image,
+                            0,
+                            0,
+                            rect.width,
+                            256
+                        );
+
+                        hasSignature = true;
+                        updateSignatureData();
+                        updateControls();
+                    };
+
+                    image.src = storedSignature;
+                }
+
                 function clearSignature() {
                     context.clearRect(
                         0,
@@ -507,6 +606,15 @@
                     clearSignature
                 );
 
+                confirmationCheckbox.addEventListener(
+                    'change',
+                    function () {
+                        if (confirmationCheckbox.checked) {
+                            clearConfirmationError();
+                        }
+                    }
+                );
+
                 form.addEventListener(
                     'submit',
                     function (event) {
@@ -521,6 +629,23 @@
                         }
 
                         updateSignatureData();
+
+                        if (!confirmationCheckbox.checked) {
+                            event.preventDefault();
+
+                            showConfirmationError();
+
+                            confirmationCheckbox.focus();
+
+                            confirmationContainer.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center',
+                            });
+
+                            return;
+                        }
+
+                        clearConfirmationError();
 
                         submitButton.disabled = true;
                         submitButton.textContent =
@@ -542,6 +667,7 @@
 
                 resizeCanvas();
                 updateControls();
+                restoreSignatureData();
             });
         </script>
     @endif

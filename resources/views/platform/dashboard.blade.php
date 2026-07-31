@@ -1,4 +1,111 @@
 <x-app-layout>
+    @php
+        $platformUser =
+            auth()->user();
+
+        $platformUser?->loadMissing(
+            'platformRole'
+        );
+
+        $platformRoleSlug =
+            $platformUser
+                ?->platformRole
+                ?->slug;
+
+        $isSuperAdmin =
+            $platformRoleSlug
+            === 'super-admin';
+
+        $canViewBilling =
+            in_array(
+                $platformRoleSlug,
+                [
+                    'super-admin',
+                    'billing',
+                    'platform-auditor',
+                ],
+                true
+            );
+
+        $canViewOrganizationUsers =
+            in_array(
+                $platformRoleSlug,
+                [
+                    'super-admin',
+                    'support',
+                    'platform-auditor',
+                ],
+                true
+            );
+
+        $canViewActivity =
+            in_array(
+                $platformRoleSlug,
+                [
+                    'super-admin',
+                    'platform-auditor',
+                ],
+                true
+            );
+
+        $canViewSecurity =
+            in_array(
+                $platformRoleSlug,
+                [
+                    'super-admin',
+                    'platform-auditor',
+                ],
+                true
+            );
+
+        $organizationActionLabel =
+            $isSuperAdmin
+                ? 'Manage Organizations'
+                : 'View Organizations';
+
+        $organizationActionDescription =
+            match ($platformRoleSlug) {
+                'super-admin' =>
+                    'Review organizations and manage their '
+                    .'accounts and users.',
+
+                'support' =>
+                    'Review organizations and organization-user '
+                    .'records for support.',
+
+                'platform-auditor' =>
+                    'Review organization and user records in '
+                    .'read-only mode.',
+
+                default =>
+                    'Review organization accounts and subscription '
+                    .'information.',
+            };
+
+        $dashboardDescription =
+            match ($platformRoleSlug) {
+                'super-admin' =>
+                    'Manage organizations, billing, staff, security, '
+                    .'and platform activity.',
+
+                'billing' =>
+                    'Manage subscription plans, invoices, payments, '
+                    .'and billing records.',
+
+                'support' =>
+                    'Review organizations and organization-user '
+                    .'records required for support.',
+
+                'platform-auditor' =>
+                    'Review organizations, billing records, activity '
+                    .'logs, and security status.',
+
+                default =>
+                    'Review the Platform information available to '
+                    .'your assigned role.',
+            };
+    @endphp
+
     <x-slot name="header">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -11,26 +118,53 @@
                 </p>
             </div>
 
-            <div class="flex flex-wrap gap-3">
-                @if (\Illuminate\Support\Facades\Route::has(
-                    'platform.organizations.index'
-                ))
+            <div
+                class="flex flex-wrap gap-3"
+                data-dashboard-actions
+            >
+                <a
+                    href="{{ route(
+                        'platform.organizations.index'
+                    ) }}"
+                    data-dashboard-action="organizations"
+                    class="inline-flex items-center rounded-lg border border-teal-700 bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
+                >
+                    {{ $organizationActionLabel }}
+                </a>
+
+                @if ($canViewBilling)
                     <a
-                        href="{{ route('platform.organizations.index') }}"
-                        class="inline-flex items-center rounded-lg border border-teal-700 bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
+                        href="{{ route(
+                            'platform.billing.index'
+                        ) }}"
+                        data-dashboard-action="billing"
+                        class="inline-flex items-center rounded-lg border border-blue-700 bg-blue-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-800"
                     >
-                        Manage Organizations
+                        Billing Management
                     </a>
                 @endif
 
-                @if (\Illuminate\Support\Facades\Route::has(
-                    'platform.activity-logs.index'
-                ))
+                @if ($canViewActivity)
                     <a
-                        href="{{ route('platform.activity-logs.index') }}"
+                        href="{{ route(
+                            'platform.activity-logs.index'
+                        ) }}"
+                        data-dashboard-action="activity"
                         class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
                     >
                         Activity Logs
+                    </a>
+                @endif
+
+                @if ($canViewSecurity)
+                    <a
+                        href="{{ route(
+                            'platform.security.status'
+                        ) }}"
+                        data-dashboard-action="security"
+                        class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                    >
+                        Security Status
                     </a>
                 @endif
             </div>
@@ -81,28 +215,33 @@
                     )->count();
             }
 
-            if (\Illuminate\Support\Facades\Schema::hasTable(
-                'users'
-            )) {
+            if (
+                $canViewOrganizationUsers
+                && \Illuminate\Support\Facades\Schema::hasTable(
+                    'users'
+                )
+            ) {
                 $databaseUsers =
                     \Illuminate\Support\Facades\DB::table(
                         'users'
                     )->count();
             }
 
-            foreach ([
-                'activity_logs',
-                'platform_activity_logs',
-            ] as $activityTable) {
-                if (\Illuminate\Support\Facades\Schema::hasTable(
-                    $activityTable
-                )) {
-                    $databaseActivity =
-                        \Illuminate\Support\Facades\DB::table(
-                            $activityTable
-                        )->count();
+            if ($canViewActivity) {
+                foreach ([
+                    'activity_logs',
+                    'platform_activity_logs',
+                ] as $activityTable) {
+                    if (\Illuminate\Support\Facades\Schema::hasTable(
+                        $activityTable
+                    )) {
+                        $databaseActivity =
+                            \Illuminate\Support\Facades\DB::table(
+                                $activityTable
+                            )->count();
 
-                    break;
+                        break;
+                    }
                 }
             }
         } catch (\Throwable $exception) {
@@ -155,13 +294,15 @@
                 </p>
 
                 <p class="mt-2 text-sm text-gray-600">
-                    Use this dashboard to manage organizations, users,
-                    and platform activity.
+                    {{ $dashboardDescription }}
                 </p>
             </section>
 
             <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <section
+                    class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+                    data-dashboard-section="organizations"
+                >
                     <p class="text-sm font-medium text-gray-500">
                         Organizations
                     </p>
@@ -175,68 +316,104 @@
                     </p>
                 </section>
 
-                <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                    <p class="text-sm font-medium text-gray-500">
-                        Users
-                    </p>
+                @if ($canViewOrganizationUsers)
+                    <section
+                        class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+                        data-dashboard-section="users"
+                    >
+                        <p class="text-sm font-medium text-gray-500">
+                            Users
+                        </p>
 
-                    <p class="mt-3 text-3xl font-bold text-teal-700">
-                        {{ number_format($userCount) }}
-                    </p>
+                        <p class="mt-3 text-3xl font-bold text-teal-700">
+                            {{ number_format($userCount) }}
+                        </p>
 
-                    <p class="mt-2 text-sm text-gray-500">
-                        Platform and organization user accounts.
-                    </p>
-                </section>
+                        <p class="mt-2 text-sm text-gray-500">
+                            Platform and organization user accounts.
+                        </p>
+                    </section>
+                @endif
 
-                <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                    <p class="text-sm font-medium text-gray-500">
-                        Activity Events
-                    </p>
+                @if ($canViewActivity)
+                    <section
+                        class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+                        data-dashboard-section="activity"
+                    >
+                        <p class="text-sm font-medium text-gray-500">
+                            Activity Events
+                        </p>
 
-                    <p class="mt-3 text-3xl font-bold text-amber-600">
-                        {{ number_format($activityCount) }}
-                    </p>
+                        <p class="mt-3 text-3xl font-bold text-amber-600">
+                            {{ number_format($activityCount) }}
+                        </p>
 
-                    <p class="mt-2 text-sm text-gray-500">
-                        Recorded administrative and organization events.
-                    </p>
-                </section>
+                        <p class="mt-2 text-sm text-gray-500">
+                            Recorded administrative and organization events.
+                        </p>
+                    </section>
+                @endif
             </div>
 
             <div class="grid gap-6 lg:grid-cols-2">
-                @if (\Illuminate\Support\Facades\Route::has(
-                    'platform.organizations.index'
-                ))
+                <a
+                    href="{{ route(
+                        'platform.organizations.index'
+                    ) }}"
+                    data-dashboard-action="organizations"
+                    class="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:border-teal-600 hover:shadow-md"
+                >
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-900">
+                                {{ $organizationActionLabel }}
+                            </h2>
+
+                            <p class="mt-2 text-sm text-gray-600">
+                                {{ $organizationActionDescription }}
+                            </p>
+                        </div>
+
+                        <span class="text-xl text-teal-700">
+                            →
+                        </span>
+                    </div>
+                </a>
+
+                @if ($canViewBilling)
                     <a
-                        href="{{ route('platform.organizations.index') }}"
-                        class="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:border-teal-600 hover:shadow-md"
+                        href="{{ route(
+                            'platform.billing.index'
+                        ) }}"
+                        data-dashboard-action="billing"
+                        class="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:border-blue-600 hover:shadow-md"
                     >
                         <div class="flex items-start justify-between gap-4">
                             <div>
                                 <h2 class="text-lg font-semibold text-gray-900">
-                                    Organization Management
+                                    Billing Management
                                 </h2>
 
                                 <p class="mt-2 text-sm text-gray-600">
-                                    Review organizations and manage their
-                                    accounts and users.
+                                    Review subscriptions, invoices, payment
+                                    records, and plan requests.
                                 </p>
                             </div>
 
-                            <span class="text-xl text-teal-700">
+                            <span class="text-xl text-blue-700">
                                 →
                             </span>
                         </div>
                     </a>
                 @endif
 
-                @if (\Illuminate\Support\Facades\Route::has(
-                    'platform.activity-logs.index'
-                ))
+                @if ($canViewActivity)
                     <a
-                        href="{{ route('platform.activity-logs.index') }}"
-                        class="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:border-teal-600 hover:shadow-md"
+                        href="{{ route(
+                            'platform.activity-logs.index'
+                        ) }}"
+                        data-dashboard-action="activity"
+                        class="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:border-amber-600 hover:shadow-md"
                     >
                         <div class="flex items-start justify-between gap-4">
                             <div>
@@ -250,7 +427,34 @@
                                 </p>
                             </div>
 
-                            <span class="text-xl text-teal-700">
+                            <span class="text-xl text-amber-700">
+                                →
+                            </span>
+                        </div>
+                    </a>
+                @endif
+
+                @if ($canViewSecurity)
+                    <a
+                        href="{{ route(
+                            'platform.security.status'
+                        ) }}"
+                        data-dashboard-action="security"
+                        class="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:border-red-600 hover:shadow-md"
+                    >
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h2 class="text-lg font-semibold text-gray-900">
+                                    Security Status
+                                </h2>
+
+                                <p class="mt-2 text-sm text-gray-600">
+                                    Review security controls and current
+                                    Platform protection status.
+                                </p>
+                            </div>
+
+                            <span class="text-xl text-red-700">
                                 →
                             </span>
                         </div>

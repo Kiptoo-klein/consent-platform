@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class SubscriptionInvoice extends Model
 {
@@ -28,6 +29,7 @@ class SubscriptionInvoice extends Model
         'total_amount',
         'currency',
         'notes',
+        'payment_details_snapshot',
         'issued_by_user_id',
         'paid_at',
         'voided_at',
@@ -46,6 +48,10 @@ class SubscriptionInvoice extends Model
             'subtotal' => 'decimal:2',
             'tax_amount' => 'decimal:2',
             'total_amount' => 'decimal:2',
+
+            'payment_details_snapshot' =>
+                'array',
+
             'paid_at' => 'datetime',
             'voided_at' => 'datetime',
             'cancelled_at' => 'datetime',
@@ -87,6 +93,14 @@ class SubscriptionInvoice extends Model
     {
         return $this->hasMany(
             SubscriptionTransaction::class,
+            'subscription_invoice_id'
+        );
+    }
+
+    public function planRequest(): HasOne
+    {
+        return $this->hasOne(
+            OrganizationSubscriptionPlanRequest::class,
             'subscription_invoice_id'
         );
     }

@@ -144,6 +144,17 @@
                     $status
                         ? ucwords(str_replace('_', ' ', $status))
                         : 'Unavailable';
+
+                /*
+                 * This is an initial activation only when the subscription
+                 * has never had a billing period. Unpaid, past-due, expired,
+                 * or cancelled subscriptions with previous period dates are
+                 * renewals rather than first-time activations.
+                 */
+                $isInitialBillingActivation =
+                    $subscription !== null
+                    && $subscription->current_period_starts_at === null
+                    && $subscription->current_period_ends_at === null;
             @endphp
 
             <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -196,8 +207,204 @@
 
                 @if (! $subscription)
                     <div class="p-6">
-                        <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-                            This organization does not have a subscription record.
+                        <div class="rounded-xl border border-amber-200 bg-amber-50 p-5">
+                            <h3 class="text-base font-semibold text-amber-950">
+                                Create Subscription Record
+                            </h3>
+
+                            <p class="mt-1 text-sm text-amber-900">
+                                Choose a plan, billing owner, and start
+                                date. This creates the subscription record but
+                                does not record payment. Add an optional trial
+                                end date, then activate the paid subscription
+                                when payment is confirmed.
+                            </p>
+
+                            @error('subscription')
+                                <p class="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+                                    {{ $message }}
+                                </p>
+                            @enderror
+
+                            @if ($subscriptionPlans->isEmpty())
+                                <div class="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+                                    No active subscription plans are available.
+                                    Run the subscription plan seeder before
+                                    assigning a subscription.
+                                </div>
+                            @elseif ($billingOwners->isEmpty())
+                                <div class="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+                                    This organization has no active user who can
+                                    be assigned as the billing owner.
+                                </div>
+                            @else
+
+
+<form
+                                    method="POST"
+                                    action="{{ route(
+                                        'platform.organizations.subscription.store',
+                                        $organization
+                                    ) }}"
+                                    class="mt-5 grid gap-4 lg:grid-cols-4"
+                                >
+                                    @csrf
+
+                                    <div>
+                                        <label
+                                            for="initial_subscription_plan_id"
+                                            class="block text-sm font-semibold text-amber-950"
+                                        >
+                                            Subscription plan
+                                        </label>
+
+                                        <select
+                                            id="initial_subscription_plan_id"
+                                            name="subscription_plan_id"
+                                            required
+                                            class="mt-2 block w-full rounded-lg border-amber-300 bg-white shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                        >
+                                            <option value="">
+                                                Select a plan
+                                            </option>
+
+                                            @foreach ($subscriptionPlans as $availablePlan)
+                                                <option
+                                                    value="{{ $availablePlan->id }}"
+                                                    @selected(
+                                                        (int) old(
+                                                            'subscription_plan_id'
+                                                        ) === $availablePlan->id
+                                                    )
+                                                >
+                                                    {{ $availablePlan->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+
+                                        @error('subscription_plan_id')
+                                            <p class="mt-2 text-sm font-medium text-red-700">
+                                                {{ $message }}
+                                            </p>
+                                        @enderror
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            for="billing_owner_user_id"
+                                            class="block text-sm font-semibold text-amber-950"
+                                        >
+                                            Billing owner
+                                        </label>
+
+                                        <select
+                                            id="billing_owner_user_id"
+                                            name="billing_owner_user_id"
+                                            required
+                                            class="mt-2 block w-full rounded-lg border-amber-300 bg-white shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                        >
+                                            <option value="">
+                                                Select a billing owner
+                                            </option>
+
+                                            @foreach ($billingOwners as $billingOwner)
+                                                <option
+                                                    value="{{ $billingOwner->id }}"
+                                                    @selected(
+                                                        (int) old(
+                                                    'billing_owner_user_id',
+                                                    $defaultInitialBillingOwnerId
+                                                ) === $billingOwner->id
+                                                    )
+                                                >
+                                                    {{ $billingOwner->name }}
+                                                    — {{ $billingOwner->email }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+
+                                        @error('billing_owner_user_id')
+                                            <p class="mt-2 text-sm font-medium text-red-700">
+                                                {{ $message }}
+                                            </p>
+                                        @enderror
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            for="starts_at"
+                                            class="block text-sm font-semibold text-amber-950"
+                                        >
+                                            Subscription start date
+                                        </label>
+
+                                        <input
+                                            id="starts_at"
+                                            name="starts_at"
+                                            type="date"
+                                            required
+                                            max="{{ now()->toDateString() }}"
+                                            value="{{ old(
+                                                'starts_at',
+                                                now()->toDateString()
+                                            ) }}"
+                                            class="mt-2 block w-full rounded-lg border-amber-300 bg-white shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                        >
+
+                                        <p class="mt-2 text-xs text-amber-900">
+                                            Defaults to today. You may select
+                                            an earlier date when backdating a
+                                            subscription. It is stored at
+                                            midnight (00:00).
+                                        </p>
+
+                                        @error('starts_at')
+                                            <p class="mt-2 text-sm font-medium text-red-700">
+                                                {{ $message }}
+                                            </p>
+                                        @enderror
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            for="trial_ends_at"
+                                            class="block text-sm font-semibold text-amber-950"
+                                        >
+                                            Trial end date
+                                        </label>
+
+                                        <input
+                                            id="trial_ends_at"
+                                            name="trial_ends_at"
+                                            type="date"
+                                            value="{{ old('trial_ends_at') }}"
+                                            class="mt-2 block w-full rounded-lg border-amber-300 bg-white shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                        >
+
+                                        <p class="mt-2 text-xs text-amber-900">
+                                            Optional. The selected date is
+                                            automatically stored at midnight
+                                            (00:00). Leave blank to keep access
+                                            blocked until payment or bypass.
+                                        </p>
+
+                                        @error('trial_ends_at')
+                                            <p class="mt-2 text-sm font-medium text-red-700">
+                                                {{ $message }}
+                                            </p>
+                                        @enderror
+                                    </div>
+
+                                    <div class="lg:col-span-4">
+                                        <button
+                                            type="submit"
+                                            class="inline-flex rounded-lg border border-teal-700 bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-800"
+                                        >
+                                            Create Subscription Record
+                                        </button>
+                                    </div>
+                                </form>
+                            @endif
                         </div>
                     </div>
                 @else
@@ -312,16 +519,50 @@
 
                     <div class="border-t border-gray-200 p-6">
                         <h3 class="text-base font-semibold text-gray-900">
-                            Renew Subscription
+                            {{ $isInitialBillingActivation
+                                ? 'Activate Paid Subscription'
+                                : 'Renew Subscription' }}
                         </h3>
 
                         <p class="mt-1 text-sm text-gray-500">
-                            Confirm payment and define the new active billing
-                            period. Renewal preserves the current plan,
-                            organization records, and any approved bypass.
+                            @if ($isInitialBillingActivation)
+                                Confirm payment and set the first active billing
+                                period. Activation changes the subscription to
+                                Active and Paid while preserving its plan and
+                                organization records.
+                            @else
+                                Confirm payment and define the next active
+                                billing period. Renewal preserves the current
+                                plan, organization records, and any approved
+                                bypass.
+                            @endif
                         </p>
 
-                        <form
+                                                @php
+                            $renewalPeriodStartValue = old(
+                                'current_period_starts_at',
+                                now()->format('d/m/Y')
+                            );
+
+                            $renewalPeriodEndValue = old(
+                                'current_period_ends_at',
+                                now()
+                                    ->copy()
+                                    ->addMonth()
+                                    ->format('d/m/Y')
+                            );
+
+                            $renewalFinalEndValue = old(
+                                'ends_at',
+                                $subscription->ends_at
+                                    ? $subscription
+                                        ->ends_at
+                                        ->format('d/m/Y')
+                                    : ''
+                            );
+                        @endphp
+
+<form
                             method="POST"
                             action="{{ route(
                                 'platform.organizations.subscription-renewal.update',
@@ -340,19 +581,99 @@
                                     Period starts
                                 </label>
 
-                                <input
-                                    id="current_period_starts_at"
-                                    name="current_period_starts_at"
-                                    type="datetime-local"
-                                    required
-                                    value="{{ old(
-                                        'current_period_starts_at',
-                                        $subscription
-                                            ->current_period_starts_at
-                                            ?->format('Y-m-d\TH:i')
-                                    ) }}"
-                                    class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
-                                >
+                                <div class="relative mt-2">
+                                    <input
+                                        id="current_period_starts_at"
+                                        name="current_period_starts_at"
+                                        type="text"
+                                        required
+                                        inputmode="numeric"
+                                        autocomplete="off"
+                                        placeholder="dd/mm/yyyy"
+                                        pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}"
+                                        value="{{ $renewalPeriodStartValue }}"
+                                        class="block w-full rounded-lg border-gray-300 pr-12 shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                    >
+
+                                    <input
+                                        id="current_period_starts_at_picker"
+                                        type="date"
+                                        aria-label="Choose period start date"
+                                        tabindex="-1"
+                                        onpointerdown="
+                                            const target =
+                                                document.getElementById(
+                                                    'current_period_starts_at'
+                                                );
+
+                                            const parts =
+                                                target.value.split('/');
+
+                                            this.value =
+                                                parts.length === 3
+                                                    ? parts[2]
+                                                        + '-'
+                                                        + parts[1]
+                                                        + '-'
+                                                        + parts[0]
+                                                    : '';
+                                        "
+                                        onfocus="
+                                            const target =
+                                                document.getElementById(
+                                                    'current_period_starts_at'
+                                                );
+
+                                            const parts =
+                                                target.value.split('/');
+
+                                            this.value =
+                                                parts.length === 3
+                                                    ? parts[2]
+                                                        + '-'
+                                                        + parts[1]
+                                                        + '-'
+                                                        + parts[0]
+                                                    : '';
+                                        "
+                                        onchange="
+                                            const parts =
+                                                this.value.split('-');
+
+                                            if (parts.length === 3) {
+                                                document.getElementById(
+                                                    'current_period_starts_at'
+                                                ).value =
+                                                    parts[2]
+                                                    + '/'
+                                                    + parts[1]
+                                                    + '/'
+                                                    + parts[0];
+                                            }
+                                        "
+                                        class="absolute inset-y-0 right-0 z-10 h-full w-12 cursor-pointer opacity-0"
+                                    >
+
+                                    <span
+                                        aria-hidden="true"
+                                        class="pointer-events-none absolute inset-y-0 right-0 flex w-12 items-center justify-center text-gray-500"
+                                    >
+                                        <svg
+                                            class="h-5 w-5"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="1.8"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M6.75 3.75v3m10.5-3v3M4.5 9h15m-13.5-4.5h12A1.5 1.5 0 0 1 19.5 6v13.5h-15V6A1.5 1.5 0 0 1 6 4.5Z"
+                                            />
+                                        </svg>
+                                    </span>
+                                </div>
+
 
                                 @error('current_period_starts_at')
                                     <p class="mt-2 text-sm font-medium text-red-700">
@@ -369,19 +690,99 @@
                                     Period ends
                                 </label>
 
-                                <input
-                                    id="current_period_ends_at"
-                                    name="current_period_ends_at"
-                                    type="datetime-local"
-                                    required
-                                    value="{{ old(
-                                        'current_period_ends_at',
-                                        $subscription
-                                            ->current_period_ends_at
-                                            ?->format('Y-m-d\TH:i')
-                                    ) }}"
-                                    class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
-                                >
+                                <div class="relative mt-2">
+                                    <input
+                                        id="current_period_ends_at"
+                                        name="current_period_ends_at"
+                                        type="text"
+                                        required
+                                        inputmode="numeric"
+                                        autocomplete="off"
+                                        placeholder="dd/mm/yyyy"
+                                        pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}"
+                                        value="{{ $renewalPeriodEndValue }}"
+                                        class="block w-full rounded-lg border-gray-300 pr-12 shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                    >
+
+                                    <input
+                                        id="current_period_ends_at_picker"
+                                        type="date"
+                                        aria-label="Choose period end date"
+                                        tabindex="-1"
+                                        onpointerdown="
+                                            const target =
+                                                document.getElementById(
+                                                    'current_period_ends_at'
+                                                );
+
+                                            const parts =
+                                                target.value.split('/');
+
+                                            this.value =
+                                                parts.length === 3
+                                                    ? parts[2]
+                                                        + '-'
+                                                        + parts[1]
+                                                        + '-'
+                                                        + parts[0]
+                                                    : '';
+                                        "
+                                        onfocus="
+                                            const target =
+                                                document.getElementById(
+                                                    'current_period_ends_at'
+                                                );
+
+                                            const parts =
+                                                target.value.split('/');
+
+                                            this.value =
+                                                parts.length === 3
+                                                    ? parts[2]
+                                                        + '-'
+                                                        + parts[1]
+                                                        + '-'
+                                                        + parts[0]
+                                                    : '';
+                                        "
+                                        onchange="
+                                            const parts =
+                                                this.value.split('-');
+
+                                            if (parts.length === 3) {
+                                                document.getElementById(
+                                                    'current_period_ends_at'
+                                                ).value =
+                                                    parts[2]
+                                                    + '/'
+                                                    + parts[1]
+                                                    + '/'
+                                                    + parts[0];
+                                            }
+                                        "
+                                        class="absolute inset-y-0 right-0 z-10 h-full w-12 cursor-pointer opacity-0"
+                                    >
+
+                                    <span
+                                        aria-hidden="true"
+                                        class="pointer-events-none absolute inset-y-0 right-0 flex w-12 items-center justify-center text-gray-500"
+                                    >
+                                        <svg
+                                            class="h-5 w-5"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="1.8"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M6.75 3.75v3m10.5-3v3M4.5 9h15m-13.5-4.5h12A1.5 1.5 0 0 1 19.5 6v13.5h-15V6A1.5 1.5 0 0 1 6 4.5Z"
+                                            />
+                                        </svg>
+                                    </span>
+                                </div>
+
 
                                 @error('current_period_ends_at')
                                     <p class="mt-2 text-sm font-medium text-red-700">
@@ -395,26 +796,101 @@
                                     for="ends_at"
                                     class="block text-sm font-semibold text-gray-900"
                                 >
-                                    Final subscription end
+                                    Final subscription end (optional)
                                 </label>
 
-                                <input
-                                    id="ends_at"
-                                    name="ends_at"
-                                    type="datetime-local"
-                                    value="{{ old(
-                                        'ends_at',
-                                        $subscription
-                                            ->ends_at
-                                            ?->format('Y-m-d\TH:i')
-                                    ) }}"
-                                    class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
-                                >
+                                <div class="relative mt-2">
+                                    <input
+                                        id="ends_at"
+                                        name="ends_at"
+                                        type="text"
+                                        inputmode="numeric"
+                                        autocomplete="off"
+                                        placeholder="dd/mm/yyyy"
+                                        pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}"
+                                        value="{{ $renewalFinalEndValue }}"
+                                        class="block w-full rounded-lg border-gray-300 pr-12 shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                                    >
 
-                                <p class="mt-2 text-xs text-gray-500">
-                                    Optional. Leave blank for no scheduled final
-                                    subscription end.
-                                </p>
+                                    <input
+                                        id="ends_at_picker"
+                                        type="date"
+                                        aria-label="Choose final subscription end date"
+                                        tabindex="-1"
+                                        onpointerdown="
+                                            const target =
+                                                document.getElementById(
+                                                    'ends_at'
+                                                );
+
+                                            const parts =
+                                                target.value.split('/');
+
+                                            this.value =
+                                                parts.length === 3
+                                                    ? parts[2]
+                                                        + '-'
+                                                        + parts[1]
+                                                        + '-'
+                                                        + parts[0]
+                                                    : '';
+                                        "
+                                        onfocus="
+                                            const target =
+                                                document.getElementById(
+                                                    'ends_at'
+                                                );
+
+                                            const parts =
+                                                target.value.split('/');
+
+                                            this.value =
+                                                parts.length === 3
+                                                    ? parts[2]
+                                                        + '-'
+                                                        + parts[1]
+                                                        + '-'
+                                                        + parts[0]
+                                                    : '';
+                                        "
+                                        onchange="
+                                            const parts =
+                                                this.value.split('-');
+
+                                            if (parts.length === 3) {
+                                                document.getElementById(
+                                                    'ends_at'
+                                                ).value =
+                                                    parts[2]
+                                                    + '/'
+                                                    + parts[1]
+                                                    + '/'
+                                                    + parts[0];
+                                            }
+                                        "
+                                        class="absolute inset-y-0 right-0 z-10 h-full w-12 cursor-pointer opacity-0"
+                                    >
+
+                                    <span
+                                        aria-hidden="true"
+                                        class="pointer-events-none absolute inset-y-0 right-0 flex w-12 items-center justify-center text-gray-500"
+                                    >
+                                        <svg
+                                            class="h-5 w-5"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="1.8"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M6.75 3.75v3m10.5-3v3M4.5 9h15m-13.5-4.5h12A1.5 1.5 0 0 1 19.5 6v13.5h-15V6A1.5 1.5 0 0 1 6 4.5Z"
+                                            />
+                                        </svg>
+                                    </span>
+                                </div>
+
 
                                 @error('ends_at')
                                     <p class="mt-2 text-sm font-medium text-red-700">
@@ -428,7 +904,9 @@
                                     type="submit"
                                     class="inline-flex rounded-lg border border-teal-700 bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-800"
                                 >
-                                    Renew Subscription
+                                    {{ $isInitialBillingActivation
+                                        ? 'Activate Subscription'
+                                        : 'Renew Subscription' }}
                                 </button>
                             </div>
                         </form>

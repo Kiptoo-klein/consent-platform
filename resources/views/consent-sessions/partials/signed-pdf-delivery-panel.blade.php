@@ -215,7 +215,7 @@
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p class="text-xs leading-5 text-gray-500">
                     @if (config('mail.default') === 'log')
-                        Development mode is using the log mailer. “Sent” means the email was written to the Laravel log, not delivered to an inbox.
+                        Development mode is using the log mailer. “Sent” means the email was written to the application log, not delivered to an inbox.
                     @else
                         Delivery uses the platform mail service configured in the application environment.
                     @endif

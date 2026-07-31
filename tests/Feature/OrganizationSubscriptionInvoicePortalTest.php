@@ -603,6 +603,205 @@ class OrganizationSubscriptionInvoicePortalTest extends TestCase
             ->assertRedirect('/login');
     }
 
+
+    public function test_html_invoice_displays_snapshotted_payment_instructions(): void
+    {
+        $invoice = $this->createInvoice([
+            'invoice_number' =>
+                'PORTAL-PAYMENT-INSTRUCTIONS',
+
+            'payment_details_snapshot' => [
+                'mpesa_enabled' =>
+                    true,
+
+                'mpesa_type' =>
+                    'paybill',
+
+                'mpesa_business_number' =>
+                    '400200',
+
+                'mpesa_account_reference_instructions' =>
+                    'Use the invoice number as the account reference.',
+
+                'mpesa_instructions' =>
+                    'Keep the confirmation message.',
+
+                'bank_enabled' =>
+                    true,
+
+                'bank_name' =>
+                    'Example Commercial Bank',
+
+                'bank_account_name' =>
+                    'eConsent Holdings',
+
+                'bank_account_number' =>
+                    '0102030405',
+
+                'bank_branch' =>
+                    'Nairobi',
+
+                'bank_swift_code' =>
+                    'EXAMPLEKX',
+
+                'bank_reference_instructions' =>
+                    'Use the invoice number as the transfer reference.',
+
+                'bank_instructions' =>
+                    'Bank charges are paid by the sender.',
+
+                'billing_contact_email' =>
+                    'billing@example.com',
+
+                'billing_contact_phone' =>
+                    '+254700000000',
+
+                'additional_instructions' =>
+                    'Send payment confirmation after payment.',
+            ],
+        ]);
+
+        $this
+            ->actingAs(
+                $this->billingOwner
+            )
+            ->get(
+                $this->invoiceUrl(
+                    $invoice
+                )
+            )
+            ->assertOk()
+            ->assertSeeText(
+                'Payment Instructions'
+            )
+            ->assertSeeText(
+                'M-Pesa'
+            )
+            ->assertSeeText(
+                'Paybill'
+            )
+            ->assertSeeText(
+                '400200'
+            )
+            ->assertSeeText(
+                'Bank Transfer'
+            )
+            ->assertSeeText(
+                'Example Commercial Bank'
+            )
+            ->assertSeeText(
+                'eConsent Holdings'
+            )
+            ->assertSeeText(
+                '0102030405'
+            )
+            ->assertSeeText(
+                'EXAMPLEKX'
+            )
+            ->assertSeeText(
+                'billing@example.com'
+            )
+            ->assertSeeText(
+                '+254700000000'
+            )
+            ->assertSeeText(
+                'Send payment confirmation after payment.'
+            );
+    }
+
+    public function test_pdf_invoice_template_contains_snapshotted_payment_instructions(): void
+    {
+        $invoice = $this->createInvoice([
+            'invoice_number' =>
+                'PORTAL-PDF-PAYMENT-INSTRUCTIONS',
+
+            'payment_details_snapshot' => [
+                'mpesa_enabled' =>
+                    true,
+
+                'mpesa_type' =>
+                    'paybill',
+
+                'mpesa_business_number' =>
+                    '400200',
+
+                'mpesa_account_reference_instructions' =>
+                    'Use the invoice number as the account reference.',
+
+                'mpesa_instructions' =>
+                    'Keep the confirmation message.',
+
+                'bank_enabled' =>
+                    true,
+
+                'bank_name' =>
+                    'Example Commercial Bank',
+
+                'bank_account_name' =>
+                    'eConsent Holdings',
+
+                'bank_account_number' =>
+                    '0102030405',
+
+                'bank_branch' =>
+                    'Nairobi',
+
+                'bank_swift_code' =>
+                    'EXAMPLEKX',
+
+                'bank_reference_instructions' =>
+                    'Use the invoice number as the transfer reference.',
+
+                'bank_instructions' =>
+                    'Bank charges are paid by the sender.',
+
+                'billing_contact_email' =>
+                    'billing@example.com',
+
+                'billing_contact_phone' =>
+                    '+254700000000',
+
+                'additional_instructions' =>
+                    'Send payment confirmation after payment.',
+            ],
+        ]);
+
+        $invoice->load([
+            'organization',
+            'plan',
+            'issuedBy',
+            'transactions',
+        ]);
+
+        $html = view(
+            'pdfs.subscription-invoice',
+            [
+                'invoice' =>
+                    $invoice,
+            ]
+        )->render();
+
+        foreach ([
+            'Payment Instructions',
+            'M-Pesa',
+            'Paybill',
+            '400200',
+            'Bank Transfer',
+            'Example Commercial Bank',
+            'eConsent Holdings',
+            '0102030405',
+            'EXAMPLEKX',
+            'billing@example.com',
+            '+254700000000',
+            'Send payment confirmation after payment.',
+        ] as $expectedText) {
+            $this->assertStringContainsString(
+                $expectedText,
+                $html
+            );
+        }
+    }
+
     private function portalUrl(): string
     {
         return '/subscription/billing';
@@ -621,6 +820,80 @@ class OrganizationSubscriptionInvoicePortalTest extends TestCase
     ): string {
         return $this->invoiceUrl($invoice)
             .'/download';
+    }
+
+    public function test_pdf_invoice_template_uses_professional_invoice_layout(): void
+    {
+        $invoice =
+            $this->createInvoice([
+                'invoice_number' =>
+                    'PORTAL-PROFESSIONAL-INVOICE',
+
+                'subtotal' =>
+                    '2500.00',
+
+                'tax_amount' =>
+                    '400.00',
+
+                'total_amount' =>
+                    '2900.00',
+
+                'currency' =>
+                    'KES',
+
+                'notes' =>
+                    'Professional invoice design test.',
+            ]);
+
+        $invoice->load([
+            'organization',
+            'subscription',
+            'plan',
+            'issuedBy',
+            'transactions',
+        ]);
+
+        $html =
+            view(
+                'pdfs.subscription-invoice',
+                [
+                    'invoice' =>
+                        $invoice,
+                ]
+            )->render();
+
+        foreach ([
+            'data-invoice-pdf-layout="professional-v2"',
+            'data-invoice-summary',
+            'data-invoice-line-items',
+            'data-invoice-totals',
+            'data-invoice-payment-instructions',
+            'Billed To',
+            'Invoice Summary',
+            'Subscription Charges',
+            'Amount Due',
+            'Document ID:',
+        ] as $expectedContent) {
+            $this->assertStringContainsString(
+                $expectedContent,
+                $html
+            );
+        }
+
+        $this->assertStringContainsString(
+            'PORTAL-PROFESSIONAL-INVOICE',
+            $html
+        );
+
+        $this->assertStringContainsString(
+            'KES',
+            $html
+        );
+
+        $this->assertStringContainsString(
+            '2,900.00',
+            $html
+        );
     }
 
     /**

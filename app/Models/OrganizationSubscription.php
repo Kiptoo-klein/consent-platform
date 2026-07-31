@@ -24,6 +24,7 @@ class OrganizationSubscription extends Model
         'billing_owner_user_id',
         'status',
         'payment_status',
+        'billing_cycle',
         'starts_at',
         'trial_ends_at',
         'current_period_starts_at',
@@ -75,7 +76,7 @@ class OrganizationSubscription extends Model
     }
 
     /**
-     * The Organization Admin responsible for billing.
+     * The user assigned the Billing Owner role for this subscription.
      */
     public function billingOwner(): BelongsTo
     {

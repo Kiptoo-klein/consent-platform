@@ -1,4 +1,14 @@
 <x-app-layout>
+    @php
+        $organizationUserRoutePrefix =
+            request()->routeIs('platform.*')
+                ? 'platform.organizations.users'
+                : 'organization-users';
+
+        $organizationUserIsPlatformContext =
+            request()->routeIs('platform.*');
+    @endphp
+
     <x-slot name="header">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -14,7 +24,7 @@
             <div class="flex flex-wrap gap-3">
                 <a
                     href="{{ route(
-                        'platform.organizations.users.create',
+                        $organizationUserRoutePrefix.'.create',
                         $organization
                     ) }}"
                     class="inline-flex items-center rounded-lg border border-teal-700 bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
@@ -23,11 +33,11 @@
                 </a>
 
                 @if (\Illuminate\Support\Facades\Route::has(
-                    'platform.organizations.users.archived'
+                    $organizationUserRoutePrefix.'.archived'
                 ))
                     <a
                         href="{{ route(
-                            'platform.organizations.users.archived',
+                            $organizationUserRoutePrefix.'.archived',
                             $organization
                         ) }}"
                         class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
@@ -37,10 +47,12 @@
                 @endif
 
                 <a
-                    href="{{ route(
-                        'platform.organizations.show',
-                        $organization
-                    ) }}"
+                    href="{{ $organizationUserIsPlatformContext
+                            ? route(
+                                'platform.organizations.show',
+                                $organization
+                            )
+                            : route('dashboard') }}"
                     class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
                 >
                     Back to Organization
@@ -209,7 +221,7 @@
                                         <div class="flex flex-wrap justify-end gap-2">
                                             <a
                                                 href="{{ route(
-                                                    'platform.organizations.users.edit',
+                                                    $organizationUserRoutePrefix.'.edit',
                                                     [$organization, $user]
                                                 ) }}"
                                                 class="inline-flex items-center rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
@@ -220,7 +232,7 @@
                                             <form
                                                 method="POST"
                                                 action="{{ route(
-                                                    'platform.organizations.users.status',
+                                                    $organizationUserRoutePrefix.'.status',
                                                     [$organization, $user]
                                                 ) }}"
                                                 onsubmit="return confirm('{{ $user->is_active
@@ -253,7 +265,7 @@
                                             <form
                                                 method="POST"
                                                 action="{{ route(
-                                                    'platform.organizations.users.destroy',
+                                                    $organizationUserRoutePrefix.'.destroy',
                                                     [$organization, $user]
                                                 ) }}"
                                                 onsubmit="return confirm('Archive this user account? It can be restored later.')"

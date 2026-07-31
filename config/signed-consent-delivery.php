@@ -6,7 +6,7 @@ return [
     | Automatic signed PDF delivery
     |--------------------------------------------------------------------------
     |
-    | The feature uses the application's current Laravel mail configuration.
+    | The feature uses the application's current mail configuration.
     | It only sends copies for completed records created by a public signing
     | station. Individual-consent invitation and reminder behaviour is separate.
     |

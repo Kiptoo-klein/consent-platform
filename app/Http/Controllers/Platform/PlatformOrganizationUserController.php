@@ -359,7 +359,7 @@ class PlatformOrganizationUserController extends Controller
 
         return redirect()
             ->route(
-                'platform.organizations.users.index',
+                $this->organizationUserRouteName('index'),
                 $organization
             )
             ->with(
@@ -734,7 +734,7 @@ class PlatformOrganizationUserController extends Controller
 
         return redirect()
             ->route(
-                'platform.organizations.users.index',
+                $this->organizationUserRouteName('index'),
                 $organization
             )
             ->with(
@@ -765,6 +765,28 @@ class PlatformOrganizationUserController extends Controller
 
         $oldStatus = (bool) $user->is_active;
         $newStatus = (bool) $validated['is_active'];
+
+        /*
+         * BILLING_OWNER_DISABLE_PROTECTION
+         *
+         * Billing ownership must be transferred before this account can
+         * be disabled.
+         */
+        if (
+            $oldStatus
+            && ! $newStatus
+            && $this->isBillingOwner(
+                $organization,
+                $user
+            )
+        ) {
+            return back()->withErrors([
+                'status' =>
+                    'This user is the current Billing Owner. '
+                    .'Assign another active Billing Owner under Billing '
+                    .'before disabling this account.',
+            ]);
+        }
 
         /*
          * Prevent the final active Organization Admin from being disabled.
@@ -809,7 +831,7 @@ class PlatformOrganizationUserController extends Controller
 
         return redirect()
             ->route(
-                'platform.organizations.users.index',
+                $this->organizationUserRouteName('index'),
                 $organization
             )
             ->with('success', $message);
@@ -830,6 +852,26 @@ class PlatformOrganizationUserController extends Controller
             $organization,
             $user
         );
+
+        /*
+         * BILLING_OWNER_ARCHIVE_PROTECTION
+         *
+         * Billing ownership must be transferred before this account can
+         * be archived.
+         */
+        if (
+            $this->isBillingOwner(
+                $organization,
+                $user
+            )
+        ) {
+            return back()->withErrors([
+                'delete' =>
+                    'This user is the current Billing Owner. '
+                    .'Assign another active Billing Owner under Billing '
+                    .'before archiving this account.',
+            ]);
+        }
 
         /*
          * Prevent the final active Organization Admin from being archived.
@@ -882,7 +924,7 @@ class PlatformOrganizationUserController extends Controller
 
         return redirect()
             ->route(
-                'platform.organizations.users.index',
+                $this->organizationUserRouteName('index'),
                 $organization
             )
             ->with(
@@ -1135,7 +1177,7 @@ class PlatformOrganizationUserController extends Controller
 
         return redirect()
             ->route(
-                'platform.organizations.users.index',
+                $this->organizationUserRouteName('index'),
                 $organization
             )
             ->with(
@@ -1165,6 +1207,22 @@ class PlatformOrganizationUserController extends Controller
      * Determine whether a user has the Organization Admin role in the
      * specified organization.
      */
+    /**
+     * Determine whether the user currently holds the Billing Owner role.
+     */
+    private function isBillingOwner(
+        Organization $organization,
+        User $user
+    ): bool {
+        return $organization
+            ->subscription()
+            ->where(
+                'billing_owner_user_id',
+                $user->id
+            )
+            ->exists();
+    }
+
     private function isOrganizationAdmin(
         Organization $organization,
         User $user
@@ -1224,4 +1282,16 @@ class PlatformOrganizationUserController extends Controller
             )
             ->count();
     }
+
+    /**
+     * Resolve the correct user-management route namespace.
+     */
+    private function organizationUserRouteName(
+        string $action
+    ): string {
+        return request()->routeIs('platform.*')
+            ? "platform.organizations.users.{$action}"
+            : "organization-users.{$action}";
+    }
+
 }

@@ -9,6 +9,7 @@ use App\Models\ConsentSession;
 use App\Models\ConsentSignature;
 use App\Services\ConsentAuditService;
 use App\Services\ConsentExpiryService;
+use App\Services\SubscriptionUsageLimitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -222,7 +223,8 @@ class PublicConsentSigningController extends Controller
         Request $request,
         string $accessToken,
         ConsentAuditService $consentAuditService,
-        ConsentExpiryService $consentExpiryService
+        ConsentExpiryService $consentExpiryService,
+        SubscriptionUsageLimitService $usageLimitService
     ): RedirectResponse {
         $consentSession = $this->findSession(
             accessToken: $accessToken,
@@ -344,7 +346,8 @@ class PublicConsentSigningController extends Controller
             $signatureData,
             $request,
             $consentAuditService,
-            $consentExpiryService
+            $consentExpiryService,
+            $usageLimitService
         ): bool {
             $lockedSession = ConsentSession::query()
                 ->whereKey($consentSession->id)
@@ -378,6 +381,13 @@ class PublicConsentSigningController extends Controller
             if ($lockedSession->isExpired()) {
                 return false;
             }
+
+            $usageLimitService
+                ->assertSignedConsentSlotAvailableLocked(
+                    (int) $lockedSession
+                        ->organization_id,
+                    (int) $lockedSession->id
+                );
 
             $signedAt = now();
             $completedAt = now();

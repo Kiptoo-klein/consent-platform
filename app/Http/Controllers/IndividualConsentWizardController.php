@@ -7,6 +7,7 @@ use App\Models\ConsentSession;
 use App\Models\ConsentTemplate;
 use App\Services\ConsentAuditService;
 use App\Services\ConsentNotificationService;
+use App\Services\SubscriptionUsageLimitService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,7 +36,8 @@ class IndividualConsentWizardController extends Controller
     public function store(
         Request $request,
         ConsentAuditService $consentAuditService,
-        ConsentNotificationService $consentNotificationService
+        ConsentNotificationService $consentNotificationService,
+        SubscriptionUsageLimitService $usageLimitService
     ): RedirectResponse {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -96,8 +98,18 @@ class IndividualConsentWizardController extends Controller
                 $additionalFields,
                 $expiresAt,
                 $request,
-                $consentAuditService
+                $consentAuditService,
+                $usageLimitService
             ): array {
+                $organizationId =
+                    (int) Auth::user()
+                        ->organization_id;
+
+                $usageLimitService
+                    ->assertTemplateSlotAvailableLocked(
+                        $organizationId
+                    );
+
                 $templateSchema = [
                     'builder_version' => 1,
                     'consent_text' => $validated['content'],

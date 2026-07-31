@@ -32,6 +32,20 @@
                 'icon' => 'templates',
             ],
             [
+                'label' => 'Billing Management',
+                'route' => 'platform.billing.index',
+                'active' => 'platform.billing.*',
+                'icon' => 'records',
+            ],
+            [
+                'label' => 'Subscription Plans',
+                'route' =>
+                    'platform.subscription-plans.index',
+                'active' =>
+                    'platform.subscription-plans.*',
+                'icon' => 'templates',
+            ],
+            [
                 'label' => 'Invoice Reminder Settings',
                 'route' =>
                     'platform.subscription-invoice-reminder-settings.index',
@@ -39,7 +53,39 @@
                     'platform.subscription-invoice-reminder-settings.*',
                 'icon' => 'records',
             ],
+            [
+                'label' => 'Payment Settings',
+                'route' =>
+                    'platform.subscription-payment-settings.index',
+                'active' =>
+                    'platform.subscription-payment-settings.*',
+                'icon' => 'records',
+            ],
+            [
+                'label' => 'Platform Branding',
+                'route' =>
+                    'platform.branding-settings.index',
+                'active' =>
+                    'platform.branding-settings.*',
+                'icon' => 'records',
+            ],
+            [
+                'label' => 'Platform Staff',
+                'route' =>
+                    'platform.staff.index',
+                'active' =>
+                    'platform.staff.*',
+                'icon' => 'records',
+            ],
             // PLATFORM_ADMIN_TOOLS_RELOCATION_NAV
+            [
+                'label' => 'Activity Logs',
+                'route' =>
+                    'platform.activity-logs.index',
+                'active' =>
+                    'platform.activity-logs.*',
+                'icon' => 'records',
+            ],
             [
                 'label' => 'Security Status',
                 'route' => 'platform.security.status',
@@ -59,10 +105,97 @@
                 'active' => 'platform.production-readiness.*',
                 'icon' => 'records',
             ],
-];
+        ];
+
+        $platformUser =
+            Auth::user();
+
+        $platformUser->loadMissing(
+            'platformRole'
+        );
+
+        $platformRoleSlug =
+            $platformUser
+                ->platformRole
+                ?->slug;
+
+        $platformNavigationRoutesByRole = [
+            'super-admin' =>
+                array_column(
+                    $navigationItems,
+                    'route'
+                ),
+
+            'billing' => [
+                'platform.dashboard',
+                'platform.organizations.index',
+                'platform.billing.index',
+                'platform.subscription-plans.index',
+                'platform.subscription-invoice-reminder-settings.index',
+                'platform.subscription-payment-settings.index',
+            ],
+
+            'support' => [
+                'platform.dashboard',
+                'platform.organizations.index',
+            ],
+
+            'platform-auditor' => [
+                'platform.dashboard',
+                'platform.organizations.index',
+                'platform.billing.index',
+                'platform.activity-logs.index',
+                'platform.security.status',
+            ],
+        ];
+
+        $allowedPlatformNavigationRoutes =
+            $platformNavigationRoutesByRole[
+                $platformRoleSlug
+            ] ?? [];
+
+        $navigationItems =
+            array_values(
+                array_filter(
+                    $navigationItems,
+                    static fn (array $item): bool =>
+                        in_array(
+                            $item['route'],
+                            $allowedPlatformNavigationRoutes,
+                            true
+                        )
+                )
+            );
     } else {
         $homeRoute = 'dashboard';
         $accountRoute = 'profile.edit';
+
+        $organizationUser = Auth::user();
+
+        $organizationUser->loadMissing(
+            'organization.subscription'
+        );
+
+        app(
+            \Spatie\Permission\PermissionRegistrar::class
+        )->setPermissionsTeamId(
+            $organizationUser->organization_id
+        );
+
+        $isOrganizationAdministrator =
+            $organizationUser->hasRole(
+                \App\Enums\OrganizationRole::
+                    ORGANIZATION_ADMINISTRATOR->label()
+            );
+
+        $organizationSubscription =
+            $organizationUser->organization?->subscription;
+
+        $isBillingOwner =
+            $organizationSubscription !== null
+            && (int) $organizationSubscription
+                ->billing_owner_user_id
+                === (int) $organizationUser->id;
 
         $navigationItems = [
             [
@@ -89,40 +222,148 @@
                 'active' => 'signing-stations.*',
                 'icon' => 'station',
             ],
-            [
+        ];
+
+        if ($isOrganizationAdministrator) {
+            $navigationItems[] = [
+                'label' => 'Manage Users',
+                'route' => 'organization-users.index',
+                'parameters' => [
+                    'organization' =>
+                        $organizationUser->organization_id,
+                ],
+                'active' => 'organization-users.*',
+                'icon' => 'records',
+            ];
+        }
+
+        if (
+            $isBillingOwner
+            || $isOrganizationAdministrator
+        ) {
+            $navigationItems[] = [
+                'label' => 'Subscription Plans',
+                'route' =>
+                    'organization-subscription-plans.index',
+                'active' =>
+                    'organization-subscription-plans.*',
+                'icon' => 'templates',
+            ];
+        }
+
+        $navigationItems[] = [
+            'label' => 'Subscription',
+            'route' => 'organization-subscription.show',
+            'active' => 'organization-subscription.*',
+            'icon' => 'templates',
+        ];
+
+        if (
+            $isBillingOwner
+            || $isOrganizationAdministrator
+        ) {
+            $navigationItems[] = [
+                'label' => 'Billing',
+                'route' => 'organization-billing.index',
+                'active' => 'organization-billing.*',
+                'icon' => 'records',
+            ];
+        }
+
+        if ($isOrganizationAdministrator) {
+            $navigationItems[] = [
                 'label' => 'Organization Branding',
                 'route' => 'organization-branding.edit',
                 'active' => 'organization-branding.*',
                 'icon' => 'templates',
-            ],
-        ];
+            ];
+        }
     }
+    $platformDisplayName =
+        $platformBrand['platform_name']
+        ?? config(
+            'app.name',
+            'eConsent'
+        );
 @endphp
 
 <!-- Desktop Sidebar -->
 <aside
     class="econsent-desktop-sidebar fixed inset-y-0 left-0 z-40 hidden border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 lg:flex lg:flex-col"
 >
+    <button
+        type="button"
+        @click="
+            sidebarCollapsed = !sidebarCollapsed;
+
+            document.documentElement.classList.toggle(
+                'sidebar-is-collapsed',
+                sidebarCollapsed
+            );
+
+            localStorage.setItem(
+                'sidebarCollapsed',
+                sidebarCollapsed ? 'true' : 'false'
+            );
+        "
+        class="econsent-sidebar-edge-toggle"
+        data-sidebar-edge-toggle
+        :aria-label="
+            sidebarCollapsed
+                ? 'Expand sidebar'
+                : 'Collapse sidebar'
+        "
+        :title="
+            sidebarCollapsed
+                ? 'Expand sidebar'
+                : 'Collapse sidebar'
+        "
+    >
+        <svg
+            class="h-5 w-5 transition-transform duration-200"
+            :class="sidebarCollapsed ? 'rotate-180' : ''"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2.25"
+            aria-hidden="true"
+        >
+            <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="m15 18-6-6 6-6"
+            />
+        </svg>
+    </button>
+
     <!-- Logo -->
     <div class="flex h-16 shrink-0 items-center border-b border-gray-200 px-4 dark:border-gray-700">
         <a
             href="{{ route($homeRoute) }}"
             class="flex min-w-0 items-center gap-3"
         >
-            <x-application-logo
-                class="block h-9 w-9 shrink-0 fill-current text-indigo-600"
-            />
+            <span
+                class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg"
+                data-platform-logo-slot
+            >
+                <x-application-logo
+                    class="block max-h-9 max-w-9 object-contain"
+                />
+            </span>
 
             <div
                 data-sidebar-label
                 class="min-w-0"
             >
-                <p class="truncate text-sm font-bold text-gray-900 dark:text-white">
-                    {{ config('app.name', 'Consent Platform') }}
+                <p
+                    class="truncate text-sm font-bold text-gray-900 dark:text-white"
+                    data-platform-brand-name
+                >
+                    {{ $platformDisplayName }}
                 </p>
 
                 <p class="truncate text-xs text-gray-500 dark:text-gray-400">
-                    eConsent Management
+                    Consent Management
                 </p>
             </div>
         </a>
@@ -132,8 +373,12 @@
     <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-5">
         @foreach ($navigationItems as $item)
             <a
-                href="{{ route($item['route']) }}"
+                href="{{ route(
+                    $item['route'],
+                    $item['parameters'] ?? []
+                ) }}"
                 title="{{ $item['label'] }}"
+                data-navigation-route="{{ $item['route'] }}"
                 @class([
                     'group flex h-11 items-center rounded-lg px-3 text-sm font-medium transition',
                     'justify-center' => false,
@@ -293,46 +538,6 @@
             </button>
         </form>
 
-        <!-- Collapse Button -->
-        <button
-            type="button"
-            @click="
-                sidebarCollapsed = !sidebarCollapsed;
-
-                document.documentElement.classList.toggle(
-                    'sidebar-is-collapsed',
-                    sidebarCollapsed
-                );
-
-                localStorage.setItem(
-                    'sidebarCollapsed',
-                    sidebarCollapsed ? 'true' : 'false'
-                );
-            "
-            class="mt-2 flex h-10 w-full items-center rounded-lg px-3 text-sm font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
-            data-sidebar-row
-        >
-            <svg
-                class="h-5 w-5 shrink-0 transition-transform duration-300"
-                :class="sidebarCollapsed ? 'rotate-180' : ''"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="1.8"
-            >
-                <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="m15 18-6-6 6-6"
-                />
-            </svg>
-
-            <span
-                data-sidebar-label
-            >
-                Collapse Sidebar
-            </span>
-        </button>
     </div>
 </aside>
 
@@ -363,17 +568,25 @@
             href="{{ route($homeRoute) }}"
             class="flex min-w-0 items-center gap-3"
         >
-            <x-application-logo
-                class="block h-9 w-9 shrink-0 fill-current text-indigo-600"
-            />
+            <span
+                class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg"
+                data-platform-logo-slot
+            >
+                <x-application-logo
+                    class="block max-h-9 max-w-9 object-contain"
+                />
+            </span>
 
             <div class="min-w-0">
-                <p class="truncate text-sm font-bold text-gray-900 dark:text-white">
-                    {{ config('app.name', 'Consent Platform') }}
+                <p
+                    class="truncate text-sm font-bold text-gray-900 dark:text-white"
+                    data-platform-brand-name
+                >
+                    {{ $platformDisplayName }}
                 </p>
 
                 <p class="truncate text-xs text-gray-500 dark:text-gray-400">
-                    eConsent Management
+                    Consent Management
                 </p>
             </div>
         </a>
@@ -404,7 +617,11 @@
     <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-5">
         @foreach ($navigationItems as $item)
             <a
-                href="{{ route($item['route']) }}"
+                href="{{ route(
+                    $item['route'],
+                    $item['parameters'] ?? []
+                ) }}"
+                data-navigation-route="{{ $item['route'] }}"
                 @click="mobileSidebarOpen = false"
                 @class([
                     'flex h-12 items-center gap-3 rounded-lg px-3 text-sm font-medium transition',

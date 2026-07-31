@@ -17,7 +17,7 @@
         >
 
         <title>{{ config('ui-brand.name', config('app.name', 'eConsent')) }}</title>
-        <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+        <link rel="icon" type="image/svg+xml" href="{{ $platformBrand['favicon_url'] ?? asset('favicon.svg') }}">
 
         <link
             rel="preconnect"
@@ -99,7 +99,7 @@
                         />
 
                         <span class="text-sm font-bold text-gray-900 dark:text-white">
-                            {{ config('app.name', 'Consent Platform') }}
+                            {{ $platformBrand['platform_name'] ?? config('app.name', 'eConsent') }}
                         </span>
                     </a>
 
@@ -115,37 +115,17 @@
                     <header class="border-b border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
                         <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
                             @php
-                                $globalBackFallback =
-                                    request()->routeIs('platform.*')
-                                    && \Illuminate\Support\Facades\Route::has(
-                                        'platform.dashboard'
-                                    )
-                                        ? route('platform.dashboard')
-                                        : (
-                                            \Illuminate\Support\Facades\Route::has(
-                                                'dashboard'
-                                            )
-                                                ? route('dashboard')
-                                                : url('/')
-                                        );
-
-                                $globalPreviousUrl = url()->previous();
-                                $globalCurrentUrl = url()->current();
-                                $globalLocalRoot = request()
-                                    ->getSchemeAndHttpHost();
-
-                                $globalPreviousIsInternal =
-                                    $globalPreviousUrl === $globalLocalRoot
-                                    || str_starts_with(
-                                        $globalPreviousUrl,
-                                        $globalLocalRoot . '/'
-                                    );
-
+                                /*
+                                 * Route-aware parent navigation.
+                                 *
+                                 * Do not use the HTTP referrer here. Redirects
+                                 * after completed forms would otherwise point
+                                 * Back into the workflow that just finished.
+                                 */
                                 $globalBackUrl =
-                                    $globalPreviousIsInternal
-                                    && $globalPreviousUrl !== $globalCurrentUrl
-                                        ? $globalPreviousUrl
-                                        : $globalBackFallback;
+                                    \App\Support\BackNavigation::resolve(
+                                        request()
+                                    );
                             @endphp
 
                             @unless (

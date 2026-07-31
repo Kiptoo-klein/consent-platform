@@ -1,4 +1,14 @@
 <x-app-layout>
+    @php
+        $organizationUserRoutePrefix =
+            request()->routeIs('platform.*')
+                ? 'platform.organizations.users'
+                : 'organization-users';
+
+        $organizationUserIsPlatformContext =
+            request()->routeIs('platform.*');
+    @endphp
+
     <x-slot name="header">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -14,7 +24,7 @@
 
             <a
                 href="{{ route(
-                    'platform.organizations.users.index',
+                    $organizationUserRoutePrefix.'.index',
                     $organization
                 ) }}"
                 class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
@@ -118,7 +128,7 @@
                                         <form
                                             method="POST"
                                             action="{{ route(
-                                                'platform.organizations.users.restore',
+                                                $organizationUserRoutePrefix.'.restore',
                                                 [$organization, $user]
                                             ) }}"
                                             onsubmit="return confirm('Restore this user account?')"

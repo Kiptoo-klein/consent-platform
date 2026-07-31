@@ -511,6 +511,10 @@
         });
     </script>
 
+    @include(
+        'public-signing-stations.partials.device-lease-heartbeat'
+    )
+
     @stack('scripts')
 </body>
 </html>
