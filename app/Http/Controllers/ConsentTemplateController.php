@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ConsentTemplate;
+use App\Services\SubscriptionUsageLimitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -220,32 +221,52 @@ class ConsentTemplateController extends Controller
     /**
      * Save a new working draft.
      */
-    public function store(Request $request): RedirectResponse
-    {
+    public function store(
+        Request $request,
+        SubscriptionUsageLimitService $usageLimitService
+    ): RedirectResponse {
         $validated = $this->validateTemplateRequest($request);
 
         $additionalFields = $this->prepareAdditionalFields(
             $validated['additional_fields_json']
         );
 
-        ConsentTemplate::create([
-            'organization_id' => Auth::user()->organization_id,
-            'title' => $validated['title'],
-            'description' => $validated['description'] ?? null,
-            'usage_type' => $this->templateUsageType(
-                $validated['usage_types']
-            ),
+        DB::transaction(
+            function () use (
+                $validated,
+                $additionalFields,
+                $usageLimitService
+            ): void {
+                $organizationId =
+                    (int) Auth::user()
+                        ->organization_id;
 
-            'template_schema' => [
+                $usageLimitService
+                    ->assertTemplateSlotAvailableLocked(
+                        $organizationId
+                    );
+
+                ConsentTemplate::query()->create([
+                'organization_id' => Auth::user()->organization_id,
+                'title' => $validated['title'],
+                'description' => $validated['description'] ?? null,
+                'usage_type' => $this->templateUsageType(
+                $validated['usage_types']
+                ),
+
+                'template_schema' => [
                 'builder_version' => 1,
                 'consent_text' => $validated['content'],
                 'additional_fields' => $additionalFields,
-            ],
+                ],
 
-            'active_version_id' => null,
-            'has_unpublished_changes' => true,
-            'status' => 'draft',
-        ]);
+                'active_version_id' => null,
+                'has_unpublished_changes' => true,
+                'status' => 'draft',
+                ]);
+            },
+            3
+        );
 
         return redirect()
             ->route('consent-templates.manage')
@@ -629,14 +650,18 @@ class ConsentTemplateController extends Controller
      * Restore an archived template as an offline draft.
      */
     public function restore(
-        ConsentTemplate $consentTemplate
+        ConsentTemplate $consentTemplate,
+        SubscriptionUsageLimitService $usageLimitService
     ): RedirectResponse {
         $this->ensureTemplateBelongsToOrganization(
             $consentTemplate
         );
 
         DB::transaction(
-            function () use ($consentTemplate): void {
+            function () use (
+                $consentTemplate,
+                $usageLimitService
+            ): void {
                 $lockedTemplate = ConsentTemplate::query()
                     ->whereKey($consentTemplate->id)
                     ->lockForUpdate()
@@ -652,6 +677,12 @@ class ConsentTemplateController extends Controller
                             'Only archived consent templates can be restored.',
                     ]);
                 }
+
+                $usageLimitService
+                    ->assertTemplateSlotAvailableLocked(
+                        (int) $lockedTemplate
+                            ->organization_id
+                    );
 
                 $lockedTemplate->update([
                     'active_version_id' => null,

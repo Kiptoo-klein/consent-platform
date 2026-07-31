@@ -12,22 +12,29 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrganizationBrandingController;
 use App\Http\Controllers\OrganizationBillingController;
 use App\Http\Controllers\OrganizationSubscriptionController;
+use App\Http\Controllers\OrganizationSubscriptionPlanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicConsentSigningController;
 use App\Http\Controllers\PublicSigningStationController;
 use App\Http\Controllers\SigningStationController;
+use App\Http\Controllers\SigningStationDeviceLeaseController;
 use App\Http\Controllers\Platform\ProductionReadinessController;
 use App\Http\Controllers\EmailDiagnosticsController;
 use App\Http\Controllers\SecurityStatusController;
 use App\Http\Controllers\Platform\PlatformDashboardController;
+use App\Http\Controllers\Platform\PlatformBillingController;
 use App\Http\Controllers\Platform\OrganizationController;
 use App\Http\Controllers\Platform\SubscriptionInvoiceController;
 use App\Http\Controllers\Platform\SubscriptionInvoiceReminderSettingsController;
+use App\Http\Controllers\Platform\SubscriptionPaymentSettingsController;
+use App\Http\Controllers\Platform\PlatformBrandingSettingsController;
+use App\Http\Controllers\Platform\PlatformStaffController;
 use App\Http\Controllers\Platform\SubscriptionTransactionController;
 use App\Http\Controllers\Platform\PlatformOrganizationUserController;
 use App\Http\Controllers\Platform\PlatformActivityLogController;
 use App\Http\Controllers\ConsentPdfController;
 use App\Http\Controllers\ConsentAuditController;
+use App\Http\Controllers\Platform\SubscriptionPlanController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -63,15 +70,28 @@ Route::get('/station/{stationToken}', [
     'show',
 ])->middleware([
         \App\Http\Middleware\ValidateStationToken::class,
+        'kiosk.device',
         'throttle:public-station-view',
     ])
     ->name('public-signing-stations.show');
+
+Route::post('/station/{stationToken}/heartbeat', [
+    SigningStationDeviceLeaseController::class,
+    'heartbeat',
+])->middleware([
+        \App\Http\Middleware\ValidateStationToken::class,
+        'kiosk.device',
+        'throttle:public-station-action',
+    ])
+    ->name('public-signing-stations.heartbeat');
+
 
 Route::get('/station/{stationToken}/review', [
     PublicSigningStationController::class,
     'review',
 ])->middleware([
         \App\Http\Middleware\ValidateStationToken::class,
+        'kiosk.device',
         'throttle:public-station-view',
     ])
     ->name('public-signing-stations.review');
@@ -81,6 +101,7 @@ Route::post('/station/{stationToken}/continue', [
     'confirmReview',
 ])->middleware([
         \App\Http\Middleware\ValidateStationToken::class,
+        'kiosk.device',
         'throttle:public-station-action',
     ])
     ->name('public-signing-stations.continue');
@@ -90,6 +111,7 @@ Route::get('/station/{stationToken}/details', [
     'details',
 ])->middleware([
         \App\Http\Middleware\ValidateStationToken::class,
+        'kiosk.device',
         'throttle:public-station-view',
     ])
     ->name('public-signing-stations.details');
@@ -99,6 +121,7 @@ Route::post('/station/{stationToken}/start', [
     'start',
 ])->middleware([
         \App\Http\Middleware\ValidateStationToken::class,
+        'kiosk.device',
         'throttle:public-station-action',
     ])
     ->name('public-signing-stations.start');
@@ -108,6 +131,7 @@ Route::post('/station/{stationToken}/cancel', [
     'cancel',
 ])->middleware([
         \App\Http\Middleware\ValidateStationToken::class,
+        'kiosk.device',
         'throttle:public-station-action',
     ])
     ->name('public-signing-stations.cancel');
@@ -128,6 +152,7 @@ Route::get('/sign/{accessToken}', [
     'show',
 ])->middleware([
         \App\Http\Middleware\ValidateConsentToken::class,
+        'kiosk.device',
         'throttle:public-consent-view',
     ])
     ->name('public-consent.show');
@@ -137,6 +162,7 @@ Route::patch('/sign/{accessToken}', [
     'update',
 ])->middleware([
         \App\Http\Middleware\ValidateConsentToken::class,
+        'kiosk.device',
         'throttle:public-consent-write',
     ])
     ->name('public-consent.update');
@@ -146,6 +172,7 @@ Route::get('/sign/{accessToken}/signature', [
     'signature',
 ])->middleware([
         \App\Http\Middleware\ValidateConsentToken::class,
+        'kiosk.device',
         'throttle:public-consent-view',
     ])
     ->name('public-consent.signature');
@@ -155,6 +182,7 @@ Route::post('/sign/{accessToken}/complete', [
     'complete',
 ])->middleware([
         \App\Http\Middleware\ValidateConsentToken::class,
+        'kiosk.device',
         'throttle:public-signature-submit',
         \App\Http\Middleware\HardenSignatureSubmission::class,
     ])
@@ -165,6 +193,7 @@ Route::post('/sign/{accessToken}/cancel', [
     'cancel',
 ])->middleware([
         \App\Http\Middleware\ValidateConsentToken::class,
+        'kiosk.device',
         'throttle:public-consent-write',
     ])
     ->name('public-consent.cancel');
@@ -174,6 +203,7 @@ Route::get('/sign/{accessToken}/completed', [
     'completed',
 ])->middleware([
         \App\Http\Middleware\ValidateConsentToken::class,
+        'kiosk.device',
         'throttle:public-consent-view',
     ])
     ->name('public-consent.completed');
@@ -197,6 +227,34 @@ Route::middleware([
         OrganizationSubscriptionController::class,
         'show',
     ])->name('organization-subscription.show');
+
+
+    Route::get('/subscription/plans', [
+        OrganizationSubscriptionPlanController::class,
+        'index',
+    ])->name(
+        'organization-subscription-plans.index'
+    );
+
+    Route::post(
+        '/subscription/plans/{subscriptionPlan}/request',
+        [
+            OrganizationSubscriptionPlanController::class,
+            'store',
+        ]
+    )->name(
+        'organization-subscription-plans.request'
+    );
+
+    Route::delete(
+        '/subscription/plans/requests/{planRequest}',
+        [
+            OrganizationSubscriptionPlanController::class,
+            'cancel',
+        ]
+    )->name(
+        'organization-subscription-plans.cancel'
+    );
 
     Route::get('/subscription/billing', [
         OrganizationBillingController::class,
@@ -412,12 +470,20 @@ Route::middleware([
     Route::get('/organization/branding', [
         OrganizationBrandingController::class,
         'edit',
-    ])->name('organization-branding.edit');
+    ])
+        ->middleware(
+            'organization.role:organization_administrator'
+        )
+        ->name('organization-branding.edit');
 
     Route::put('/organization/branding', [
         OrganizationBrandingController::class,
         'update',
-    ])->name('organization-branding.update');
+    ])
+        ->middleware(
+            'organization.role:organization_administrator'
+        )
+        ->name('organization-branding.update');
 
    /*
 |--------------------------------------------------------------------------
@@ -546,6 +612,38 @@ Route::get('/consent-templates/{consentTemplate}/versions', [
 | Consent Records
 |--------------------------------------------------------------------------
 */
+
+Route::get('/consent-campaigns', [
+    \App\Http\Controllers\ConsentCampaignController::class,
+    'index',
+])->name('consent-campaigns.index');
+
+Route::get(
+    '/consent-templates/{consentTemplate}/consent-campaigns/create',
+    [
+        \App\Http\Controllers\ConsentCampaignController::class,
+        'create',
+    ]
+)->name('consent-campaigns.create');
+
+Route::post(
+    '/consent-templates/{consentTemplate}/consent-campaigns',
+    [
+        \App\Http\Controllers\ConsentCampaignController::class,
+        'store',
+    ]
+)->name('consent-campaigns.store');
+
+Route::get('/consent-campaigns/{consentCampaign}', [
+    \App\Http\Controllers\ConsentCampaignController::class,
+    'show',
+])->whereNumber('consentCampaign')
+    ->name('consent-campaigns.show');
+
+Route::get('/consent-campaigns/create', [
+    \App\Http\Controllers\ConsentCampaignController::class,
+    'selectTemplate',
+])->name('consent-campaigns.select-template');
 
 Route::get('/consent-records', [
     ConsentSessionController::class,
@@ -726,7 +824,7 @@ Route::prefix('platform')
     ->middleware([
         'auth',
         'active.user',
-        'platform.role:super-admin',
+        'platform.role:super-admin,billing,support,platform-auditor',
     ])
     ->name('platform.')
     ->group(function () {
@@ -755,6 +853,86 @@ Route::prefix('platform')
         ])->name('dashboard');
 
         Route::get(
+            '/staff',
+            [
+                PlatformStaffController::class,
+                'index',
+            ]
+        )->name(
+            'staff.index'
+        );
+
+        Route::get(
+            '/staff/create',
+            [
+                PlatformStaffController::class,
+                'create',
+            ]
+        )->name(
+            'staff.create'
+        );
+
+        Route::post(
+            '/staff',
+            [
+                PlatformStaffController::class,
+                'store',
+            ]
+        )->name(
+            'staff.store'
+        );
+
+        Route::get(
+            '/staff/{platformStaff}/edit',
+            [
+                PlatformStaffController::class,
+                'edit',
+            ]
+        )->name(
+            'staff.edit'
+        );
+
+        Route::patch(
+            '/staff/{platformStaff}',
+            [
+                PlatformStaffController::class,
+                'update',
+            ]
+        )->name(
+            'staff.update'
+        );
+
+        Route::patch(
+            '/staff/{platformStaff}/status',
+            [
+                PlatformStaffController::class,
+                'updateStatus',
+            ]
+        )->name(
+            'staff.status'
+        );
+
+
+        Route::get('/billing', [
+            PlatformBillingController::class,
+            'index',
+        ])->name('billing.index');
+
+
+        Route::get('/subscription-plans', [
+            SubscriptionPlanController::class,
+            'index',
+        ])->name('subscription-plans.index');
+
+        Route::patch(
+            '/subscription-plans/{subscriptionPlan}',
+            [
+                SubscriptionPlanController::class,
+                'update',
+            ]
+        )->name('subscription-plans.update');
+
+        Route::get(
             '/subscription-invoice-reminder-settings',
             [
                 SubscriptionInvoiceReminderSettingsController::class,
@@ -772,6 +950,46 @@ Route::prefix('platform')
             ]
         )->name(
             'subscription-invoice-reminder-settings.update'
+        );
+
+        Route::get(
+            '/subscription-payment-settings',
+            [
+                SubscriptionPaymentSettingsController::class,
+                'index',
+            ]
+        )->name(
+            'subscription-payment-settings.index'
+        );
+
+        Route::patch(
+            '/subscription-payment-settings',
+            [
+                SubscriptionPaymentSettingsController::class,
+                'update',
+            ]
+        )->name(
+            'subscription-payment-settings.update'
+        );
+
+        Route::get(
+            '/branding-settings',
+            [
+                PlatformBrandingSettingsController::class,
+                'index',
+            ]
+        )->name(
+            'branding-settings.index'
+        );
+
+        Route::patch(
+            '/branding-settings',
+            [
+                PlatformBrandingSettingsController::class,
+                'update',
+            ]
+        )->name(
+            'branding-settings.update'
         );
 
         /*
@@ -879,6 +1097,16 @@ Route::prefix('platform')
                 'issue',
             ]
         )->name('organizations.subscription-invoices.issue');
+
+        Route::post(
+            '/organizations/{organization}/subscription-invoices/{subscriptionInvoice}/payment',
+            [
+                SubscriptionTransactionController::class,
+                'recordInvoicePayment',
+            ]
+        )->name(
+            'organizations.subscription-invoices.payment.store'
+        );
 
         Route::post(
             '/organizations/{organization}/subscription-invoices/{subscriptionInvoice}/reminder-notifications/{subscriptionInvoiceNotification}/retry',
@@ -1068,9 +1296,236 @@ Route::prefix('platform')
 
 });
 
+
 /*
 |--------------------------------------------------------------------------
-| Laravel Authentication Routes
+| Platform Route Role Policies
+|--------------------------------------------------------------------------
+|
+| Only four Platform roles exist:
+| Super Admin, Billing, Support, and Platform Auditor.
+|
+| The outer Platform group admits those four roles. Each route receives a
+| narrower policy below according to its responsibility.
+|
+*/
+
+$platformRouteRolePolicies = [
+    /*
+     * Shared overview.
+     */
+    'super-admin,billing,support,platform-auditor' => [
+        'platform.dashboard',
+        'platform.organizations.index',
+        'platform.organizations.show',
+    ],
+
+    /*
+     * Billing records may also be viewed by Platform Auditor.
+     */
+    'super-admin,billing,platform-auditor' => [
+        'platform.billing.index',
+
+        'platform.organizations.subscription-invoices.index',
+        'platform.organizations.subscription-invoices.show',
+
+        'platform.organizations.subscription-transactions.index',
+        'platform.organizations.subscription-transactions.show',
+    ],
+
+    /*
+     * Billing configuration and billing write operations.
+     */
+    'super-admin,billing' => [
+        'platform.subscription-plans.index',
+        'platform.subscription-plans.update',
+
+        'platform.subscription-invoice-reminder-settings.index',
+        'platform.subscription-invoice-reminder-settings.update',
+
+        'platform.subscription-payment-settings.index',
+        'platform.subscription-payment-settings.update',
+
+        'platform.organizations.subscription.store',
+        'platform.organizations.subscription-plan.update',
+        'platform.organizations.subscription-renewal.update',
+        'platform.organizations.subscription-suspension.suspend',
+        'platform.organizations.subscription-suspension.resume',
+        'platform.organizations.subscription-cancellation.update',
+
+        'platform.organizations.subscription-invoices.store',
+        'platform.organizations.subscription-invoices.issue',
+        'platform.organizations.subscription-invoices.payment.store',
+        'platform.organizations.subscription-invoices.reminder-notifications.retry',
+
+        'platform.organizations.subscription-transactions.store',
+    ],
+
+    /*
+     * Organization-user records for Support and Platform Auditor.
+     */
+    'super-admin,support,platform-auditor' => [
+        'platform.organizations.users.index',
+        'platform.organizations.users.archived',
+    ],
+
+    /*
+     * Read-only audit and security access.
+     */
+    'super-admin,platform-auditor' => [
+        'platform.activity-logs.index',
+        'platform.activity-logs.show',
+        'platform.security.status',
+    ],
+
+    /*
+     * Sensitive administration remains Super Admin-only.
+     */
+    'super-admin' => [
+        'platform.branding-settings.index',
+        'platform.branding-settings.update',
+
+        'platform.staff.index',
+        'platform.staff.create',
+        'platform.staff.store',
+        'platform.staff.edit',
+        'platform.staff.update',
+        'platform.staff.status',
+
+        'platform.organizations.edit',
+        'platform.organizations.update',
+
+        'platform.organizations.subscription-bypass.approve',
+        'platform.organizations.subscription-bypass.revoke',
+
+        'platform.organizations.users.create',
+        'platform.organizations.users.store',
+        'platform.organizations.users.edit',
+        'platform.organizations.users.update',
+        'platform.organizations.users.status',
+        'platform.organizations.users.destroy',
+        'platform.organizations.users.restore',
+
+        'platform.email-diagnostics.index',
+        'platform.email-diagnostics.test',
+
+        'platform.production-readiness.index',
+        'platform.production-readiness.backup',
+        'platform.production-readiness.prune',
+        'platform.production-readiness.optimize',
+        'platform.production-readiness.queue-restart',
+        'platform.production-readiness.maintenance.enable',
+        'platform.production-readiness.maintenance.disable',
+    ],
+];
+
+$platformRoutes =
+    Route::getRoutes();
+
+/*
+ * Routes receive their names after registration. Refreshing this lookup is
+ * required before getByName() can reliably find the prefixed route names.
+ */
+$platformRoutes->refreshNameLookups();
+
+$platformPolicyRouteNames = [];
+
+foreach (
+    $platformRouteRolePolicies
+    as $allowedRoles => $routeNames
+) {
+    foreach ($routeNames as $routeName) {
+        if (
+            in_array(
+                $routeName,
+                $platformPolicyRouteNames,
+                true
+            )
+        ) {
+            throw new LogicException(
+                "Duplicate Platform route policy: {$routeName}"
+            );
+        }
+
+        $platformRoute =
+            $platformRoutes->getByName(
+                $routeName
+            );
+
+        if ($platformRoute === null) {
+            throw new LogicException(
+                'Platform route policy references an unknown route: '
+                .$routeName
+            );
+        }
+
+        $platformRoute->middleware(
+            "platform.role:{$allowedRoles}"
+        );
+
+        $platformPolicyRouteNames[] =
+            $routeName;
+    }
+}
+
+$registeredPlatformRouteNames = [];
+
+foreach (
+    $platformRoutes
+    as $registeredRoute
+) {
+    $registeredRouteName =
+        $registeredRoute->getName();
+
+    if (
+        is_string(
+            $registeredRouteName
+        )
+        && str_starts_with(
+            $registeredRouteName,
+            'platform.'
+        )
+    ) {
+        $registeredPlatformRouteNames[] =
+            $registeredRouteName;
+    }
+}
+
+$unprotectedPlatformRoutes =
+    array_values(
+        array_diff(
+            $registeredPlatformRouteNames,
+            $platformPolicyRouteNames
+        )
+    );
+
+if ($unprotectedPlatformRoutes !== []) {
+    throw new LogicException(
+        'Platform routes without a role policy: '
+        .implode(
+            ', ',
+            $unprotectedPlatformRoutes
+        )
+    );
+}
+
+unset(
+    $allowedRoles,
+    $platformPolicyRouteNames,
+    $platformRoute,
+    $platformRouteRolePolicies,
+    $platformRoutes,
+    $registeredPlatformRouteNames,
+    $registeredRoute,
+    $registeredRouteName,
+    $routeName,
+    $routeNames,
+    $unprotectedPlatformRoutes,
+);
+
+/*
+|--------------------------------------------------------------------------
+| Application Authentication Routes
 |--------------------------------------------------------------------------
 */
 

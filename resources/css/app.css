@@ -3183,12 +3183,21 @@ main [class*="text-amber-"] {
     }
 
     [data-sidebar-row] {
+        min-width: 0;
         gap: 0.75rem;
+        overflow: hidden;
+        transition:
+            gap 220ms cubic-bezier(0.4, 0, 0.2, 1),
+            padding-left 260ms cubic-bezier(0.4, 0, 0.2, 1),
+            padding-right 260ms cubic-bezier(0.4, 0, 0.2, 1)
+            !important;
     }
 
     html.sidebar-is-collapsed [data-sidebar-row] {
-        justify-content: center;
+        justify-content: flex-start;
         gap: 0;
+        padding-left: 1.125rem;
+        padding-right: 1.125rem;
     }
 
     html.sidebar-alpine-ready .econsent-desktop-sidebar {
@@ -3205,25 +3214,56 @@ main [class*="text-amber-"] {
    Render expanded labels immediately and avoid delayed Alpine reveals.
 */
 @media (min-width: 1024px) {
-    html.sidebar-is-collapsed [data-sidebar-label] {
-        display: none !important;
-    }
-
     [data-sidebar-label] {
+        display: block;
+        min-width: 0;
+        max-width: 14rem;
+        overflow: hidden;
+        opacity: 1;
+        white-space: nowrap;
+        transform: translateX(0);
         animation: none !important;
-        transition: none !important;
+        transition:
+            max-width 230ms cubic-bezier(0.4, 0, 0.2, 1),
+            opacity 150ms ease 80ms,
+            transform 180ms ease 60ms
+            !important;
     }
 
-    html.sidebar-alpine-ready .econsent-desktop-sidebar,
+    html.sidebar-is-collapsed [data-sidebar-label] {
+        display: block !important;
+        max-width: 0 !important;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(-0.35rem);
+        transition:
+            max-width 210ms cubic-bezier(0.4, 0, 0.2, 1),
+            opacity 90ms ease,
+            transform 140ms ease
+            !important;
+    }
+
+    html.sidebar-alpine-ready .econsent-desktop-sidebar {
+        transition:
+            width 260ms cubic-bezier(0.4, 0, 0.2, 1)
+            !important;
+        will-change: width;
+    }
+
     html.sidebar-alpine-ready .econsent-main-shell {
-        transition: none !important;
+        transition:
+            padding-left 260ms cubic-bezier(0.4, 0, 0.2, 1)
+            !important;
+        will-change: padding-left;
     }
 }
 
 /* CONTENT_RIGHT_ASIDE_BACKGROUND_FIX
    Content-page asides must not inherit the navigation sidebar surface. */
 body.econsent-app[data-path*="consent-record"] main aside,
-body.econsent-app[data-path*="organization"][data-path*="branding"] main aside {
+body.econsent-app[data-path*="organization"][data-path*="branding"] main aside,
+body.econsent-app[data-path*="platform"][data-path*="branding"] main aside,
+body.econsent-app[data-path*="branding-settings"] main aside {
     border-color: transparent !important;
     background: transparent !important;
     background-color: transparent !important;
@@ -3482,3 +3522,105 @@ main table .text-amber-700 {
     font-weight: 500;
 }
 
+/* SIDEBAR_MIDDLE_EDGE_TOGGLE_START
+   Discoverable desktop sidebar collapse/expand control. */
+@media (min-width: 1024px) {
+    .econsent-desktop-sidebar {
+        overflow: visible;
+    }
+
+    .econsent-sidebar-edge-toggle {
+        position: absolute;
+        top: 50%;
+        right: 0;
+        z-index: 60;
+        display: inline-flex;
+        width: 2.5rem;
+        height: 2.5rem;
+        align-items: center;
+        justify-content: center;
+        transform: translate(50%, -50%);
+        border: 2px solid #ffffff !important;
+        border-radius: 9999px !important;
+        background: #0f766e !important;
+        background-color: #0f766e !important;
+        color: #ffffff !important;
+        box-shadow:
+            0 8px 22px rgba(15, 23, 42, 0.2),
+            0 2px 6px rgba(15, 23, 42, 0.14);
+        cursor: pointer;
+        transition:
+            background-color 160ms ease,
+            box-shadow 160ms ease,
+            transform 160ms ease;
+    }
+
+    .econsent-sidebar-edge-toggle:hover {
+        background: #115e59 !important;
+        background-color: #115e59 !important;
+        box-shadow:
+            0 10px 26px rgba(15, 23, 42, 0.24),
+            0 3px 8px rgba(15, 23, 42, 0.16);
+        transform: translate(50%, -50%) scale(1.06);
+    }
+
+    .econsent-sidebar-edge-toggle:focus-visible {
+        outline: 3px solid rgba(20, 184, 166, 0.35);
+        outline-offset: 3px;
+    }
+}
+/* SIDEBAR_MIDDLE_EDGE_TOGGLE_END */
+
+/* SIDEBAR_SMOOTH_MOTION_START
+   Keep the sidebar and page shell moving together. */
+@media (min-width: 1024px) {
+    html.sidebar-alpine-ready
+    .econsent-sidebar-edge-toggle {
+        transition:
+            background-color 160ms ease,
+            box-shadow 160ms ease,
+            transform 260ms cubic-bezier(0.4, 0, 0.2, 1)
+            !important;
+    }
+
+    html.sidebar-alpine-ready
+    .econsent-sidebar-edge-toggle svg {
+        transition:
+            transform 260ms cubic-bezier(0.4, 0, 0.2, 1)
+            !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        html.sidebar-alpine-ready
+        .econsent-desktop-sidebar,
+        html.sidebar-alpine-ready
+        .econsent-main-shell,
+        html.sidebar-alpine-ready
+        .econsent-sidebar-edge-toggle,
+        html.sidebar-alpine-ready
+        .econsent-sidebar-edge-toggle svg {
+            transition-duration: 1ms !important;
+        }
+    }
+}
+/* SIDEBAR_SMOOTH_MOTION_END */
+
+/* SIDEBAR_COLLAPSE_DIRECTION_POLISH_START
+   Let labels contract while icons glide into their collapsed position. */
+@media (min-width: 1024px) {
+    html.sidebar-is-collapsed
+    .econsent-desktop-sidebar [data-sidebar-row] > svg,
+    html.sidebar-is-collapsed
+    .econsent-desktop-sidebar [data-sidebar-row] > div:first-child {
+        flex-shrink: 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        [data-sidebar-row],
+        [data-sidebar-label] {
+            transition-duration: 1ms !important;
+            transition-delay: 0ms !important;
+        }
+    }
+}
+/* SIDEBAR_COLLAPSE_DIRECTION_POLISH_END */

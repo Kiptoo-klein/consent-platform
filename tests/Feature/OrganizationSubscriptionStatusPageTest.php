@@ -63,6 +63,8 @@ test(
             'max_staff' => 5,
             'max_auditors' => 3,
             'max_active_kiosks' => 5,
+            'max_consent_templates' => 3,
+            'max_signed_consents_per_period' => 10,
         ]);
 
         $administrator = User::query()
@@ -162,6 +164,8 @@ test(
             'staff' => 1,
             'auditors' => 1,
             'active_kiosks' => 1,
+            'consent_templates' => 1,
+            'signed_consents' => 0,
         ]);
 
         $response->assertSeeTextInOrder([
@@ -175,6 +179,87 @@ test(
             '1 of 3',
             'Active kiosks',
             '1 of 5',
+            'Consent templates',
+            '1 of 3',
+            'Signed consents this period',
+            '0 of 10',
         ]);
+    }
+);
+
+test(
+    'all organization users can view subscription usage',
+    function () {
+        $this->seed(SubscriptionPlanSeeder::class);
+
+        $this->post('/register', [
+            'organization_name' =>
+                'Shared Usage Clinic',
+
+            'name' =>
+                'Shared Usage Administrator',
+
+            'email' =>
+                'shared-usage-admin@example.com',
+
+            'password' =>
+                'StrongPass1!',
+
+            'password_confirmation' =>
+                'StrongPass1!',
+        ]);
+
+        $organization =
+            Organization::query()
+                ->where(
+                    'name',
+                    'Shared Usage Clinic'
+                )
+                ->firstOrFail();
+
+        $normalUser =
+            User::factory()->create([
+                'organization_id' =>
+                    $organization->id,
+
+                'platform_role_id' =>
+                    null,
+
+                'is_active' =>
+                    true,
+            ]);
+
+        $response =
+            $this
+                ->actingAs($normalUser)
+                ->get(
+                    route(
+                        'organization-subscription.show'
+                    )
+                );
+
+        $response
+            ->assertOk()
+            ->assertSeeText(
+                'Subscription Status'
+            )
+            ->assertSeeText(
+                'Subscription usage'
+            )
+            ->assertSeeText(
+                'Consent templates'
+            )
+            ->assertSeeText(
+                'Signed consents this period'
+            )
+            ->assertSee(
+                route(
+                    'organization-subscription.show'
+                ),
+                false
+            )
+            ->assertDontSeeText(
+                'Billing & Receipts'
+            );
     }
 );

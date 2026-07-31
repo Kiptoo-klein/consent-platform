@@ -78,7 +78,7 @@
                 >
                     @csrf
 
-                    <!-- JSON submitted to Laravel -->
+                    <!-- JSON submitted to the application -->
                     <input
                         type="hidden"
                         name="additional_fields_json"

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ConsentTemplate;
 use App\Models\OrganizationSubscription;
 use App\Models\SigningStation;
+use App\Services\SigningStationDeviceLeaseService;
 use chillerlan\QRCode\QRCode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -339,7 +340,8 @@ class SigningStationController extends Controller
 
     public function toggle(
         Request $request,
-        SigningStation $signingStation
+        SigningStation $signingStation,
+        SigningStationDeviceLeaseService $deviceLeaseService
     ): RedirectResponse {
         $this->authorizeStation($request, $signingStation);
 
@@ -359,6 +361,12 @@ class SigningStationController extends Controller
             'active' => ! $signingStation->active,
         ]);
 
+        if (! $signingStation->active) {
+            $deviceLeaseService->releaseForStation(
+                $signingStation
+            );
+        }
+
         $message = $signingStation->active
             ? 'Signing station activated.'
             : 'Signing station paused.';
@@ -368,9 +376,14 @@ class SigningStationController extends Controller
 
     public function regenerateToken(
         Request $request,
-        SigningStation $signingStation
+        SigningStation $signingStation,
+        SigningStationDeviceLeaseService $deviceLeaseService
     ): RedirectResponse {
         $this->authorizeStation($request, $signingStation);
+
+        $deviceLeaseService->releaseForStation(
+            $signingStation
+        );
 
         $signingStation->update([
             'station_token' => Str::random(64),

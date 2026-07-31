@@ -104,7 +104,7 @@
                                         Billing role
                                     </dt>
 
-                                    <dd class="mt-2 text-base font-bold text-teal-950 dark:text-teal-100">
+                                    <dd class="mt-2 text-base font-extrabold text-gray-950 dark:text-white">
                                         Billing Owner
                                     </dd>
                                 </div>
@@ -147,12 +147,12 @@
                             @method('PATCH')
 
                             <h3 class="text-lg font-bold text-gray-950 dark:text-white">
-                                Assign Billing Owner
+                                Assign Billing Role
                             </h3>
 
                             <p class="mt-2 text-base font-medium leading-7 text-gray-700 dark:text-gray-300">
-                                Choose an active organization user to manage
-                                billing.
+                                Assign the Billing Owner role to an active
+                                organization user.
                             </p>
 
                             <p class="mt-1 text-sm leading-6 text-gray-700 dark:text-gray-300">
@@ -163,7 +163,7 @@
                                 for="billing_owner_user_id"
                                 class="mt-5 block text-sm font-bold text-gray-950 dark:text-white"
                             >
-                                Organization user
+                                User receiving Billing Owner role
                             </label>
 
                             <select
@@ -201,7 +201,7 @@
 
                             <div class="mt-5 rounded-xl border-2 border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
                                 <p class="font-bold">
-                                    Billing access changes immediately
+                                    Billing role changes immediately
                                 </p>
 
                                 <p class="mt-1 text-sm font-medium leading-6">
@@ -217,7 +217,7 @@
                                 type="submit"
                                 class="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-teal-800 px-5 py-3 text-base font-bold text-white shadow-sm transition hover:bg-teal-900 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 sm:w-auto"
                             >
-                                Assign Billing Owner
+                                Assign Billing Role
                             </button>
                         </form>
                     @else

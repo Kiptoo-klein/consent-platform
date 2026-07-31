@@ -4,14 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>{{ config('ui-brand.name', 'eConsent') }}</title>
+    <title>{{ $platformBrand['platform_name'] ?? config('ui-brand.name', 'eConsent') }}</title>
 
     <meta
         name="description"
-        content="{{ config('ui-brand.description') }}"
+        content="{{ $platformBrand['description'] ?? config('ui-brand.description') }}"
     >
 
-    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ $platformBrand['favicon_url'] ?? asset('favicon.svg') }}">
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link
         href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap"
@@ -28,7 +28,7 @@
                 <x-application-logo class="h-11 w-11"/>
 
                 <span>
-                    <strong>{{ config('ui-brand.name', 'eConsent') }}</strong>
+                    <strong>{{ $platformBrand['platform_name'] ?? config('ui-brand.name', 'eConsent') }}</strong>
                     <small>Digital Consent Management</small>
                 </span>
             </a>
@@ -341,12 +341,12 @@
                 <x-application-logo class="h-10 w-10"/>
 
                 <span>
-                    <strong>{{ config('ui-brand.name', 'eConsent') }}</strong>
+                    <strong>{{ $platformBrand['platform_name'] ?? config('ui-brand.name', 'eConsent') }}</strong>
                     <small>Digital Consent Management</small>
                 </span>
             </div>
 
-            <p>{{ config('ui-brand.tagline') }}</p>
+            <p>{{ $platformBrand['tagline'] ?? config('ui-brand.tagline') }}</p>
 
             <span>© {{ now()->year }}</span>
         </div>

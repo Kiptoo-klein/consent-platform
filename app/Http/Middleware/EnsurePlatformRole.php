@@ -9,27 +9,55 @@ use Symfony\Component\HttpFoundation\Response;
 class EnsurePlatformRole
 {
     /**
-     * Handle an incoming request.
+     * Restrict a route to one or more platform roles.
+     *
+     * Examples:
+     *
+     * platform.role:super-admin
+     * platform.role:super-admin,billing
      */
     public function handle(
         Request $request,
         Closure $next,
-        string $role
+        string ...$roles
     ): Response {
-        $authenticatedUser = $request->user();
+        $authenticatedUser =
+            $request->user();
 
         if (! $authenticatedUser) {
-            abort(403, 'You must be logged in.');
+            abort(
+                403,
+                'You must be logged in.'
+            );
         }
 
-        $user = $authenticatedUser->fresh(['platformRole']);
+        $user =
+            $authenticatedUser->fresh([
+                'platformRole',
+            ]);
 
-        if (! $user || ! $user->platformRole) {
-            abort(403, 'No platform role is assigned to this account.');
+        if (
+            ! $user
+            || ! $user->platformRole
+        ) {
+            abort(
+                403,
+                'No platform role is assigned to this account.'
+            );
         }
 
-        if ($user->platformRole->slug !== $role) {
-            abort(403, 'Your platform role does not allow access.');
+        if (
+            $roles === []
+            || ! in_array(
+                $user->platformRole->slug,
+                $roles,
+                true
+            )
+        ) {
+            abort(
+                403,
+                'Your platform role does not allow access.'
+            );
         }
 
         return $next($request);

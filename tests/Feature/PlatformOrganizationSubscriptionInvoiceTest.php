@@ -13,9 +13,11 @@ use App\Models\OrganizationSubscription;
 use App\Models\PlatformRole;
 use App\Models\SubscriptionInvoice;
 use App\Models\SubscriptionPlan;
+use App\Models\SubscriptionPaymentSetting;
 use App\Models\SubscriptionTransaction;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\SubscriptionPaymentSettingsService;
 use Database\Seeders\PlatformRoleSeeder;
 use Database\Seeders\SubscriptionPlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -321,6 +323,215 @@ class PlatformOrganizationSubscriptionInvoiceTest extends TestCase
             data_get(
                 $activity->properties,
                 'due_date'
+            )
+        );
+    }
+
+
+    public function test_issuing_invoice_copies_immutable_payment_details_snapshot(): void
+    {
+        $setting =
+            new SubscriptionPaymentSetting();
+
+        $setting->singleton_key =
+            SubscriptionPaymentSetting::
+                SINGLETON_KEY;
+
+        $setting->fill([
+            'mpesa_enabled' =>
+                true,
+
+            'mpesa_type' =>
+                'paybill',
+
+            'mpesa_business_number' =>
+                '400200',
+
+            'mpesa_account_reference_instructions' =>
+                'Use the invoice number as the account reference.',
+
+            'mpesa_instructions' =>
+                'Keep the M-Pesa confirmation message.',
+
+            'bank_enabled' =>
+                true,
+
+            'bank_name' =>
+                'Example Commercial Bank',
+
+            'bank_account_name' =>
+                'eConsent Holdings',
+
+            'bank_account_number' =>
+                '0102030405',
+
+            'bank_branch' =>
+                'Nairobi',
+
+            'bank_swift_code' =>
+                'EXAMPLEKX',
+
+            'bank_reference_instructions' =>
+                'Use the invoice number as the transfer reference.',
+
+            'bank_instructions' =>
+                'Bank charges are paid by the sender.',
+
+            'billing_contact_email' =>
+                'billing@example.com',
+
+            'billing_contact_phone' =>
+                '+254700000000',
+
+            'additional_instructions' =>
+                'Send confirmation after payment.',
+
+            'updated_by_user_id' =>
+                $this->platformAdmin->id,
+        ]);
+
+        $setting->save();
+
+        app(
+            SubscriptionPaymentSettingsService::
+                class
+        )->forgetCache();
+
+        $invoice = $this->createInvoice([
+            'invoice_number' =>
+                'INV-PAYMENT-SNAPSHOT-0001',
+        ]);
+
+        $this
+            ->actingAs(
+                $this->platformAdmin
+            )
+            ->patch(
+                $this->issueUrl(
+                    $invoice
+                ),
+                [
+                    'issue_date' =>
+                        now()->toDateString(),
+
+                    'due_date' =>
+                        now()
+                            ->addDays(14)
+                            ->toDateString(),
+                ]
+            )
+            ->assertRedirect(
+                $this->showUrl(
+                    $invoice
+                )
+            )
+            ->assertSessionHas(
+                'success'
+            );
+
+        $invoice->refresh();
+
+        $this->assertSame(
+            SubscriptionInvoiceStatus::ISSUED,
+            $invoice->status
+        );
+
+        $this->assertIsArray(
+            $invoice
+                ->payment_details_snapshot
+        );
+
+        $this->assertTrue(
+            data_get(
+                $invoice
+                    ->payment_details_snapshot,
+                'mpesa_enabled'
+            )
+        );
+
+        $this->assertSame(
+            '400200',
+            data_get(
+                $invoice
+                    ->payment_details_snapshot,
+                'mpesa_business_number'
+            )
+        );
+
+        $this->assertSame(
+            '0102030405',
+            data_get(
+                $invoice
+                    ->payment_details_snapshot,
+                'bank_account_number'
+            )
+        );
+
+        $this->assertSame(
+            'billing@example.com',
+            data_get(
+                $invoice
+                    ->payment_details_snapshot,
+                'billing_contact_email'
+            )
+        );
+
+        $setting->update([
+            'mpesa_business_number' =>
+                '999999',
+
+            'bank_account_number' =>
+                'UPDATED-ACCOUNT',
+        ]);
+
+        app(
+            SubscriptionPaymentSettingsService::
+                class
+        )->forgetCache();
+
+        $invoice->refresh();
+
+        $this->assertSame(
+            '400200',
+            data_get(
+                $invoice
+                    ->payment_details_snapshot,
+                'mpesa_business_number'
+            )
+        );
+
+        $this->assertSame(
+            '0102030405',
+            data_get(
+                $invoice
+                    ->payment_details_snapshot,
+                'bank_account_number'
+            )
+        );
+
+        $activity =
+            ActivityLog::query()
+                ->where(
+                    'action',
+                    'organization.subscription_invoice_issued'
+                )
+                ->where(
+                    'subject_id',
+                    $invoice->id
+                )
+                ->sole();
+
+        $this->assertTrue(
+            data_get(
+                $activity->properties,
+                'payment_channels.mpesa'
+            )
+        );
+
+        $this->assertTrue(
+            data_get(
+                $activity->properties,
+                'payment_channels.bank'
             )
         );
     }

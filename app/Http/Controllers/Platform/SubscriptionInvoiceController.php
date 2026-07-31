@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Platform;
 
 use App\Enums\SubscriptionInvoiceStatus;
+use App\Enums\SubscriptionTransactionStatus;
+use App\Enums\SubscriptionTransactionType;
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
+use App\Models\OrganizationSubscriptionPlanRequest;
 use App\Models\SubscriptionInvoice;
 use App\Models\SubscriptionInvoiceNotification;
 use App\Services\ActivityLogger;
+use App\Services\SubscriptionPaymentSettingsService;
 use App\Services\SubscriptionInvoiceNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -258,6 +262,7 @@ class SubscriptionInvoiceController extends Controller
      * Display one subscription invoice.
      */
     public function show(
+        Request $request,
         Organization $organization,
         SubscriptionInvoice $subscriptionInvoice
     ): View {
@@ -271,6 +276,8 @@ class SubscriptionInvoiceController extends Controller
             'subscription',
             'plan',
             'issuedBy',
+            'planRequest.currentPlan',
+            'planRequest.requestedPlan',
 
             'transactions' => function ($query): void {
                 $query->latest('id');
@@ -284,6 +291,116 @@ class SubscriptionInvoiceController extends Controller
             },
         ]);
 
+        $platformUser =
+            $request->user();
+
+        $platformUser->loadMissing(
+            'platformRole'
+        );
+
+        $canManageInvoicePayments =
+            in_array(
+                $platformUser
+                    ->platformRole
+                    ?->slug,
+                [
+                    'super-admin',
+                    'billing',
+                ],
+                true
+            );
+
+        $paidTotal =
+            $subscriptionInvoice
+                ->transactions
+                ->filter(
+                    static fn ($transaction): bool =>
+                        $transaction->status
+                            === SubscriptionTransactionStatus::
+                                SUCCESSFUL
+                        && in_array(
+                            $transaction->type,
+                            [
+                                SubscriptionTransactionType::
+                                    PAYMENT,
+
+                                SubscriptionTransactionType::
+                                    RENEWAL,
+                            ],
+                            true
+                        )
+                )
+                ->sum(
+                    static fn ($transaction): float =>
+                        (float) $transaction->amount
+                );
+
+        $outstandingAmount =
+            number_format(
+                max(
+                    0,
+                    round(
+                        (float) $subscriptionInvoice
+                            ->total_amount
+                        - (float) $paidTotal,
+                        2
+                    )
+                ),
+                2,
+                '.',
+                ''
+            );
+
+        $planRequest =
+            $subscriptionInvoice
+                ->planRequest;
+
+        $validBillingCycle =
+            $planRequest !== null
+            && in_array(
+                $planRequest->billing_cycle,
+                [
+                    OrganizationSubscriptionPlanRequest::
+                        BILLING_CYCLE_MONTHLY,
+
+                    OrganizationSubscriptionPlanRequest::
+                        BILLING_CYCLE_ANNUAL,
+                ],
+                true
+            );
+
+        $invoicePaymentPreview = null;
+
+        if (
+            $planRequest?->isPending()
+            && $validBillingCycle
+        ) {
+            $paymentTime =
+                now()->startOfSecond();
+
+            $invoicePaymentPreview = [
+                'paid_at' =>
+                    $paymentTime,
+
+                'period_starts_at' =>
+                    $paymentTime->copy(),
+
+                'period_ends_at' =>
+                    $planRequest->periodEndFrom(
+                        $paymentTime
+                    ),
+            ];
+        }
+
+        $canRecordInvoicePayment =
+            $canManageInvoicePayments
+            && $subscriptionInvoice
+                ->status
+                ?->isOutstanding()
+            && $planRequest?->isPending()
+            && $validBillingCycle
+            && (float) $outstandingAmount > 0;
+
         return view(
             'platform.subscription-invoices.show',
             [
@@ -292,6 +409,21 @@ class SubscriptionInvoiceController extends Controller
 
                 'invoice' =>
                     $subscriptionInvoice,
+
+                'planRequest' =>
+                    $planRequest,
+
+                'canManageInvoicePayments' =>
+                    $canManageInvoicePayments,
+
+                'canRecordInvoicePayment' =>
+                    $canRecordInvoicePayment,
+
+                'invoiceOutstandingAmount' =>
+                    $outstandingAmount,
+
+                'invoicePaymentPreview' =>
+                    $invoicePaymentPreview,
             ]
         );
     }
@@ -359,7 +491,8 @@ class SubscriptionInvoiceController extends Controller
     public function issue(
         Request $request,
         Organization $organization,
-        SubscriptionInvoice $subscriptionInvoice
+        SubscriptionInvoice $subscriptionInvoice,
+        SubscriptionPaymentSettingsService $paymentSettingsService
     ): RedirectResponse {
         $this->ensureInvoiceBelongsToOrganization(
             $subscriptionInvoice,
@@ -379,11 +512,16 @@ class SubscriptionInvoiceController extends Controller
             ],
         ]);
 
+        $paymentDetailsSnapshot =
+            $paymentSettingsService
+                ->settings();
+
         DB::transaction(function () use (
             $request,
             $organization,
             $subscriptionInvoice,
-            $validated
+            $validated,
+            $paymentDetailsSnapshot
         ): void {
             $invoice = SubscriptionInvoice::query()
                 ->whereKey(
@@ -412,6 +550,9 @@ class SubscriptionInvoiceController extends Controller
 
                 'due_date' =>
                     $validated['due_date'],
+
+                'payment_details_snapshot' =>
+                    $paymentDetailsSnapshot,
 
                 'issued_by_user_id' =>
                     $request->user()->id,
@@ -455,6 +596,24 @@ class SubscriptionInvoiceController extends Controller
 
                     'issued_by_user_id' =>
                         $invoice->issued_by_user_id,
+
+                    'payment_channels' => [
+                        'mpesa' =>
+                            (bool) data_get(
+                                $invoice
+                                    ->payment_details_snapshot,
+                                'mpesa_enabled',
+                                false
+                            ),
+
+                        'bank' =>
+                            (bool) data_get(
+                                $invoice
+                                    ->payment_details_snapshot,
+                                'bank_enabled',
+                                false
+                            ),
+                    ],
                 ],
             );
         });

@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Enums\SubscriptionPaymentStatus;
+use App\Http\Middleware\EnsureOrganizationSubscriptionAccess;
+use App\Enums\OrganizationRole;
 use App\Models\Organization;
 use App\Models\User;
 use Database\Seeders\SubscriptionPlanSeeder;
@@ -99,6 +102,11 @@ class OrganizationAdminManagementAccessTest extends TestCase
         );
 
         $response->assertSee(
+            'data-navigation-route="organization-subscription.show"',
+            false
+        );
+
+        $response->assertSee(
             route('organization-billing.index'),
             false
         );
@@ -146,14 +154,25 @@ class OrganizationAdminManagementAccessTest extends TestCase
 
         $staff->assignRole($staffRole);
 
+        $this
+            ->organization
+            ->subscription()
+            ->update([
+                'payment_status' =>
+                    SubscriptionPaymentStatus::PAID,
+            ]);
+
         $navigationResponse = $this
             ->actingAs($staff)
-            ->get(route('organization-subscription.show'));
+            ->get(route('dashboard'));
 
         $navigationResponse
             ->assertOk()
             ->assertDontSeeText('Manage Users')
-            ->assertSeeText('Subscription')
+            ->assertSee(
+                'data-navigation-route="organization-subscription.show"',
+                false
+            )
             ->assertDontSeeText('Billing');
 
         $this
@@ -258,6 +277,228 @@ class OrganizationAdminManagementAccessTest extends TestCase
                 .'[^>]*>\s*Organization Admin/s',
             $html
         );
+    }
+
+
+    public function test_only_organization_admin_can_see_and_access_organization_branding(): void
+    {
+        $this->withoutMiddleware(
+            EnsureOrganizationSubscriptionAccess::class
+        );
+
+        $this
+            ->actingAs(
+                $this->organizationAdmin
+            )
+            ->get(
+                route(
+                    'organization-subscription.show'
+                )
+            )
+            ->assertOk()
+            ->assertSeeText(
+                'Organization Branding'
+            )
+            ->assertSee(
+                'data-navigation-route="organization-branding.edit"',
+                false
+            );
+
+        $this
+            ->actingAs(
+                $this->organizationAdmin
+            )
+            ->get(
+                route(
+                    'organization-branding.edit'
+                )
+            )
+            ->assertOk();
+
+        app(
+            PermissionRegistrar::class
+        )->setPermissionsTeamId(
+            $this->organization->id
+        );
+
+        $ordinaryRole =
+            Role::query()->firstOrCreate([
+                'organization_id' =>
+                    $this->organization->id,
+
+                'name' =>
+                    OrganizationRole::
+                        WORKFLOW_OPERATOR
+                        ->label(),
+
+                'guard_name' =>
+                    'web',
+            ]);
+
+        $ordinaryUser =
+            User::factory()->create([
+                'organization_id' =>
+                    $this->organization->id,
+
+                'platform_role_id' =>
+                    null,
+
+                'is_active' =>
+                    true,
+            ]);
+
+        $ordinaryUser->assignRole(
+            $ordinaryRole
+        );
+
+        $this
+            ->actingAs(
+                $ordinaryUser
+            )
+            ->get(
+                route(
+                    'dashboard'
+                )
+            )
+            ->assertOk()
+            ->assertDontSeeText(
+                'Organization Branding'
+            )
+            ->assertDontSee(
+                'data-navigation-route="organization-branding.edit"',
+                false
+            );
+
+        $this
+            ->actingAs(
+                $ordinaryUser
+            )
+            ->get(
+                route(
+                    'organization-branding.edit'
+                )
+            )
+            ->assertForbidden();
+
+        $this
+            ->actingAs(
+                $ordinaryUser
+            )
+            ->put(
+                route(
+                    'organization-branding.update'
+                ),
+                []
+            )
+            ->assertForbidden();
+    }
+
+
+    public function test_all_organization_users_can_open_subscription_usage(): void
+    {
+        app(
+            PermissionRegistrar::class
+        )->setPermissionsTeamId(
+            $this->organization->id
+        );
+
+        $staffRole =
+            Role::query()
+                ->where(
+                    'organization_id',
+                    $this->organization->id
+                )
+                ->where(
+                    'guard_name',
+                    'web'
+                )
+                ->where(
+                    'name',
+                    OrganizationRole::
+                        WORKFLOW_OPERATOR
+                        ->label()
+                )
+                ->firstOrFail();
+
+        $billingOwner =
+            User::factory()->create([
+                'organization_id' =>
+                    $this->organization->id,
+
+                'platform_role_id' =>
+                    null,
+
+                'is_active' =>
+                    true,
+            ]);
+
+        $billingOwner->assignRole(
+            $staffRole
+        );
+
+        $ordinaryUser =
+            User::factory()->create([
+                'organization_id' =>
+                    $this->organization->id,
+
+                'platform_role_id' =>
+                    null,
+
+                'is_active' =>
+                    true,
+            ]);
+
+        $ordinaryUser->assignRole(
+            $staffRole
+        );
+
+        $this
+            ->organization
+            ->subscription()
+            ->update([
+                'billing_owner_user_id' =>
+                    $billingOwner->id,
+            ]);
+
+        foreach ([
+            $this->organizationAdmin,
+            $billingOwner,
+            $ordinaryUser,
+        ] as $user) {
+            $this
+                ->actingAs($user)
+                ->get(
+                    route(
+                        'organization-subscription.show'
+                    )
+                )
+                ->assertOk()
+                ->assertSeeText(
+                    'Subscription usage'
+                )
+                ->assertSee(
+                    'data-navigation-route="organization-subscription.show"',
+                    false
+                );
+        }
+
+        $this
+            ->actingAs($ordinaryUser)
+            ->get(
+                route(
+                    'organization-subscription-plans.index'
+                )
+            )
+            ->assertForbidden();
+
+        $this
+            ->actingAs($ordinaryUser)
+            ->get(
+                route(
+                    'organization-billing.index'
+                )
+            )
+            ->assertForbidden();
     }
 
 

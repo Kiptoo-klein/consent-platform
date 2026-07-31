@@ -72,12 +72,14 @@
                         </p>
                     </div>
 
-                    <a
-                        href="{{ route('consent-templates.new') }}"
-                        class="inline-flex justify-center rounded-lg bg-blue-600 px-5 py-3 text-white hover:bg-blue-700"
-                    >
-                        + New Consent
-                    </a>
+                    @unless ($showingArchived)
+                        <a
+                            href="{{ route('consent-templates.new') }}"
+                            class="inline-flex justify-center rounded-lg bg-blue-600 px-5 py-3 text-white hover:bg-blue-700"
+                        >
+                            + New Consent
+                        </a>
+                    @endunless
                 </div>
 
                 <form
@@ -162,12 +164,14 @@
                             Create your first consent template.
                         </p>
 
-                        <a
-                            href="{{ route('consent-templates.new') }}"
-                            class="inline-flex rounded-lg bg-blue-600 px-6 py-3 text-white hover:bg-blue-700"
-                        >
-                            Create Your First Consent
-                        </a>
+                        @unless ($showingArchived)
+                            <a
+                                href="{{ route('consent-templates.new') }}"
+                                class="inline-flex rounded-lg bg-blue-600 px-6 py-3 text-white hover:bg-blue-700"
+                            >
+                                Create Your First Consent
+                            </a>
+                        @endunless
                     </div>
                 @else
                     <div class="overflow-x-auto">

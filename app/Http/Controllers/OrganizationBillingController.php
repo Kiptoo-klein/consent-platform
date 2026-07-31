@@ -524,6 +524,7 @@ class OrganizationBillingController extends Controller
             'subscription',
             'plan',
             'issuedBy',
+            'planRequest',
             'transactions' => function ($query): void {
                 $query->latest('id');
             },

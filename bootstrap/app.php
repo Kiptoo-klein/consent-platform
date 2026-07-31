@@ -30,6 +30,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 \App\Http\Middleware\EnsureOrganizationRole::class,
             'organization.subscription' =>
                 EnsureOrganizationSubscriptionAccess::class,
+
+            'kiosk.device' =>
+                \App\Http\Middleware\EnsureSigningStationDeviceLease::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

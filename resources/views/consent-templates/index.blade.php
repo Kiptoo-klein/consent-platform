@@ -57,7 +57,7 @@
                     </p>
                 </div>
 
-                <div class="grid gap-6 p-6 md:grid-cols-2 sm:p-10">
+                <div class="grid gap-6 p-6 md:grid-cols-3 sm:p-10">
                     <a
                         href="{{ route('consent-templates.individual.create') }}"
                         class="group flex min-h-80 flex-col rounded-3xl border-2 border-blue-200 bg-blue-50 p-7 transition duration-200 hover:-translate-y-1 hover:border-blue-500 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-200"
@@ -85,6 +85,41 @@
                         <div class="mt-auto pt-8">
                             <span class="inline-flex items-center gap-2 font-bold text-blue-700">
                                 Build template and signer record
+
+                                <svg class="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 18 6-6-6-6" />
+                                </svg>
+                            </span>
+                        </div>
+                    </a>
+
+                    <a
+                        href="{{ route('consent-campaigns.select-template') }}"
+                        class="group flex min-h-80 flex-col rounded-3xl border-2 border-emerald-200 bg-emerald-50 p-7 transition duration-200 hover:-translate-y-1 hover:border-emerald-500 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-emerald-200"
+                    >
+                        <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm">
+                            <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.205-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+                            </svg>
+                        </div>
+
+                        <div class="mt-7">
+                            <p class="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">
+                                Multiple recipient workflow
+                            </p>
+
+                            <h2 class="mt-2 text-2xl font-bold text-gray-950">
+                                New Bulk Consent
+                            </h2>
+
+                            <p class="mt-3 leading-7 text-gray-700">
+                                Choose one published template and send separate secure consent requests to as many as 20 people in one campaign.
+                            </p>
+                        </div>
+
+                        <div class="mt-auto pt-8">
+                            <span class="inline-flex items-center gap-2 font-bold text-emerald-700">
+                                Choose template and recipients
 
                                 <svg class="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 18 6-6-6-6" />

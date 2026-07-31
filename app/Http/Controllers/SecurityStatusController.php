@@ -307,7 +307,7 @@ class SecurityStatusController extends Controller
                 )
                     ? 'pass'
                     : 'warning',
-                'Checks the Laravel authentication request for brute-force protection.'
+                'Checks application authentication requests for brute-force protection.'
             ),
 
             $this->check(

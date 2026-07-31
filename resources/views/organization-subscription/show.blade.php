@@ -7,7 +7,7 @@
                 </h1>
 
                 <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    Review your organization's plan, payment status and access.
+                    Review your organization's plan, usage, payment status and access.
                 </p>
             </div>
 
@@ -51,10 +51,31 @@
             $status
                 ? ucwords(str_replace('_', ' ', $status))
                 : 'Unavailable';
+
+        $usagePeriodStart =
+            $usagePeriod['start'] ?? null;
+
+        $usagePeriodEnd =
+            $usagePeriod['end'] ?? null;
+
+        $signedConsentPeriodLabel =
+            $usagePeriodStart && $usagePeriodEnd
+                ? $usagePeriodStart->format('M d, Y')
+                    .' – '
+                    .$usagePeriodEnd->copy()
+                        ->subSecond()
+                        ->format('M d, Y')
+                : (
+                    $usagePeriodStart
+                        ? 'From '
+                            .$usagePeriodStart
+                                ->format('M d, Y')
+                        : 'Current subscription period'
+                );
     @endphp
 
     <div class="py-8 sm:py-10">
-        <div class="mx-auto max-w-5xl space-y-6 px-4 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
 
             <section
                 class="overflow-hidden rounded-3xl border bg-white shadow-sm dark:bg-gray-900
@@ -151,63 +172,111 @@
                 <section class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
                     <div class="border-b border-gray-200 px-6 py-5 dark:border-gray-800 sm:px-8">
                         <h2 class="text-lg font-bold text-gray-900 dark:text-white">
-                            {{ $plan->name }} plan capacity
+                            Subscription usage
                         </h2>
 
                         <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                            The Organization Admin is included in the total user limit.
+                            Current use of the {{ $plan->name }} plan. The
+                            Organization Admin is included in the total user limit.
                         </p>
                     </div>
 
-                    <div class="grid gap-px bg-gray-200 sm:grid-cols-2 lg:grid-cols-5 dark:bg-gray-800">
+                    <div class="grid gap-px bg-gray-200 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 dark:bg-gray-800">
                         @foreach ([
                             [
                                 'label' => 'Total users',
                                 'used' => $usage['users'],
                                 'limit' => $plan->max_users,
+                                'description' => null,
                             ],
                             [
                                 'label' => 'Consent Managers',
                                 'used' => $usage['consent_managers'],
                                 'limit' => $plan->max_consent_managers,
+                                'description' => null,
                             ],
                             [
                                 'label' => 'Staff',
                                 'used' => $usage['staff'],
                                 'limit' => $plan->max_staff,
+                                'description' => null,
                             ],
                             [
                                 'label' => 'Auditors',
                                 'used' => $usage['auditors'],
                                 'limit' => $plan->max_auditors,
+                                'description' => null,
                             ],
                             [
                                 'label' => 'Active kiosks',
                                 'used' => $usage['active_kiosks'],
                                 'limit' => $plan->max_active_kiosks,
+                                'description' => null,
+                            ],
+                            [
+                                'label' => 'Consent templates',
+                                'used' => $usage['consent_templates'],
+                                'limit' => $plan->max_consent_templates,
+                                'description' =>
+                                    'Archived templates do not use capacity.',
+                            ],
+                            [
+                                'label' => 'Signed consents this period',
+                                'used' => $usage['signed_consents'],
+                                'limit' =>
+                                    $plan
+                                        ->max_signed_consents_per_period,
+                                'description' =>
+                                    $signedConsentPeriodLabel,
                             ],
                         ] as $capacity)
                             @php
                                 $used = $capacity['used'];
                                 $limit = $capacity['limit'];
 
-                                $percentage = $limit > 0
-                                    ? min(
-                                        100,
-                                        (int) round(($used / $limit) * 100)
-                                    )
-                                    : 100;
+                                $unlimited =
+                                    $limit === null;
 
-                                $remaining = max(0, $limit - $used);
-                                $overage = max(0, $used - $limit);
+                                $percentage =
+                                    $unlimited
+                                        ? 0
+                                        : (
+                                            $limit > 0
+                                                ? min(
+                                                    100,
+                                                    (int) round(
+                                                        ($used / $limit)
+                                                        * 100
+                                                    )
+                                                )
+                                                : 100
+                                        );
 
-                                $barClass = $used >= $limit
-                                    ? 'bg-red-500'
-                                    : (
-                                        $percentage >= 80
-                                            ? 'bg-amber-500'
-                                            : 'bg-emerald-500'
-                                    );
+                                $remaining =
+                                    $unlimited
+                                        ? null
+                                        : max(
+                                            0,
+                                            $limit - $used
+                                        );
+
+                                $overage =
+                                    $unlimited
+                                        ? 0
+                                        : max(
+                                            0,
+                                            $used - $limit
+                                        );
+
+                                $barClass =
+                                    ! $unlimited
+                                    && $used >= $limit
+                                        ? 'bg-red-500'
+                                        : (
+                                            $percentage >= 80
+                                                ? 'bg-amber-500'
+                                                : 'bg-emerald-500'
+                                        );
                             @endphp
 
                             <div class="bg-white p-6 dark:bg-gray-900">
@@ -215,28 +284,49 @@
                                     {{ $capacity['label'] }}
                                 </p>
 
+                                @if (filled($capacity['description']))
+                                    <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                                        {{ $capacity['description'] }}
+                                    </p>
+                                @endif
+
                                 <p class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">
                                     {{ number_format($used) }}
+
                                     <span class="text-base font-semibold text-gray-500">
-                                        of {{ number_format($limit) }}
+                                        @if ($unlimited)
+                                            used · Unlimited
+                                        @else
+                                            of {{ number_format($limit) }}
+                                        @endif
                                     </span>
                                 </p>
 
-                                <div
-                                    class="mt-4 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"
-                                    role="progressbar"
-                                    aria-label="{{ $capacity['label'] }} usage"
-                                    aria-valuemin="0"
-                                    aria-valuemax="{{ $limit }}"
-                                    aria-valuenow="{{ $used }}"
-                                >
+                                @if ($unlimited)
+                                    <div class="mt-4 rounded-full bg-indigo-100 px-3 py-1.5 text-center text-xs font-bold text-indigo-800 dark:bg-indigo-950 dark:text-indigo-200">
+                                        Unlimited plan capacity
+                                    </div>
+                                @else
                                     <div
-                                        class="h-full rounded-full {{ $barClass }}"
-                                        style="width: {{ $percentage }}%"
-                                    ></div>
-                                </div>
+                                        class="mt-4 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"
+                                        role="progressbar"
+                                        aria-label="{{ $capacity['label'] }} usage"
+                                        aria-valuemin="0"
+                                        aria-valuemax="{{ $limit }}"
+                                        aria-valuenow="{{ min($used, $limit) }}"
+                                    >
+                                        <div
+                                            class="h-full rounded-full {{ $barClass }}"
+                                            style="width: {{ $percentage }}%"
+                                        ></div>
+                                    </div>
+                                @endif
 
-                                @if ($overage > 0)
+                                @if ($unlimited)
+                                    <p class="mt-3 text-xs font-medium text-gray-500">
+                                        No usage limit
+                                    </p>
+                                @elseif ($overage > 0)
                                     <p class="mt-3 text-xs font-semibold text-red-600 dark:text-red-400">
                                         {{ number_format($overage) }} over limit
                                     </p>

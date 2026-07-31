@@ -24,6 +24,7 @@ class OrganizationSubscription extends Model
         'billing_owner_user_id',
         'status',
         'payment_status',
+        'billing_cycle',
         'starts_at',
         'trial_ends_at',
         'current_period_starts_at',

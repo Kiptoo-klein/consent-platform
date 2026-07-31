@@ -226,7 +226,7 @@
                             type="text"
                             required
                             maxlength="3"
-                            value="{{ old('currency', 'USD') }}"
+                            value="{{ old('currency', 'KES') }}"
                             class="mt-2 block w-full uppercase rounded-lg border-gray-300 shadow-sm focus:border-teal-600 focus:ring-teal-600"
                         >
 

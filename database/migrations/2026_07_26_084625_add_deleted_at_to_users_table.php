@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Add Laravel soft-delete support to user accounts.
+     * Add soft-delete support to user accounts.
      */
     public function up(): void
     {

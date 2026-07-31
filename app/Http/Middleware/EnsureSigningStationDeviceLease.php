@@ -1,0 +1,165 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use App\Models\ConsentSession;
+use App\Models\SigningStation;
+use App\Services\SigningStationDeviceLeaseService;
+use Closure;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response;
+
+class EnsureSigningStationDeviceLease
+{
+    public function __construct(
+        private readonly SigningStationDeviceLeaseService $leaseService
+    ) {
+    }
+
+    public function handle(
+        Request $request,
+        Closure $next
+    ): Response {
+        $station = $this->stationFor(
+            $request
+        );
+
+        /*
+         * Manually created public consents do not use kiosk capacity.
+         * Missing, paused, or invalid stations remain the responsibility
+         * of their existing token and controller checks.
+         */
+        if ($station === null) {
+            return $next($request);
+        }
+
+        try {
+            $lease =
+                $this
+                    ->leaseService
+                    ->acquireOrTouch(
+                        $request,
+                        $station
+                    );
+        } catch (ValidationException $exception) {
+            $message =
+                $exception
+                    ->errors()['kiosk'][0]
+                ?? 'The kiosk device limit has been reached.';
+
+            if (
+                $request->expectsJson()
+                || $request->isXmlHttpRequest()
+            ) {
+                return response()->json(
+                    [
+                        'message' =>
+                            $message,
+                    ],
+                    429
+                );
+            }
+
+            return response()->view(
+                'public-signing-stations.device-limit-reached',
+                [
+                    'station' =>
+                        $station,
+
+                    'message' =>
+                        $message,
+
+                    'leaseSeconds' =>
+                        SigningStationDeviceLeaseService::
+                            LEASE_SECONDS,
+                ],
+                429
+            );
+        }
+
+        $request->attributes->set(
+            'kioskDeviceLease',
+            $lease
+        );
+
+        $request->attributes->set(
+            'kioskHeartbeatUrl',
+            route(
+                'public-signing-stations.heartbeat',
+                [
+                    'stationToken' =>
+                        $station->station_token,
+                ]
+            )
+        );
+
+        $request->attributes->set(
+            'kioskHeartbeatSeconds',
+            SigningStationDeviceLeaseService::
+                HEARTBEAT_SECONDS
+        );
+
+        return $next($request);
+    }
+
+    private function stationFor(
+        Request $request
+    ): ?SigningStation {
+        $stationToken = $request->route(
+            'stationToken'
+        );
+
+        if (
+            is_string($stationToken)
+            && $stationToken !== ''
+        ) {
+            return SigningStation::query()
+                ->with('organization')
+                ->where(
+                    'station_token',
+                    $stationToken
+                )
+                ->where(
+                    'active',
+                    true
+                )
+                ->first();
+        }
+
+        $accessToken = $request->route(
+            'accessToken'
+        );
+
+        if (
+            ! is_string($accessToken)
+            || $accessToken === ''
+        ) {
+            return null;
+        }
+
+        $consentSession =
+            ConsentSession::query()
+                ->with(
+                    'signingStation.organization'
+                )
+                ->where(
+                    'access_token',
+                    $accessToken
+                )
+                ->first();
+
+        $station =
+            $consentSession
+                ?->signingStation;
+
+        if (
+            $station === null
+            || ! $station->active
+        ) {
+            return null;
+        }
+
+        return $station;
+    }
+}
