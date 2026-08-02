@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\SendConsentNotificationJob;
 use App\Mail\ConsentSigningRequestMail;
 use App\Models\ConsentNotification;
 use App\Models\ConsentSession;
@@ -180,21 +181,113 @@ class ConsentNotificationService
             )
         );
 
+        $cutoff = now()->subMinutes(
+            $cooldownMinutes
+        );
+
         return ConsentNotification::query()
             ->where(
                 'consent_session_id',
                 $consentSession->id
             )
             ->where(
-                'status',
-                ConsentNotification::STATUS_SENT
-            )
-            ->where(
-                'sent_at',
-                '>=',
-                now()->subMinutes($cooldownMinutes)
+                function ($query) use ($cutoff): void {
+                    $query
+                        ->where(
+                            function ($sent) use ($cutoff): void {
+                                $sent
+                                    ->where(
+                                        'status',
+                                        ConsentNotification::STATUS_SENT
+                                    )
+                                    ->where(
+                                        'sent_at',
+                                        '>=',
+                                        $cutoff
+                                    );
+                            }
+                        )
+                        ->orWhere(
+                            function ($pending) use ($cutoff): void {
+                                $pending
+                                    ->whereIn(
+                                        'status',
+                                        [
+                                            ConsentNotification::STATUS_QUEUED,
+                                            ConsentNotification::STATUS_PROCESSING,
+                                        ]
+                                    )
+                                    ->where(
+                                        'created_at',
+                                        '>=',
+                                        $cutoff
+                                    );
+                            }
+                        );
+                }
             )
             ->exists();
+    }
+
+    public function deliverQueued(
+        int $notificationId
+    ): void {
+        $notification =
+            ConsentNotification::query()
+                ->with([
+                    'consentSession.organization',
+                    'consentSession.consentTemplate',
+                ])
+                ->findOrFail($notificationId);
+
+        if ($notification->isSent()) {
+            return;
+        }
+
+        $consentSession =
+            $notification->consentSession;
+
+        $notification->forceFill([
+            'status' =>
+                ConsentNotification::STATUS_PROCESSING,
+            'failed_at' => null,
+            'error_message' => null,
+        ])->save();
+
+        try {
+            Mail::to(
+                $notification->recipient_email
+            )->send(
+                new ConsentSigningRequestMail(
+                    consentSession: $consentSession,
+                    mailSubject: $notification->subject,
+                    introMessage: $notification->message,
+                    notificationType: $notification->type
+                )
+            );
+
+            $notification->forceFill([
+                'status' =>
+                    ConsentNotification::STATUS_SENT,
+                'sent_at' => now(),
+                'failed_at' => null,
+                'error_message' => null,
+            ])->save();
+        } catch (Throwable $exception) {
+            $notification->forceFill([
+                'status' =>
+                    ConsentNotification::STATUS_FAILED,
+                'sent_at' => null,
+                'failed_at' => now(),
+                'error_message' => mb_substr(
+                    $exception->getMessage(),
+                    0,
+                    2000
+                ),
+            ])->save();
+
+            throw $exception;
+        }
     }
 
     private function send(
@@ -283,6 +376,25 @@ class ConsentNotificationService
             },
             3
         );
+
+        if (
+            app(EmailQuotaService::class)
+                ->shouldQueue()
+        ) {
+            $notification->forceFill([
+                'status' =>
+                    ConsentNotification::STATUS_QUEUED,
+                'sent_at' => null,
+                'failed_at' => null,
+                'error_message' => null,
+            ])->save();
+
+            SendConsentNotificationJob::dispatch(
+                (int) $notification->id
+            )->afterCommit();
+
+            return $notification->refresh();
+        }
 
         try {
             Mail::to($recipient)->send(

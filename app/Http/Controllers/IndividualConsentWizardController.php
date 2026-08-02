@@ -203,7 +203,10 @@ class IndividualConsentWizardController extends Controller
                 'The individual consent template was published and the signer record was created. Use the sharing options below.'
             );
 
-        if ($emailDelivery?->isSent()) {
+        if (
+            $emailDelivery !== null
+            && ! $emailDelivery->isFailed()
+        ) {
             $redirect->with(
                 'email_success',
                 "The secure signing link was emailed to {$consentSession->signer_email}."

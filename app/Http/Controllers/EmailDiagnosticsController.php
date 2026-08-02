@@ -198,6 +198,9 @@ class EmailDiagnosticsController extends Controller
             if (
                 $validated['delivery_mode']
                 === 'queued'
+                || app(
+                    \App\Services\EmailQuotaService::class
+                )->shouldQueue()
             ) {
                 $pendingMail->queue($mailable);
                 $action = 'queued';

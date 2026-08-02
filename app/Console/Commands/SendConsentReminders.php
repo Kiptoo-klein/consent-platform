@@ -126,10 +126,7 @@ class SendConsentReminders extends Command
                             continue;
                         }
 
-                        if (
-                            $notification->status
-                            === ConsentNotification::STATUS_SENT
-                        ) {
+                        if (! $notification->isFailed()) {
                             $sent++;
                             $this->info(
                                 "Sent record #{$consentSession->id} to {$notification->recipient_email}."

@@ -12,6 +12,7 @@ class ConsentNotification extends Model
     public const TYPE_MANUAL_REMINDER = 'manual_reminder';
     public const TYPE_AUTOMATIC_REMINDER = 'automatic_reminder';
 
+    public const STATUS_QUEUED = 'queued';
     public const STATUS_PROCESSING = 'processing';
     public const STATUS_SENT = 'sent';
     public const STATUS_FAILED = 'failed';
@@ -62,6 +63,11 @@ class ConsentNotification extends Model
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    public function isQueued(): bool
+    {
+        return $this->status === self::STATUS_QUEUED;
     }
 
     public function isSent(): bool

@@ -556,14 +556,10 @@ class ConsentCampaignController extends Controller
                                 TRIGGER_AUTOMATIC_CREATION
                     );
 
-            if (
-                $notification->status
-                === ConsentNotification::
-                    STATUS_SENT
-            ) {
-                $sentCount++;
-            } else {
+            if ($notification->isFailed()) {
                 $failedCount++;
+            } else {
+                $sentCount++;
             }
         }
 
@@ -574,7 +570,7 @@ class ConsentCampaignController extends Controller
             )
             ->with(
                 'success',
-                "{$campaign->recipient_count} recipient consent records were created. {$sentCount} invitation emails were sent."
+                "{$campaign->recipient_count} recipient consent records were created. {$sentCount} invitation emails were accepted for delivery."
             );
 
         if ($failedCount > 0) {

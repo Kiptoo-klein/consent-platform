@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\SubscriptionInvoiceStatus;
+use App\Jobs\SendSubscriptionInvoiceNotificationJob;
 use App\Mail\SubscriptionInvoiceReminderMail;
 use App\Models\SubscriptionInvoice;
 use App\Models\SubscriptionInvoiceNotification;
@@ -375,6 +376,25 @@ class SubscriptionInvoiceNotificationService
             return null;
         }
 
+        if (
+            app(EmailQuotaService::class)
+                ->shouldQueue()
+        ) {
+            $notification->forceFill([
+                'status' =>
+                    SubscriptionInvoiceNotification::STATUS_QUEUED,
+                'sent_at' => null,
+                'failed_at' => null,
+                'error_message' => null,
+            ])->save();
+
+            SendSubscriptionInvoiceNotificationJob::dispatch(
+                (int) $notification->id
+            )->afterCommit();
+
+            return $notification->refresh();
+        }
+
         $invoiceForMail =
             SubscriptionInvoice::query()
                 ->with([
@@ -649,6 +669,25 @@ class SubscriptionInvoiceNotificationService
             3
         );
 
+        if (
+            app(EmailQuotaService::class)
+                ->shouldQueue()
+        ) {
+            $notification->forceFill([
+                'status' =>
+                    SubscriptionInvoiceNotification::STATUS_QUEUED,
+                'sent_at' => null,
+                'failed_at' => null,
+                'error_message' => null,
+            ])->save();
+
+            SendSubscriptionInvoiceNotificationJob::dispatch(
+                (int) $notification->id
+            )->afterCommit();
+
+            return $notification->refresh();
+        }
+
         $invoiceForMail =
             SubscriptionInvoice::query()
                 ->with([
@@ -706,4 +745,63 @@ class SubscriptionInvoiceNotificationService
 
         return $notification->refresh();
     }
+    public function deliverQueued(
+        int $notificationId
+    ): void {
+        $notification =
+            SubscriptionInvoiceNotification::query()
+                ->with([
+                    'invoice.organization',
+                    'invoice.plan',
+                    'invoice.subscription.billingOwner',
+                ])
+                ->findOrFail($notificationId);
+
+        if ($notification->isSent()) {
+            return;
+        }
+
+        $invoice = $notification->invoice;
+
+        $notification->forceFill([
+            'status' =>
+                SubscriptionInvoiceNotification::STATUS_PROCESSING,
+            'failed_at' => null,
+            'error_message' => null,
+        ])->save();
+
+        try {
+            Mail::to(
+                $notification->recipient_email
+            )->send(
+                new SubscriptionInvoiceReminderMail(
+                    invoice: $invoice,
+                    reminderKey: $notification->reminder_key
+                )
+            );
+
+            $notification->forceFill([
+                'status' =>
+                    SubscriptionInvoiceNotification::STATUS_SENT,
+                'sent_at' => now(),
+                'failed_at' => null,
+                'error_message' => null,
+            ])->save();
+        } catch (Throwable $exception) {
+            $notification->forceFill([
+                'status' =>
+                    SubscriptionInvoiceNotification::STATUS_FAILED,
+                'sent_at' => null,
+                'failed_at' => now(),
+                'error_message' => mb_substr(
+                    $exception->getMessage(),
+                    0,
+                    2000
+                ),
+            ])->save();
+
+            throw $exception;
+        }
+    }
+
 }

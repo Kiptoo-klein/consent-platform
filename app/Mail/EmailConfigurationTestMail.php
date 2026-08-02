@@ -2,6 +2,8 @@
 
 namespace App\Mail;
 
+use App\Jobs\Middleware\EnforceEmailQuota;
+use DateTimeInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Attachment;
 use Illuminate\Mail\Mailable;
@@ -20,6 +22,22 @@ class EmailConfigurationTestMail extends Mailable
         public readonly string $mailerName,
         public readonly bool $includeAttachment = true,
     ) {
+    }
+
+    public int $tries = 1000;
+
+    public function middleware(): array
+    {
+        return [
+            new EnforceEmailQuota(
+                category: 'email_diagnostic'
+            ),
+        ];
+    }
+
+    public function retryUntil(): DateTimeInterface
+    {
+        return now()->addDays(7);
     }
 
     public function envelope(): Envelope

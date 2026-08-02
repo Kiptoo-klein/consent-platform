@@ -6,6 +6,7 @@ use App\Mail\ConsentCompletedMail;
 use App\Models\ConsentSession;
 use App\Services\ConsentAuditService;
 use App\Services\ConsentPdfService;
+use App\Services\EmailQuotaService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Mail;
@@ -40,7 +41,8 @@ class GenerateConsentPdfJob implements ShouldQueue
      */
     public function handle(
         ConsentPdfService $consentPdfService,
-        ConsentAuditService $consentAuditService
+        ConsentAuditService $consentAuditService,
+        EmailQuotaService $emailQuotaService
     ): void {
         $consentSession = ConsentSession::query()
             ->with([
@@ -120,6 +122,14 @@ class GenerateConsentPdfJob implements ShouldQueue
                 $consentSession,
                 $consentAuditService
             );
+
+            return;
+        }
+
+        if ($emailQuotaService->shouldQueue()) {
+            SendCompletedConsentMailJob::dispatch(
+                (int) $consentSession->id
+            )->afterCommit();
 
             return;
         }

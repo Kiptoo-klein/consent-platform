@@ -749,7 +749,10 @@ class ConsentSessionController extends Controller
                 "Consent record for {$consentSession->signer_name} created successfully."
             );
 
-        if ($emailDelivery?->isSent()) {
+        if (
+            $emailDelivery !== null
+            && ! $emailDelivery->isFailed()
+        ) {
             $redirect->with(
                 'email_success',
                 "The secure signing link was emailed to {$consentSession->signer_email}."

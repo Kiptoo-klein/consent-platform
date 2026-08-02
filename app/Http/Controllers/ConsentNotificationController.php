@@ -60,9 +60,13 @@ class ConsentNotificationController extends Controller
             ]);
         }
 
+        $message = $notification->isQueued()
+            ? "Signing email queued for {$notification->recipient_email}."
+            : "Signing email sent to {$notification->recipient_email}.";
+
         return back()->with(
             'email_success',
-            "Signing email sent to {$notification->recipient_email}."
+            $message
         );
     }
 

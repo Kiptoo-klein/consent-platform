@@ -19,6 +19,9 @@ class SubscriptionInvoiceNotification extends Model
 
     public const REMINDER_OVERDUE_7_DAYS =
         'overdue_7_days';
+    public const STATUS_QUEUED =
+        'queued';
+
 
     public const STATUS_PROCESSING =
         'processing';
@@ -102,6 +105,12 @@ class SubscriptionInvoiceNotification extends Model
             User::class,
             'retry_requested_by_user_id'
         );
+    }
+
+    public function isQueued(): bool
+    {
+        return $this->status
+            === self::STATUS_QUEUED;
     }
 
     public function isSent(): bool

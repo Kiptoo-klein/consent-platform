@@ -67,7 +67,12 @@ class SendEmailDiagnosticCommand extends Command
             $pendingMail = Mail::mailer($mailer)
                 ->to($recipient);
 
-            if ($this->option('queue')) {
+            if (
+                $this->option('queue')
+                || app(
+                    \App\Services\EmailQuotaService::class
+                )->shouldQueue()
+            ) {
                 $pendingMail->queue($mailable);
                 $this->info(
                     "Test email queued using {$mailer}."

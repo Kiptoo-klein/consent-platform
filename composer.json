@@ -11,6 +11,7 @@
         "chillerlan/php-qrcode": "^6.0",
         "laravel/framework": "^13.8",
         "laravel/tinker": "^3.0",
+        "resend/resend-php": "^1.7",
         "spatie/laravel-permission": "^8.3"
     },
     "require-dev": {

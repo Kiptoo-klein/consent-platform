@@ -2,7 +2,12 @@
 
 namespace App\Models;
 
+use App\Notifications\QuotaResetPassword;
+use App\Notifications\QuotaVerifyEmail;
+use App\Services\EmailQuotaService;
 use Database\Factories\UserFactory;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -104,4 +109,28 @@ class User extends Authenticatable
             'bypass_approved_by_user_id'
         );
     }
+
+    public function sendEmailVerificationNotification(): void
+    {
+        $notification =
+            app(EmailQuotaService::class)
+                ->shouldQueue()
+                    ? new QuotaVerifyEmail()
+                    : new VerifyEmail();
+
+        $this->notify($notification);
+    }
+
+    public function sendPasswordResetNotification(
+        $token
+    ): void {
+        $notification =
+            app(EmailQuotaService::class)
+                ->shouldQueue()
+                    ? new QuotaResetPassword($token)
+                    : new ResetPassword($token);
+
+        $this->notify($notification);
+    }
+
 }

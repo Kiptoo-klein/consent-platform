@@ -234,10 +234,7 @@ class SendSubscriptionInvoiceReminders extends Command
 
                             $attempted = true;
 
-                            if (
-                                $notification->status
-                                    === SubscriptionInvoiceNotification::STATUS_SENT
-                            ) {
+                            if (! $notification->isFailed()) {
                                 $sent++;
                             } else {
                                 $failed++;
