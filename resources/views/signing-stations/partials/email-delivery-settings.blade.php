@@ -2,6 +2,59 @@
 @php
     $stationForEmailSettings = $signingStation ?? null;
 
+    /*
+    |--------------------------------------------------------------------------
+    | Organization defaults with per-kiosk overrides
+    |--------------------------------------------------------------------------
+    |
+    | A newly created kiosk starts with the organization's name and email.
+    | Once a kiosk has saved values, those values take priority. old() still
+    | takes priority after validation errors, so an administrator never loses
+    | an edit made in the form.
+    |
+    */
+
+    $organizationForEmailSettings =
+        auth()->user()?->organization;
+
+    $organizationSenderName = trim((string) (
+        $organizationForEmailSettings?->name ?? ''
+    ));
+
+    $organizationReplyToEmail = collect([
+        $organizationForEmailSettings?->email,
+        $organizationForEmailSettings?->support_email,
+    ])->first(
+        fn ($email): bool =>
+            is_string($email)
+            && filter_var(
+                $email,
+                FILTER_VALIDATE_EMAIL
+            ) !== false
+    );
+
+    $savedSenderName = trim((string) (
+        $stationForEmailSettings?->sender_name ?? ''
+    ));
+
+    $savedReplyToEmail = trim((string) (
+        $stationForEmailSettings?->reply_to_email ?? ''
+    ));
+
+    $kioskSenderNameValue = old(
+        'sender_name',
+        $savedSenderName !== ''
+            ? $stationForEmailSettings?->sender_name
+            : $organizationSenderName
+    );
+
+    $kioskReplyToEmailValue = old(
+        'reply_to_email',
+        $savedReplyToEmail !== ''
+            ? $stationForEmailSettings?->reply_to_email
+            : $organizationReplyToEmail
+    );
+
     $defaultKioskEmailDescription = (string) config(
         'kiosk-email.default_description',
         'This email contains the official signed copy of the consent you completed. Please keep the attached PDF for your records. No further action is required unless the organization contacts you.'
@@ -44,7 +97,7 @@
                 name="sender_name"
                 type="text"
                 maxlength="120"
-                value="{{ old('sender_name', $stationForEmailSettings?->sender_name) }}"
+                value="{{ $kioskSenderNameValue }}"
                 placeholder="Example Medical Centre"
                 class="mt-2 block w-full rounded-lg border border-gray-300 bg-white text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:ring-teal-600"
             >
@@ -73,7 +126,7 @@
                 name="reply_to_email"
                 type="email"
                 maxlength="255"
-                value="{{ old('reply_to_email', $stationForEmailSettings?->reply_to_email) }}"
+                value="{{ $kioskReplyToEmailValue }}"
                 placeholder="consent@example.org"
                 class="mt-2 block w-full rounded-lg border border-gray-300 bg-white text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:ring-teal-600"
             >
