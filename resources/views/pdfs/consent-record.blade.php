@@ -856,16 +856,6 @@
             </tr>
         </table>
 
-        <table class="identity-table" style="margin-top: 8px;">
-            <tr>
-                <td class="full-width">
-                    <div class="field-label">Reference number</div>
-                    <div class="field-value">
-                        {{ $consentSession->signer_reference ?: 'Not provided' }}
-                    </div>
-                </td>
-            </tr>
-        </table>
     </div>
 
     @if (count($responseEvidence) > 0)
