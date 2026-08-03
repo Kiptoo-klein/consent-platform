@@ -63,6 +63,9 @@ test('new organizations can register', function () {
         ->toBeFalse();
 
     $response->assertRedirect(
-        route('dashboard', absolute: false)
+        route(
+            'organization-subscription-plans.index',
+            absolute: false
+        )
     );
 });

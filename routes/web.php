@@ -246,6 +246,16 @@ Route::middleware([
         'organization-subscription-plans.request'
     );
 
+    Route::post(
+        '/subscription/plans/requests/{planRequest}/payment',
+        [
+            OrganizationSubscriptionPlanController::class,
+            'continueToPayment',
+        ]
+    )->name(
+        'organization-subscription-plans.payment'
+    );
+
     Route::delete(
         '/subscription/plans/requests/{planRequest}',
         [

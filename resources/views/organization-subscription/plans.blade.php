@@ -385,9 +385,9 @@
                                     class="mt-5 rounded-xl p-4 text-sm font-semibold leading-6"
                                     style="background-color:#f3f4f6;color:#374151;"
                                 >
-                                    Payment instructions, due date and
-                                    invoice download will appear after
-                                    Platform Billing issues this invoice.
+                                    Continue to payment to issue this invoice,
+                                    set its due date, and display the payment
+                                    instructions and PDF download.
                                 </div>
                             </div>
                         </div>
@@ -398,6 +398,46 @@
                         >
                             Your current subscription remains active while
                             this plan request is being reviewed.
+                        </div>
+
+                        <div
+                            class="mt-6 flex flex-col gap-4 rounded-2xl border p-5 sm:flex-row sm:items-center sm:justify-between"
+                            style="background-color:#eff6ff;border-color:#93c5fd;"
+                        >
+                            <div>
+                                <p
+                                    class="text-sm font-extrabold"
+                                    style="color:#1e3a8a;"
+                                >
+                                    Ready to pay?
+                                </p>
+
+                                <p
+                                    class="mt-1 text-sm font-semibold leading-6"
+                                    style="color:#1e40af;"
+                                >
+                                    Issue the invoice to see its due date,
+                                    payment instructions, and PDF download.
+                                </p>
+                            </div>
+
+                            <form
+                                method="POST"
+                                action="{{ route(
+                                    'organization-subscription-plans.payment',
+                                    $pendingRequest
+                                ) }}"
+                            >
+                                @csrf
+
+                                <button
+                                    type="submit"
+                                    class="inline-flex w-full items-center justify-center rounded-xl border px-5 py-3 text-sm font-extrabold shadow-sm transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto"
+                                    style="background-color:#1d4ed8 !important;color:#ffffff !important;border-color:#1e40af !important;"
+                                >
+                                    Continue to Payment
+                                </button>
+                            </form>
                         </div>
 
                         @if (

@@ -153,8 +153,14 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect(
-            route('dashboard', absolute: false)
-        );
+        return redirect()
+            ->route(
+                'organization-subscription-plans.index'
+            )
+            ->with(
+                'success',
+                'Welcome to eConsent. Choose the subscription plan '
+                .'and billing cycle that fit your organization.'
+            );
     }
 }
