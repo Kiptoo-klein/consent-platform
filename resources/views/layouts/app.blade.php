@@ -47,7 +47,7 @@
         ])
     </head>
 
-    <body class="econsent-app h-full font-sans antialiased" data-route="{{ Route::currentRouteName() ?? 'unknown' }}" data-path="{{ request()->path() }}">>
+    <body class="econsent-app h-full font-sans antialiased" data-route="{{ Route::currentRouteName() ?? 'unknown' }}" data-path="{{ request()->path() }}">
         <div
             x-data="{
                 mobileSidebarOpen: false,
