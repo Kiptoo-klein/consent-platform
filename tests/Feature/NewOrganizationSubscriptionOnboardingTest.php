@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\SubscriptionInvoiceStatus;
 use App\Models\Organization;
+use App\Models\PlatformRole;
 use App\Models\OrganizationSubscriptionPlanRequest;
 use App\Models\SubscriptionInvoice;
 use App\Models\SubscriptionPlan;
@@ -18,7 +19,7 @@ class NewOrganizationSubscriptionOnboardingTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_creator_can_open_plans_issue_and_view_invoice(): void
+    public function test_creator_waits_for_platform_to_issue_invoice_before_payment(): void
     {
         $this->seed([
             PlatformRoleSeeder::class,
@@ -184,6 +185,10 @@ class NewOrganizationSubscriptionOnboardingTest extends TestCase
             $invoice->status
         );
 
+        $organizationPaymentUrl =
+            "/subscription/plans/requests/"
+            ."{$planRequest->id}/payment";
+
         $this
             ->actingAs(
                 $administrator
@@ -195,13 +200,16 @@ class NewOrganizationSubscriptionOnboardingTest extends TestCase
             )
             ->assertOk()
             ->assertSeeText(
+                'Waiting for Platform Billing'
+            )
+            ->assertSeeText(
+                'Action required by Platform Billing'
+            )
+            ->assertDontSeeText(
                 'Continue to Payment'
             )
-            ->assertSee(
-                route(
-                    'organization-subscription-plans.payment',
-                    $planRequest
-                ),
+            ->assertDontSee(
+                $organizationPaymentUrl,
                 false
             );
 
@@ -210,19 +218,73 @@ class NewOrganizationSubscriptionOnboardingTest extends TestCase
                 $administrator
             )
             ->post(
-                route(
-                    'organization-subscription-plans.payment',
-                    $planRequest
+                $organizationPaymentUrl
+            )
+            ->assertNotFound();
+
+        $this->assertSame(
+            SubscriptionInvoiceStatus::DRAFT,
+            $invoice->fresh()->status
+        );
+
+        $superAdminRole =
+            PlatformRole::query()
+                ->where(
+                    'slug',
+                    'super-admin'
                 )
+                ->firstOrFail();
+
+        $platformAdmin =
+            User::factory()->create([
+                'organization_id' =>
+                    null,
+
+                'platform_role_id' =>
+                    $superAdminRole->id,
+
+                'is_active' =>
+                    true,
+            ]);
+
+        $issueDate =
+            today();
+
+        $dueDate =
+            today()->addDays(7);
+
+        $this
+            ->actingAs(
+                $platformAdmin
+            )
+            ->patch(
+                route(
+                    'platform.organizations.subscription-invoices.issue',
+                    [
+                        $organization,
+                        $invoice,
+                    ]
+                ),
+                [
+                    'issue_date' =>
+                        $issueDate->toDateString(),
+
+                    'due_date' =>
+                        $dueDate->toDateString(),
+                ]
             )
             ->assertRedirect(
                 route(
-                    'organization-billing.invoices.show',
-                    $invoice
+                    'platform.organizations.subscription-invoices.show',
+                    [
+                        $organization,
+                        $invoice,
+                    ]
                 )
             );
 
         $invoice->refresh();
+
 
         $this->assertSame(
             SubscriptionInvoiceStatus::ISSUED,
@@ -363,7 +425,7 @@ class NewOrganizationSubscriptionOnboardingTest extends TestCase
         );
     }
 
-    public function test_ordinary_user_cannot_issue_invoice(): void
+    public function test_organization_user_cannot_issue_draft_invoice(): void
     {
         $this->seed([
             PlatformRoleSeeder::class,
@@ -457,12 +519,9 @@ class NewOrganizationSubscriptionOnboardingTest extends TestCase
                 $ordinaryUser
             )
             ->post(
-                route(
-                    'organization-subscription-plans.payment',
-                    $planRequest
-                )
+                "/subscription/plans/requests/{$planRequest->id}/payment"
             )
-            ->assertForbidden();
+            ->assertNotFound();
 
         $this->assertSame(
             SubscriptionInvoiceStatus::DRAFT,

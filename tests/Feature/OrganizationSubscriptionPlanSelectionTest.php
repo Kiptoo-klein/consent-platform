@@ -272,6 +272,20 @@ class OrganizationSubscriptionPlanSelectionTest extends TestCase
             )
             ->assertSeeText(
                 'Your current subscription remains active'
+            )
+            ->assertSeeText(
+                'Waiting for Platform Billing'
+            )
+            ->assertSeeText(
+                'Action required by Platform Billing'
+            )
+            ->assertDontSeeText(
+                'Continue to Payment'
+            )
+            ->assertDontSee(
+                "/subscription/plans/requests/"
+                ."{$planRequest->id}/payment",
+                false
             );
 
         $this->subscription->refresh();

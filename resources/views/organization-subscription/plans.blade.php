@@ -422,9 +422,10 @@
                                     class="mt-5 rounded-xl p-4 text-sm font-semibold leading-6"
                                     style="background-color:#f3f4f6;color:#374151;"
                                 >
-                                    Continue to payment to issue this invoice,
-                                    set its due date, and display the payment
-                                    instructions and PDF download.
+                                    Platform Billing will issue this invoice
+                                    after review. Its due date, payment
+                                    instructions, and PDF download will appear
+                                    here once it is ready.
                                 </div>
                             </div>
                         </div>
@@ -452,35 +453,25 @@
                                     class="text-sm font-extrabold"
                                     style="color:#1e3a8a;"
                                 >
-                                    Ready to pay?
+                                    Waiting for Platform Billing
                                 </p>
 
                                 <p
                                     class="mt-1 text-sm font-semibold leading-6"
                                     style="color:#1e40af;"
                                 >
-                                    Issue the invoice to see its due date,
-                                    payment instructions, and PDF download.
+                                    The invoice is not payable yet. Platform
+                                    Billing must review and issue it before
+                                    payment instructions become available.
                                 </p>
                             </div>
 
-                            <form
-                                method="POST"
-                                action="{{ route(
-                                    'organization-subscription-plans.payment',
-                                    $pendingRequest
-                                ) }}"
+                            <span
+                                class="inline-flex w-fit rounded-full border px-4 py-2 text-xs font-extrabold uppercase tracking-wide"
+                                style="background-color:#dbeafe;color:#1e3a8a;border-color:#60a5fa;"
                             >
-                                @csrf
-
-                                <button
-                                    type="submit"
-                                    class="inline-flex w-full items-center justify-center rounded-xl border px-5 py-3 text-sm font-extrabold shadow-sm transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto"
-                                    style="background-color:#1d4ed8 !important;color:#ffffff !important;border-color:#1e40af !important;"
-                                >
-                                    Continue to Payment
-                                </button>
-                            </form>
+                                Action required by Platform Billing
+                            </span>
                         </div>
 
                         @if (
