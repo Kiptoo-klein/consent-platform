@@ -1,4 +1,9 @@
 <x-app-layout>
+    @php
+        $isBulkCreation =
+            ($returnTo ?? null) === 'bulk';
+    @endphp
+
     <x-slot name="header">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -9,12 +14,16 @@
                 </h2>
 
                 <p class="mt-1 text-sm text-gray-500">
-                    Build the reusable template for this workflow.
+                    {{ $isBulkCreation
+                        ? 'Create and publish a template, then continue directly to campaign recipients.'
+                        : 'Build the reusable template for this workflow.' }}
                 </p>
             </div>
 
             <a
-                href="{{ route('consent-templates.new') }}"
+                href="{{ $isBulkCreation
+                        ? route('consent-campaigns.select-template')
+                        : route('consent-templates.new') }}"
                 class="inline-flex justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
                 Change Consent Type
@@ -40,6 +49,22 @@
                         Create the consent form from scratch
                     </h1>
                 </div>
+
+                @if ($isBulkCreation)
+                    <div class="mb-6 rounded-xl border border-indigo-200 bg-indigo-50 p-5">
+                        <p class="text-sm font-bold uppercase tracking-[0.16em] text-indigo-700">
+                            New bulk consent template
+                        </p>
+
+                        <h2 class="mt-2 text-xl font-bold text-indigo-950">
+                            Create this template from scratch
+                        </h2>
+
+                        <p class="mt-2 text-sm leading-6 text-indigo-900">
+                            When you continue, version 1 will be published automatically and you will move directly to the recipient form.
+                        </p>
+                    </div>
+                @endif
 
                 @if ($errors->any())
                     <div class="mb-6 rounded-lg border border-red-300 bg-red-50 p-4">
@@ -77,6 +102,14 @@
                     }"
                 >
                     @csrf
+
+                    @if ($isBulkCreation)
+                        <input
+                            type="hidden"
+                            name="return_to"
+                            value="bulk"
+                        >
+                    @endif
 
                     <!-- JSON submitted to the application -->
                     <input
@@ -168,7 +201,9 @@
                             </div>
 
                             <a
-                                href="{{ route('consent-templates.new') }}"
+                                href="{{ $isBulkCreation
+                        ? route('consent-campaigns.select-template')
+                        : route('consent-templates.new') }}"
                                 class="shrink-0 text-sm font-semibold text-indigo-700 hover:underline"
                             >
                                 Change
@@ -365,11 +400,15 @@
                             type="submit"
                             class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg"
                         >
-                            Save Draft
+                            {{ $isBulkCreation
+                                ? 'Create Template and Continue'
+                                : 'Save Draft' }}
                         </button>
 
                         <a
-                            href="{{ route('consent-templates.index') }}"
+                            href="{{ $isBulkCreation
+                                ? route('consent-campaigns.select-template')
+                                : route('consent-templates.index') }}"
                             class="text-gray-600 hover:text-gray-900"
                         >
                             Cancel

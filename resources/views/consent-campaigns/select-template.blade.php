@@ -7,7 +7,7 @@
                 </h2>
 
                 <p class="mt-1 text-sm text-gray-500">
-                    Choose one published template to send to up to 20 people.
+                    Use an existing published template or create a new one from scratch.
                 </p>
             </div>
 
@@ -43,14 +43,60 @@
                 </div>
             @endif
 
-            <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            <section class="overflow-hidden rounded-xl border border-emerald-200 bg-white shadow-sm">
+                <div class="border-b border-emerald-100 bg-emerald-50 px-6 py-5">
+                    <p class="text-sm font-bold uppercase tracking-[0.16em] text-emerald-700">
+                        Choose how to start
+                    </p>
+
+                    <h1 class="mt-2 text-2xl font-bold text-gray-950">
+                        Use an existing template or create a new one
+                    </h1>
+                </div>
+
+                <div class="grid gap-5 p-6 md:grid-cols-2">
+                    <a
+                        href="#existing-templates"
+                        class="rounded-xl border border-gray-200 bg-white p-5 transition hover:border-emerald-300 hover:bg-emerald-50"
+                    >
+                        <h2 class="text-lg font-bold text-gray-950">
+                            Use Existing Template
+                        </h2>
+
+                        <p class="mt-2 text-sm leading-6 text-gray-600">
+                            Select one of the published individual or combined-use templates below.
+                        </p>
+                    </a>
+
+                    <a
+                        href="{{ route('consent-templates.create', [
+                            'type' => \App\Models\ConsentTemplate::USAGE_INDIVIDUAL,
+                            'return_to' => 'bulk',
+                        ]) }}"
+                        class="rounded-xl border border-indigo-200 bg-indigo-50 p-5 transition hover:border-indigo-400 hover:bg-indigo-100"
+                    >
+                        <h2 class="text-lg font-bold text-indigo-950">
+                            Create New Template
+                        </h2>
+
+                        <p class="mt-2 text-sm leading-6 text-indigo-900">
+                            Build a new consent template from scratch, publish it, and continue directly to recipients.
+                        </p>
+                    </a>
+                </div>
+            </section>
+
+            <section
+                id="existing-templates"
+                class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+            >
                 <div class="border-b border-gray-200 bg-gray-50 px-6 py-5">
                     <p class="text-sm font-bold uppercase tracking-[0.16em] text-emerald-700">
                         Multiple-recipient workflow
                     </p>
 
                     <h1 class="mt-2 text-2xl font-bold text-gray-950">
-                        Select a published template
+                        Select an existing published template
                     </h1>
 
                     <p class="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
@@ -69,10 +115,13 @@
                         </p>
 
                         <a
-                            href="{{ route('consent-templates.new') }}"
+                            href="{{ route('consent-templates.create', [
+                                'type' => \App\Models\ConsentTemplate::USAGE_INDIVIDUAL,
+                                'return_to' => 'bulk',
+                            ]) }}"
                             class="mt-6 inline-flex rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
                         >
-                            Create a Consent Template
+                            Create New Template
                         </a>
                     </div>
                 @else

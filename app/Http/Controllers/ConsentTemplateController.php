@@ -195,7 +195,11 @@ class ConsentTemplateController extends Controller
     public function create(
         Request $request
     ): View|RedirectResponse {
-        $selectedUsageType = (string) $request->query('type', '');
+        $selectedUsageType =
+            (string) $request->query(
+                'type',
+                ''
+            );
 
         if (! in_array(
             $selectedUsageType,
@@ -213,9 +217,23 @@ class ConsentTemplateController extends Controller
                 ]);
         }
 
-        return view('consent-templates.create', [
-            'selectedUsageType' => $selectedUsageType,
-        ]);
+        $returnTo =
+            $selectedUsageType
+                === ConsentTemplate::USAGE_INDIVIDUAL
+            && $request->query('return_to') === 'bulk'
+                ? 'bulk'
+                : null;
+
+        return view(
+            'consent-templates.create',
+            [
+                'selectedUsageType' =>
+                    $selectedUsageType,
+
+                'returnTo' =>
+                    $returnTo,
+            ]
+        );
     }
 
     /**
@@ -225,48 +243,140 @@ class ConsentTemplateController extends Controller
         Request $request,
         SubscriptionUsageLimitService $usageLimitService
     ): RedirectResponse {
-        $validated = $this->validateTemplateRequest($request);
+        $validated =
+            $this->validateTemplateRequest(
+                $request
+            );
 
-        $additionalFields = $this->prepareAdditionalFields(
-            $validated['additional_fields_json']
-        );
+        $returnToBulk =
+            ($validated['return_to'] ?? null)
+                === 'bulk';
 
-        DB::transaction(
-            function () use (
-                $validated,
-                $additionalFields,
-                $usageLimitService
-            ): void {
-                $organizationId =
-                    (int) Auth::user()
-                        ->organization_id;
+        $additionalFields =
+            $this->prepareAdditionalFields(
+                $validated[
+                    'additional_fields_json'
+                ]
+            );
 
-                $usageLimitService
-                    ->assertTemplateSlotAvailableLocked(
-                        $organizationId
-                    );
+        $consentTemplate =
+            DB::transaction(
+                function () use (
+                    $validated,
+                    $additionalFields,
+                    $usageLimitService,
+                    $returnToBulk
+                ): ConsentTemplate {
+                    $organizationId =
+                        (int) Auth::user()
+                            ->organization_id;
 
-                ConsentTemplate::query()->create([
-                'organization_id' => Auth::user()->organization_id,
-                'title' => $validated['title'],
-                'description' => $validated['description'] ?? null,
-                'usage_type' => $this->templateUsageType(
-                $validated['usage_types']
-                ),
+                    $usageLimitService
+                        ->assertTemplateSlotAvailableLocked(
+                            $organizationId
+                        );
 
-                'template_schema' => [
-                'builder_version' => 1,
-                'consent_text' => $validated['content'],
-                'additional_fields' => $additionalFields,
-                ],
+                    $consentTemplate =
+                        ConsentTemplate::query()
+                            ->create([
+                                'organization_id' =>
+                                    $organizationId,
 
-                'active_version_id' => null,
-                'has_unpublished_changes' => true,
-                'status' => 'draft',
-                ]);
-            },
-            3
-        );
+                                'title' =>
+                                    $validated['title'],
+
+                                'description' =>
+                                    $validated[
+                                        'description'
+                                    ] ?? null,
+
+                                'usage_type' =>
+                                    $this
+                                        ->templateUsageType(
+                                            $validated[
+                                                'usage_types'
+                                            ]
+                                        ),
+
+                                'template_schema' => [
+                                    'builder_version' =>
+                                        1,
+
+                                    'consent_text' =>
+                                        $validated[
+                                            'content'
+                                        ],
+
+                                    'additional_fields' =>
+                                        $additionalFields,
+                                ],
+
+                                'active_version_id' =>
+                                    null,
+
+                                'has_unpublished_changes' =>
+                                    true,
+
+                                'status' =>
+                                    'draft',
+                            ]);
+
+                    if ($returnToBulk) {
+                        $publishedVersion =
+                            $consentTemplate
+                                ->versions()
+                                ->create([
+                                    'version_number' =>
+                                        1,
+
+                                    'title' =>
+                                        $consentTemplate
+                                            ->title,
+
+                                    'description' =>
+                                        $consentTemplate
+                                            ->description,
+
+                                    'template_schema' =>
+                                        $consentTemplate
+                                            ->template_schema,
+
+                                    'published_at' =>
+                                        now(),
+
+                                    'published_by' =>
+                                        Auth::id(),
+                                ]);
+
+                        $consentTemplate->update([
+                            'active_version_id' =>
+                                $publishedVersion->id,
+
+                            'has_unpublished_changes' =>
+                                false,
+
+                            'status' =>
+                                'published',
+                        ]);
+                    }
+
+                    return $consentTemplate
+                        ->refresh();
+                },
+                3
+            );
+
+        if ($returnToBulk) {
+            return redirect()
+                ->route(
+                    'consent-campaigns.create',
+                    $consentTemplate
+                )
+                ->with(
+                    'success',
+                    'Template created and published. Add the campaign recipients.'
+                );
+        }
 
         return redirect()
             ->route('consent-templates.manage')
@@ -733,6 +843,15 @@ class ConsentTemplateController extends Controller
                 Rule::in([
                     ConsentTemplate::USAGE_INDIVIDUAL,
                     ConsentTemplate::USAGE_SIGNING_STATION,
+                ]),
+            ],
+
+            'return_to' => [
+                'nullable',
+                'string',
+
+                Rule::in([
+                    'bulk',
                 ]),
             ],
 

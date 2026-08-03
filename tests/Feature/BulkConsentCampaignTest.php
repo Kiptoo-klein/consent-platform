@@ -611,6 +611,142 @@ class BulkConsentCampaignTest extends TestCase
         );
     }
 
+
+    public function test_bulk_template_chooser_offers_create_new_template(): void
+    {
+        $response = $this->get(
+            route(
+                'consent-campaigns.select-template'
+            )
+        );
+
+        $response
+            ->assertOk()
+            ->assertSeeText(
+                'Use Existing Template'
+            )
+            ->assertSeeText(
+                'Create New Template'
+            )
+            ->assertSee(
+                route(
+                    'consent-templates.create',
+                    [
+                        'type' =>
+                            ConsentTemplate::
+                                USAGE_INDIVIDUAL,
+
+                        'return_to' =>
+                            'bulk',
+                    ]
+                )
+            );
+    }
+
+    public function test_new_bulk_template_is_published_and_continues_to_recipients(): void
+    {
+        $response = $this->post(
+            route(
+                'consent-templates.store'
+            ),
+            [
+                'title' =>
+                    'Fresh Bulk Consent',
+
+                'description' =>
+                    'Created directly from the bulk flow.',
+
+                'usage_types' => [
+                    ConsentTemplate::
+                        USAGE_INDIVIDUAL,
+                ],
+
+                'content' =>
+                    'I consent to the stated terms.',
+
+                'additional_fields_json' =>
+                    '[]',
+
+                'return_to' =>
+                    'bulk',
+            ]
+        );
+
+        $createdTemplate =
+            ConsentTemplate::query()
+                ->where(
+                    'organization_id',
+                    $this->organization->id
+                )
+                ->where(
+                    'title',
+                    'Fresh Bulk Consent'
+                )
+                ->firstOrFail();
+
+        $response
+            ->assertRedirect(
+                route(
+                    'consent-campaigns.create',
+                    $createdTemplate
+                )
+            )
+            ->assertSessionHas(
+                'success',
+                'Template created and published. Add the campaign recipients.'
+            );
+
+        $this->assertSame(
+            ConsentTemplate::USAGE_INDIVIDUAL,
+            $createdTemplate->usage_type
+        );
+
+        $this->assertSame(
+            'published',
+            $createdTemplate->status
+        );
+
+        $this->assertFalse(
+            (bool) $createdTemplate
+                ->has_unpublished_changes
+        );
+
+        $this->assertNotNull(
+            $createdTemplate
+                ->active_version_id
+        );
+
+        $this->assertDatabaseHas(
+            'consent_template_versions',
+            [
+                'consent_template_id' =>
+                    $createdTemplate->id,
+
+                'version_number' =>
+                    1,
+
+                'published_by' =>
+                    $this->administrator->id,
+            ]
+        );
+
+        $this
+            ->get(
+                route(
+                    'consent-campaigns.create',
+                    $createdTemplate
+                )
+            )
+            ->assertOk()
+            ->assertSeeText(
+                'Send to Multiple People'
+            )
+            ->assertSeeText(
+                'Fresh Bulk Consent'
+            );
+    }
+
+
     public function test_campaigns_and_templates_are_tenant_scoped(): void
     {
         $otherOrganization =
