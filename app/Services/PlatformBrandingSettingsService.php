@@ -18,11 +18,21 @@ class PlatformBrandingSettingsService
      */
     public function settings(): array
     {
-        if (
-            ! Schema::hasTable(
-                'platform_branding_settings'
-            )
-        ) {
+        /*
+         * Laravel Cloud runs Composer package discovery while building the
+         * image. The production database may not be attached or reachable
+         * during that phase, so branding must safely use built-in defaults.
+         */
+        try {
+            $brandingTableExists =
+                Schema::hasTable(
+                    'platform_branding_settings'
+                );
+        } catch (\Throwable) {
+            return $this->defaults();
+        }
+
+        if (! $brandingTableExists) {
             return $this->defaults();
         }
 
