@@ -44,8 +44,21 @@ class EnforceEmailQuota
 
         if (! $reservation['allowed']) {
             if (method_exists($job, 'release')) {
+                /*
+                 * Laravel Cloud managed queues reject per-message delays
+                 * longer than 15 minutes. Re-check quota periodically until
+                 * the original rolling-window capacity becomes available.
+                 */
                 $job->release(
-                    $reservation['retry_after']
+                    min(
+                        max(
+                            1,
+                            (int) $reservation[
+                                'retry_after'
+                            ]
+                        ),
+                        900
+                    )
                 );
 
                 return;
