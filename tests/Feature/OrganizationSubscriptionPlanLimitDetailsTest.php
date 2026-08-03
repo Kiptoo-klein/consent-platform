@@ -132,6 +132,12 @@ class OrganizationSubscriptionPlanLimitDetailsTest extends TestCase
 
             'billing_cycle' =>
                 'monthly',
+
+            'requires_plan_selection' =>
+                false,
+
+            'plan_selected_at' =>
+                now(),
         ]);
     }
 

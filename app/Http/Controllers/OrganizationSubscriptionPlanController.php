@@ -170,7 +170,8 @@ class OrganizationSubscriptionPlanController extends Controller
             $validated['billing_cycle'];
 
         if (
-            (int) $subscription
+            ! $subscription->requiresPlanSelection()
+            && (int) $subscription
                 ->subscription_plan_id
                 === (int) $subscriptionPlan->id
             && (string) $subscription
@@ -354,7 +355,10 @@ class OrganizationSubscriptionPlanController extends Controller
 
                             'current_subscription_plan_id' =>
                                 $lockedSubscription
-                                    ->subscription_plan_id,
+                                    ->requiresPlanSelection()
+                                    ? null
+                                    : $lockedSubscription
+                                        ->subscription_plan_id,
 
                             'requested_subscription_plan_id' =>
                                 $lockedPlan->id,
@@ -418,7 +422,10 @@ class OrganizationSubscriptionPlanController extends Controller
                     properties: [
                         'current_subscription_plan_id' =>
                             $lockedSubscription
-                                ->subscription_plan_id,
+                                ->requiresPlanSelection()
+                                ? null
+                                : $lockedSubscription
+                                    ->subscription_plan_id,
 
                         'requested_subscription_plan_id' =>
                             $lockedPlan->id,

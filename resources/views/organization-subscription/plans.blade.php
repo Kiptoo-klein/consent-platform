@@ -36,12 +36,21 @@
     </x-slot>
 
     @php
+        $requiresPlanSelection =
+            $subscription
+                ?->requiresPlanSelection()
+            ?? false;
+
         $currentPlan =
-            $subscription?->plan;
+            $requiresPlanSelection
+                ? null
+                : $subscription?->plan;
 
         $currentPlanId =
-            $subscription
-                ?->subscription_plan_id;
+            $requiresPlanSelection
+                ? null
+                : $subscription
+                    ?->subscription_plan_id;
 
         $currentBillingCycle =
             $subscription?->billing_cycle
@@ -120,15 +129,17 @@
                 <div class="grid gap-8 p-6 sm:p-8 lg:grid-cols-[1.1fr_1fr]">
                     <div>
                         <p class="text-xs font-bold uppercase tracking-[0.18em] text-teal-100">
-                            Current subscription
+                            {{ $currentPlan
+                                ? 'Current subscription'
+                                : 'Choose your subscription plan' }}
                         </p>
 
                         <h2 class="mt-3 text-3xl font-extrabold">
                             {{ $currentPlan?->name
-                                ?? 'No active plan' }}
+                                ?? 'No plan selected' }}
                         </h2>
 
-                        @if ($subscription)
+                        @if ($currentPlan)
                             <div class="mt-5 flex flex-wrap gap-2">
                                 <span class="rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold ring-1 ring-inset ring-white/25">
                                     {{ $formatCycle(
@@ -167,37 +178,63 @@
                         @endif
 
                         <p class="mt-5 max-w-2xl text-sm font-medium leading-7 text-teal-50">
-                            Selecting another plan creates a pending request
-                            and a draft invoice. Your current plan remains
-                            unchanged until Platform Billing confirms payment.
+                            @if ($currentPlan)
+                                Selecting another plan creates a pending request
+                                and a draft invoice. Your current plan remains
+                                unchanged until payment is confirmed.
+                            @else
+                                No plan has been selected for this organization.
+                                Compare every active plan below, then choose a
+                                monthly or annual billing cycle.
+                            @endif
                         </p>
                     </div>
 
-                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                        @foreach ($usageCards as $item)
-                            <div class="rounded-2xl bg-white/10 p-4 ring-1 ring-inset ring-white/20">
-                                <p class="text-xs font-bold uppercase tracking-wide text-teal-100">
-                                    {{ $item['label'] }}
+                    @if ($currentPlan)
+                        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                            @foreach ($usageCards as $item)
+                                <div class="rounded-2xl bg-white/10 p-4 ring-1 ring-inset ring-white/20">
+                                    <p class="text-xs font-bold uppercase tracking-wide text-teal-100">
+                                        {{ $item['label'] }}
+                                    </p>
+
+                                    <p class="mt-2 text-xl font-extrabold">
+                                        {{ number_format(
+                                            $item['usage']
+                                        ) }}
+
+                                        <span class="text-sm font-semibold text-teal-100">
+                                            @if ($item['limit'] === null)
+                                                / Unlimited
+                                            @else
+                                                / {{ number_format(
+                                                    $item['limit']
+                                                ) }}
+                                            @endif
+                                        </span>
+                                    </p>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="flex items-center">
+                            <div class="w-full rounded-2xl bg-white/10 p-6 ring-1 ring-inset ring-white/20">
+                                <p class="text-xs font-bold uppercase tracking-[0.16em] text-teal-100">
+                                    First-time setup
                                 </p>
 
-                                <p class="mt-2 text-xl font-extrabold">
-                                    {{ number_format(
-                                        $item['usage']
-                                    ) }}
+                                <h3 class="mt-3 text-xl font-extrabold text-white">
+                                    Every active plan is available
+                                </h3>
 
-                                    <span class="text-sm font-semibold text-teal-100">
-                                        @if ($item['limit'] === null)
-                                            / Unlimited
-                                        @else
-                                            / {{ number_format(
-                                                $item['limit']
-                                            ) }}
-                                        @endif
-                                    </span>
+                                <p class="mt-3 text-sm font-medium leading-7 text-teal-50">
+                                    Nothing has been preselected. Review the
+                                    pricing and limits below, then choose the
+                                    plan that fits your organization.
                                 </p>
                             </div>
-                        @endforeach
-                    </div>
+                        </div>
+                    @endif
                 </div>
             </section>
 
@@ -396,8 +433,14 @@
                             class="mt-6 rounded-xl border p-4 text-sm font-bold leading-6"
                             style="background-color:#ecfdf5;color:#065f46;border-color:#6ee7b7;"
                         >
-                            Your current subscription remains active while
-                            this plan request is being reviewed.
+                            @if ($currentPlan)
+                                Your current subscription remains active while
+                                this plan request is being processed.
+                            @else
+                                No customer-selected plan is active yet. The
+                                requested plan becomes active only after
+                                payment is confirmed.
+                            @endif
                         </div>
 
                         <div
@@ -895,9 +938,15 @@
                                 class="rounded-xl border p-4 text-sm font-bold leading-6"
                                 style="background-color:#ecfdf5;color:#065f46;border-color:#6ee7b7;"
                             >
-                                Your current subscription remains active
-                                until payment is confirmed and the requested
-                                plan is activated.
+                                @if ($currentPlan)
+                                    Your current subscription remains active
+                                    until payment is confirmed and the requested
+                                    plan is activated.
+                                @else
+                                    No customer-selected plan is active yet.
+                                    The requested plan will be activated after
+                                    payment is confirmed.
+                                @endif
                             </div>
                         </div>
                     </section>

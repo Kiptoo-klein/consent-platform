@@ -36,7 +36,17 @@
     </x-slot>
 
     @php
+        $requiresPlanSelection =
+            $subscription
+                ?->requiresPlanSelection()
+            ?? false;
+
         $plan = $subscription?->plan;
+
+        $displayPlan =
+            $requiresPlanSelection
+                ? null
+                : $plan;
 
         $paymentStatus = $subscription?->payment_status?->value;
         $lifecycleStatus = $subscription?->status?->value;
@@ -97,7 +107,8 @@
                             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
                                 Current plan:
                                 <span class="font-semibold text-gray-900 dark:text-white">
-                                    {{ $plan?->name ?? 'Unavailable' }}
+                                    {{ $displayPlan?->name
+                                        ?? 'No plan selected' }}
                                 </span>
                             </p>
                         </div>
@@ -110,6 +121,8 @@
                         >
                             @if ($hasAccess)
                                 Access approved
+                            @elseif ($requiresPlanSelection)
+                                Plan selection required
                             @else
                                 Payment required
                             @endif
@@ -138,7 +151,11 @@
                                 </p>
 
                                 <p class="mt-2 text-lg font-bold text-gray-900 dark:text-white">
-                                    {{ $formatStatus($lifecycleStatus) }}
+                                    {{ $requiresPlanSelection
+                                        ? 'Plan not selected'
+                                        : $formatStatus(
+                                            $lifecycleStatus
+                                        ) }}
                                 </p>
                             </div>
 
@@ -155,13 +172,27 @@
 
                         @if (! $hasAccess)
                             <div class="mt-6 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-amber-950 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-100">
-                                <h3 class="font-bold">
-                                    Payment required
-                                </h3>
+                                @if ($requiresPlanSelection)
+                                    <h3 class="font-bold">
+                                        Choose a subscription plan
+                                    </h3>
 
-                                <p class="mt-1 text-sm">
-                                    Organization workflows remain unavailable until payment is confirmed or a Platform Admin approves access.
-                                </p>
+                                    <p class="mt-1 text-sm">
+                                        The Organization Admin or Billing
+                                        Owner must choose a plan before
+                                        payment and activation.
+                                    </p>
+                                @else
+                                    <h3 class="font-bold">
+                                        Payment required
+                                    </h3>
+
+                                    <p class="mt-1 text-sm">
+                                        Organization workflows remain
+                                        unavailable until payment is confirmed
+                                        or a Platform Admin approves access.
+                                    </p>
+                                @endif
                             </div>
                         @endif
                     @endif
@@ -176,7 +207,12 @@
                         </h2>
 
                         <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                            Current use of the {{ $plan->name }} plan. The
+                            @if ($requiresPlanSelection)
+                                Current organization usage is shown for setup
+                                reference. The
+                            @else
+                                Current use of the {{ $plan->name }} plan. The
+                            @endif
                             Organization Admin is included in the total user limit.
                         </p>
                     </div>

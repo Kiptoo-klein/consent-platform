@@ -41,7 +41,14 @@
     </x-slot>
 
     @php
-        $plan = $subscription->plan;
+        $requiresPlanSelection =
+            $subscription
+                ->requiresPlanSelection();
+
+        $plan =
+            $requiresPlanSelection
+                ? null
+                : $subscription->plan;
 
         $formatStatus = static fn (?string $status): string =>
             $status
@@ -258,7 +265,8 @@
                         <p class="mt-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                             Current plan:
                             <span class="font-semibold text-gray-900 dark:text-white">
-                                {{ $plan?->name ?? 'Unavailable' }}
+                                {{ $plan?->name
+                                    ?? 'No plan selected' }}
                             </span>
                         </p>
                     </div>

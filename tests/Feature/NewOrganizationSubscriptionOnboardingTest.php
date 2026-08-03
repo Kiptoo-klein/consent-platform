@@ -89,6 +89,16 @@ class NewOrganizationSubscriptionOnboardingTest extends TestCase
                 ->billing_owner_user_id
         );
 
+        $this->assertTrue(
+            $subscription
+                ->requiresPlanSelection()
+        );
+
+        $this->assertNull(
+            $subscription
+                ->plan_selected_at
+        );
+
         $this
             ->actingAs(
                 $administrator
@@ -101,6 +111,15 @@ class NewOrganizationSubscriptionOnboardingTest extends TestCase
             ->assertOk()
             ->assertSeeText(
                 'Subscription Plans'
+            )
+            ->assertSeeText(
+                'No plan selected'
+            )
+            ->assertSeeText(
+                'Nothing has been preselected'
+            )
+            ->assertDontSeeText(
+                'Current monthly plan'
             )
             ->assertSee(
                 route(
@@ -149,6 +168,11 @@ class NewOrganizationSubscriptionOnboardingTest extends TestCase
             OrganizationSubscriptionPlanRequest::
                 query()
                 ->sole();
+
+        $this->assertNull(
+            $planRequest
+                ->current_subscription_plan_id
+        );
 
         $invoice =
             $planRequest
@@ -252,6 +276,91 @@ class NewOrganizationSubscriptionOnboardingTest extends TestCase
             ->assertSeeText(
                 'Download PDF'
             );
+    }
+
+    public function test_new_organization_can_explicitly_choose_basic_monthly(): void
+    {
+        $this->seed([
+            PlatformRoleSeeder::class,
+            SubscriptionPlanSeeder::class,
+        ]);
+
+        $this->post('/register', [
+            'organization_name' =>
+                'Basic Choice Clinic',
+
+            'name' =>
+                'Basic Choice Administrator',
+
+            'email' =>
+                'basic-choice-admin@example.com',
+
+            'password' =>
+                'Password123!',
+
+            'password_confirmation' =>
+                'Password123!',
+        ]);
+
+        $administrator =
+            User::query()
+                ->where(
+                    'email',
+                    'basic-choice-admin@example.com'
+                )
+                ->firstOrFail();
+
+        $basicPlan =
+            SubscriptionPlan::query()
+                ->where('slug', 'basic')
+                ->firstOrFail();
+
+        $basicPlan->update([
+            'monthly_price' =>
+                '5000.00',
+
+            'currency' =>
+                'KES',
+        ]);
+
+        $this
+            ->actingAs(
+                $administrator
+            )
+            ->post(
+                route(
+                    'organization-subscription-plans.request',
+                    $basicPlan
+                ),
+                [
+                    'billing_cycle' =>
+                        'monthly',
+                ]
+            )
+            ->assertRedirect(
+                route(
+                    'organization-subscription-plans.index'
+                )
+            )
+            ->assertSessionHas(
+                'success'
+            );
+
+        $planRequest =
+            OrganizationSubscriptionPlanRequest::
+                query()
+                ->sole();
+
+        $this->assertNull(
+            $planRequest
+                ->current_subscription_plan_id
+        );
+
+        $this->assertSame(
+            $basicPlan->id,
+            $planRequest
+                ->requested_subscription_plan_id
+        );
     }
 
     public function test_ordinary_user_cannot_issue_invoice(): void

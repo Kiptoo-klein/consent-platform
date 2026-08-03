@@ -342,6 +342,12 @@ class SubscriptionTransactionController extends Controller
                 $subscription->update([
                     'payment_status' =>
                         SubscriptionPaymentStatus::PAID,
+
+                    'requires_plan_selection' =>
+                        false,
+
+                    'plan_selected_at' =>
+                        $paidAt,
                 ]);
             }
 
@@ -870,6 +876,12 @@ class SubscriptionTransactionController extends Controller
                     'billing_cycle' =>
                         $planRequest->billing_cycle,
 
+                    'requires_plan_selection' =>
+                        false,
+
+                    'plan_selected_at' =>
+                        $paidAt,
+
                     'status' =>
                         OrganizationSubscriptionStatus::
                             ACTIVE,
@@ -1149,6 +1161,15 @@ class SubscriptionTransactionController extends Controller
 
             'billing_cycle' =>
                 $subscription->billing_cycle,
+
+            'requires_plan_selection' =>
+                $subscription
+                    ->requires_plan_selection,
+
+            'plan_selected_at' =>
+                $subscription
+                    ->plan_selected_at
+                    ?->toIso8601String(),
 
             'status' =>
                 $subscription->status?->value,

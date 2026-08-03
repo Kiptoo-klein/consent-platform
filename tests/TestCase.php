@@ -32,6 +32,8 @@ abstract class TestCase extends BaseTestCase
                 'billing_owner_user_id' => $billingOwner->id,
                 'status' => OrganizationSubscriptionStatus::ACTIVE,
                 'payment_status' => SubscriptionPaymentStatus::PAID,
+                'requires_plan_selection' => false,
+                'plan_selected_at' => now(),
                 'starts_at' => now(),
             ]
         );

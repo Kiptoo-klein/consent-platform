@@ -43,7 +43,14 @@ test('new organizations can register', function () {
         ->with('plan')
         ->firstOrFail();
 
+    /*
+     * Basic remains an internal relational placeholder only.
+     * It has not been selected by the customer.
+     */
     expect($subscription->plan->slug)->toBe('basic');
+    expect($subscription->requires_plan_selection)->toBeTrue();
+    expect($subscription->requiresPlanSelection())->toBeTrue();
+    expect($subscription->plan_selected_at)->toBeNull();
 
     expect($subscription->status)->toBe(
         \App\Enums\OrganizationSubscriptionStatus::TRIALING

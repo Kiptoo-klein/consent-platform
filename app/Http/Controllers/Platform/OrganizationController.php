@@ -598,7 +598,14 @@ class OrganizationController extends Controller
             $exceededLimits
         ): void {
             $subscription->update([
-                'subscription_plan_id' => $newPlan->id,
+                'subscription_plan_id' =>
+                    $newPlan->id,
+
+                'requires_plan_selection' =>
+                    false,
+
+                'plan_selected_at' =>
+                    now(),
             ]);
 
             $this->activityLogger->log(

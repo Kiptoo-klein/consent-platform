@@ -25,6 +25,8 @@ class OrganizationSubscription extends Model
         'status',
         'payment_status',
         'billing_cycle',
+        'requires_plan_selection',
+        'plan_selected_at',
         'starts_at',
         'trial_ends_at',
         'current_period_starts_at',
@@ -46,6 +48,8 @@ class OrganizationSubscription extends Model
         return [
             'status' => OrganizationSubscriptionStatus::class,
             'payment_status' => SubscriptionPaymentStatus::class,
+            'requires_plan_selection' => 'boolean',
+            'plan_selected_at' => 'datetime',
             'starts_at' => 'datetime',
             'trial_ends_at' => 'datetime',
             'current_period_starts_at' => 'datetime',
@@ -54,6 +58,18 @@ class OrganizationSubscription extends Model
             'ends_at' => 'datetime',
             'bypass_approved_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Determine whether this is still the initial customer plan choice.
+     */
+    public function requiresPlanSelection(): bool
+    {
+        return $this->requires_plan_selection === true
+            && $this->status
+                === OrganizationSubscriptionStatus::TRIALING
+            && $this->payment_status
+                !== SubscriptionPaymentStatus::PAID;
     }
 
     /**

@@ -94,6 +94,12 @@ class PlatformInvoicePaymentRecordingTest extends TestCase
                     'subscription_plan_id' =>
                         $this->currentPlan->id,
 
+                    'requires_plan_selection' =>
+                        true,
+
+                    'plan_selected_at' =>
+                        null,
+
                     'billing_owner_user_id' =>
                         null,
 
@@ -448,6 +454,23 @@ class PlatformInvoicePaymentRecordingTest extends TestCase
         $this->assertSame(
             SubscriptionPaymentStatus::PAID,
             $subscription->payment_status
+        );
+
+        $this->assertFalse(
+            $subscription
+                ->requires_plan_selection
+        );
+
+        $this->assertFalse(
+            $subscription
+                ->requiresPlanSelection()
+        );
+
+        $this->assertSame(
+            '2026-01-31 14:45:30',
+            $subscription
+                ->plan_selected_at
+                ->toDateTimeString()
         );
 
         $this->assertSame(

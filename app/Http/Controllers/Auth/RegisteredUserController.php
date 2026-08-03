@@ -133,6 +133,8 @@ class RegisteredUserController extends Controller
                 $organization->subscription()->create([
                     'subscription_plan_id' => $basicPlan->id,
                     'billing_owner_user_id' => $user->id,
+                    'requires_plan_selection' => true,
+                    'plan_selected_at' => null,
                     'status' =>
                         OrganizationSubscriptionStatus::TRIALING,
                     'payment_status' =>
