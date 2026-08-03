@@ -8,7 +8,7 @@ use App\Services\ConsentPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ConsentPdfController extends Controller
 {
@@ -20,10 +20,13 @@ class ConsentPdfController extends Controller
         Request $request,
         ConsentPdfService $consentPdfService,
         ConsentAuditService $consentAuditService
-    ): BinaryFileResponse {
+    ): StreamedResponse {
         $this->ensureSessionBelongsToOrganization(
             $consentSession
         );
+
+        $pdfDisk =
+            $consentPdfService->diskName();
 
         abort_if(
             empty($consentSession->pdf_path)
@@ -33,7 +36,7 @@ class ConsentPdfController extends Controller
         );
 
         abort_unless(
-            Storage::disk('local')->exists(
+            Storage::disk($pdfDisk)->exists(
                 $consentSession->pdf_path
             ),
             404,
@@ -56,7 +59,7 @@ class ConsentPdfController extends Controller
                 'An organization user initiated a download of the completed consent PDF.',
             metadata: [
                 'storage_disk' =>
-                    'local',
+                    $pdfDisk,
 
                 'pdf_path' =>
                     $consentSession->pdf_path,
@@ -67,10 +70,8 @@ class ConsentPdfController extends Controller
             request: $request
         );
 
-        return response()->download(
-            Storage::disk('local')->path(
-                $consentSession->pdf_path
-            ),
+        return Storage::disk($pdfDisk)->download(
+            $consentSession->pdf_path,
             $downloadFilename,
             [
                 'Content-Type' =>

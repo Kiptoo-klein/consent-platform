@@ -15,7 +15,19 @@ class ConsentPdfService
     ) {
     }
 
+
     /**
+     * Storage disk containing immutable consent PDFs.
+     */
+    public function diskName(): string
+    {
+        return (string) config(
+            'consent-pdf.disk',
+            'local'
+        );
+    }
+
+/**
      * Generate and permanently store the consent PDF.
      */
     public function generateAndStore(
@@ -46,7 +58,7 @@ class ConsentPdfService
 
         if (
             filled($consentSession->pdf_path)
-            && Storage::disk('local')->exists(
+            && Storage::disk($this->diskName())->exists(
                 $consentSession->pdf_path
             )
         ) {
@@ -118,7 +130,7 @@ class ConsentPdfService
 
         $path = $this->storagePath();
 
-        $stored = Storage::disk('local')->put(
+        $stored = Storage::disk($this->diskName())->put(
             $path,
             $pdf->output()
         );

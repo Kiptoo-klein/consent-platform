@@ -50,7 +50,7 @@ class ConsentCompletedMail extends Mailable
 
         return [
             Attachment::fromStorageDisk(
-                'local',
+                $pdfService->diskName(),
                 $this->consentSession->pdf_path
             )->as(
                 $pdfService->downloadFilename(

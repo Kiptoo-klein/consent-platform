@@ -302,7 +302,11 @@ class ConsentBulkDownloadController extends Controller
             ) {
                 $absolutePdfPath =
                     $this->privatePdfPath(
-                        (string) $consentSession->pdf_path
+                        (string) $consentSession->pdf_path,
+                        (string) config(
+                            'consent-pdf.disk',
+                            'local'
+                        )
                     );
 
                 if ($absolutePdfPath === null) {
@@ -617,7 +621,8 @@ class ConsentBulkDownloadController extends Controller
      * Resolve a stored private PDF path safely.
      */
     private function privatePdfPath(
-        string $storedPath
+        string $storedPath,
+        string $diskName
     ): ?string {
         $normalizedPath = ltrim(
             str_replace('\\', '/', $storedPath),
@@ -631,33 +636,91 @@ class ConsentBulkDownloadController extends Controller
             return null;
         }
 
-        $candidatePaths = [$normalizedPath];
-
-        if (str_starts_with(
+        $candidatePaths = [
             $normalizedPath,
-            'private/'
-        )) {
+        ];
+
+        if (
+            str_starts_with(
+                $normalizedPath,
+                'private/'
+            )
+        ) {
             $candidatePaths[] = substr(
                 $normalizedPath,
                 strlen('private/')
             );
         }
 
-        foreach (array_unique($candidatePaths) as $candidate) {
-            if (! Storage::disk('local')->exists($candidate)) {
+        $disk = Storage::disk($diskName);
+
+        foreach (
+            array_unique($candidatePaths)
+            as $candidate
+        ) {
+            if (! $disk->exists($candidate)) {
                 continue;
             }
 
-            $absolutePath = Storage::disk('local')->path(
+            $source = $disk->readStream(
                 $candidate
             );
 
-            if (
-                is_file($absolutePath)
-                && is_readable($absolutePath)
-            ) {
-                return $absolutePath;
+            if (! is_resource($source)) {
+                continue;
             }
+
+            $temporaryPath = tempnam(
+                sys_get_temp_dir(),
+                'econsent-pdf-'
+            );
+
+            if (
+                ! is_string($temporaryPath)
+                || $temporaryPath === ''
+            ) {
+                fclose($source);
+
+                return null;
+            }
+
+            $target = fopen(
+                $temporaryPath,
+                'wb'
+            );
+
+            if (! is_resource($target)) {
+                fclose($source);
+                @unlink($temporaryPath);
+
+                return null;
+            }
+
+            try {
+                $copied = stream_copy_to_stream(
+                    $source,
+                    $target
+                );
+            } finally {
+                fclose($source);
+                fclose($target);
+            }
+
+            if ($copied === false) {
+                @unlink($temporaryPath);
+
+                continue;
+            }
+
+            register_shutdown_function(
+                static function () use (
+                    $temporaryPath
+                ): void {
+                    @unlink($temporaryPath);
+                }
+            );
+
+            return $temporaryPath;
         }
 
         return null;
