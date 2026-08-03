@@ -26,3 +26,4 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 .env.before-local-recovery-*
+.patch-backups/
