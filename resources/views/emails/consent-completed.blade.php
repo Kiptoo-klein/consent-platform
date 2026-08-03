@@ -138,8 +138,7 @@
                                             border: 1px solid #d1d5db;
                                         "
                                     >
-                                        {{ optional($consentSession->completed_at)
-                                            ->format('j F Y, g:i A') }}
+                                        {{ \App\Support\DisplayTime::format($consentSession->completed_at, 'j F Y, g:i A', '') }}
                                     </td>
                                 </tr>
                             </table>

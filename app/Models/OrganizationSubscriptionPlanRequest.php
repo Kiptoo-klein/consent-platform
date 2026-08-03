@@ -22,6 +22,16 @@ class OrganizationSubscriptionPlanRequest extends Model
 
     public const BILLING_CYCLE_ANNUAL = 'annual';
 
+    public const PAYMENT_CLAIM_PENDING =
+        'pending';
+
+    public const PAYMENT_CLAIM_CONFIRMED =
+        'confirmed';
+
+    public const PAYMENT_CLAIM_REJECTED =
+        'rejected';
+
+
     protected $fillable = [
         'organization_id',
         'organization_subscription_id',
@@ -38,6 +48,18 @@ class OrganizationSubscriptionPlanRequest extends Model
         'requested_at',
         'resolved_at',
         'resolved_by_user_id',
+        'payment_claim_status',
+        'payment_claim_amount',
+        'payment_claim_currency',
+        'payment_claim_method',
+        'payment_claim_reference',
+        'payment_claim_paid_at',
+        'payment_claim_notes',
+        'payment_claim_submitted_at',
+        'payment_claim_submitted_by_user_id',
+        'payment_claim_reviewed_at',
+        'payment_claim_reviewed_by_user_id',
+        'payment_claim_rejection_reason',
     ];
 
     protected function casts(): array
@@ -56,6 +78,18 @@ class OrganizationSubscriptionPlanRequest extends Model
                 'datetime',
 
             'resolved_at' =>
+                'datetime',
+
+            'payment_claim_amount' =>
+                'decimal:2',
+
+            'payment_claim_paid_at' =>
+                'datetime',
+
+            'payment_claim_submitted_at' =>
+                'datetime',
+
+            'payment_claim_reviewed_at' =>
                 'datetime',
         ];
     }
@@ -115,6 +149,22 @@ class OrganizationSubscriptionPlanRequest extends Model
         );
     }
 
+    public function paymentClaimSubmittedBy(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'payment_claim_submitted_by_user_id'
+        );
+    }
+
+    public function paymentClaimReviewedBy(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'payment_claim_reviewed_by_user_id'
+        );
+    }
+
     /**
      * Calculate the subscription period end without overflowing
      * shorter calendar months or non-leap years.
@@ -147,6 +197,26 @@ class OrganizationSubscriptionPlanRequest extends Model
     public function isPending(): bool
     {
         return $this->status === self::STATUS_PENDING;
+    }
+
+    public function hasPendingPaymentClaim(): bool
+    {
+        return $this->payment_claim_status
+            === self::PAYMENT_CLAIM_PENDING;
+    }
+
+    public function hasConfirmedPaymentClaim(): bool
+    {
+        return $this->payment_claim_status
+            === self::PAYMENT_CLAIM_CONFIRMED;
+    }
+
+    public function mayReportPayment(): bool
+    {
+        return $this->isPending()
+            && $this->resolved_at === null
+            && ! $this->hasPendingPaymentClaim()
+            && ! $this->hasConfirmedPaymentClaim();
     }
 
     /**

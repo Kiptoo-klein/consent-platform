@@ -260,9 +260,15 @@ class SubscriptionInvoiceReminderHistoryTest extends TestCase
         ]);
 
         $response->assertSeeText(
-            $newest->created_at->format(
-                'M d, Y H:i'
-            )
+            $newest
+                ->created_at
+                ->copy()
+                ->timezone(
+                    config('app.display_timezone')
+                )
+                ->format(
+                    'M d, Y H:i'
+                )
         );
 
         $response->assertDontSeeText(

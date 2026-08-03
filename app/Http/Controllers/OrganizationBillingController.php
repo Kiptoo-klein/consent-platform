@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\OrganizationRole;
 use App\Enums\SubscriptionInvoiceStatus;
+use App\Enums\SubscriptionTransactionStatus;
 use App\Models\Organization;
 use App\Models\OrganizationInvoiceReminderPreference;
 use App\Models\OrganizationInvoiceReminderRecipient;
@@ -74,6 +75,29 @@ class OrganizationBillingController extends Controller
                 $organization
             );
 
+        $latestSuccessfulTransaction =
+            SubscriptionTransaction::query()
+                ->where(
+                    'organization_id',
+                    $organization->id
+                )
+                ->where(
+                    'organization_subscription_id',
+                    $subscription->id
+                )
+                ->where(
+                    'status',
+                    SubscriptionTransactionStatus::
+                        SUCCESSFUL->value
+                )
+                ->with([
+                    'plan',
+                    'invoice',
+                ])
+                ->orderByDesc('paid_at')
+                ->orderByDesc('id')
+                ->first();
+
         $transactions = SubscriptionTransaction::query()
             ->where(
                 'organization_id',
@@ -126,6 +150,9 @@ class OrganizationBillingController extends Controller
 
                 'transactions' =>
                     $transactions,
+
+                'latestSuccessfulTransaction' =>
+                    $latestSuccessfulTransaction,
 
                 'invoices' =>
                     $invoices,
@@ -440,6 +467,7 @@ class OrganizationBillingController extends Controller
             'subscription',
             'plan',
             'issuedBy',
+            'planRequest',
 
             'transactions' => function ($query): void {
                 $query->latest('id');

@@ -204,6 +204,112 @@ class OrganizationSubscriptionBillingPortalTest extends TestCase
         );
     }
 
+    public function test_latest_successful_payment_has_persistent_receipt_banner(): void
+    {
+        $older =
+            $this->createTransaction([
+                'reference' =>
+                    'PORTAL-BANNER-OLDER',
+
+                'status' =>
+                    SubscriptionTransactionStatus::SUCCESSFUL,
+
+                'amount' =>
+                    '100.00',
+
+                'paid_at' =>
+                    now()->subDay(),
+            ]);
+
+        $latest =
+            $this->createTransaction([
+                'reference' =>
+                    'PORTAL-BANNER-LATEST',
+
+                'status' =>
+                    SubscriptionTransactionStatus::SUCCESSFUL,
+
+                'amount' =>
+                    '275.50',
+
+                'paid_at' =>
+                    now(),
+            ]);
+
+        $this->createTransaction([
+            'reference' =>
+                'PORTAL-BANNER-PENDING',
+
+            'status' =>
+                SubscriptionTransactionStatus::PENDING,
+
+            'paid_at' =>
+                now()->addMinute(),
+        ]);
+
+        $response =
+            $this
+                ->actingAs(
+                    $this->organizationAdmin
+                )
+                ->get(
+                    $this->portalUrl()
+                );
+
+        $response->assertOk();
+
+        $response->assertSeeText(
+            'Payment confirmed'
+        );
+
+        $response->assertSeeText(
+            'Your receipt is ready'
+        );
+
+        $response->assertSeeText(
+            'PORTAL-BANNER-LATEST'
+        );
+
+        $response->assertSeeText(
+            '275.50'
+        );
+
+        $response->assertSee(
+            'data-payment-confirmed-banner',
+            false
+        );
+
+        $response->assertSee(
+            'data-transaction-id="'
+                .$latest->id
+                .'"',
+            false
+        );
+
+        $response->assertDontSee(
+            'data-transaction-id="'
+                .$older->id
+                .'"',
+            false
+        );
+
+        $response->assertSee(
+            route(
+                'organization-billing.receipts.show',
+                $latest
+            ),
+            false
+        );
+
+        $response->assertSee(
+            route(
+                'organization-billing.receipts.download',
+                $latest
+            ),
+            false
+        );
+    }
+
     public function test_billing_portal_shows_clear_empty_state(): void
     {
         $response = $this

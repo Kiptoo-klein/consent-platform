@@ -256,10 +256,10 @@ class OrganizationSubscriptionPlanSelectionTest extends TestCase
             )
             ->assertOk()
             ->assertSeeText(
-                'Awaiting Platform Billing review'
+                'Pending plan change'
             )
             ->assertSeeText(
-                'Draft invoice prepared'
+                'Invoice amount'
             )
             ->assertSeeText(
                 $invoice->invoice_number
@@ -268,16 +268,16 @@ class OrganizationSubscriptionPlanSelectionTest extends TestCase
                 'KES 10,000.00'
             )
             ->assertSeeText(
-                'Draft - not yet payable'
+                'Draft'
             )
             ->assertSeeText(
                 'Your current subscription remains active'
             )
             ->assertSeeText(
-                'Waiting for Platform Billing'
+                'Pending plan change'
             )
             ->assertSeeText(
-                'Action required by Platform Billing'
+                'Cancel Request'
             )
             ->assertDontSeeText(
                 'Continue to Payment'
@@ -854,12 +854,12 @@ class OrganizationSubscriptionPlanSelectionTest extends TestCase
                 false
             )
             ->assertSee(
-                "Cancel this plan request?",
+                "Cancel this subscription request and invoice?",
                 false
             );
     }
 
-    public function test_issued_invoice_page_hides_direct_cancel_request_button(): void
+    public function test_issued_invoice_page_shows_cancel_request_button_until_payment_is_reported(): void
     {
         $this
             ->actingAs(
@@ -906,20 +906,19 @@ class OrganizationSubscriptionPlanSelectionTest extends TestCase
                 )
             )
             ->assertOk()
-            ->assertDontSeeText(
+            ->assertSeeText(
                 'Cancel Request'
             )
-            ->assertDontSee(
+            ->assertSee(
                 route(
-                    'organization-subscription-plans.cancel',
+                    'organization-subscription-payment-claims.cancel',
                     $planRequest
                 ),
                 false
             );
     }
 
-
-    public function test_issued_plan_request_page_shows_invoice_and_payment_instructions(): void
+    public function test_issued_plan_request_page_shows_compact_invoice_summary_without_payment_instructions(): void
     {
         $this
             ->actingAs(
@@ -970,44 +969,17 @@ class OrganizationSubscriptionPlanSelectionTest extends TestCase
                 'mpesa_business_number' =>
                     '400200',
 
-                'mpesa_account_reference_instructions' =>
-                    'Use the invoice number as the account reference.',
-
-                'mpesa_instructions' =>
-                    'Keep the confirmation message.',
-
                 'bank_enabled' =>
                     true,
 
                 'bank_name' =>
                     'Example Commercial Bank',
 
-                'bank_account_name' =>
-                    'eConsent Holdings',
-
                 'bank_account_number' =>
                     '0102030405',
 
-                'bank_branch' =>
-                    'Nairobi',
-
-                'bank_swift_code' =>
-                    'EXAMPLEKX',
-
-                'bank_reference_instructions' =>
-                    'Use the invoice number as the transfer reference.',
-
-                'bank_instructions' =>
-                    'Bank charges are paid by the sender.',
-
                 'billing_contact_email' =>
                     'billing@example.com',
-
-                'billing_contact_phone' =>
-                    '+254700000000',
-
-                'additional_instructions' =>
-                    'Send payment confirmation after payment.',
             ],
         ]);
 
@@ -1022,40 +994,34 @@ class OrganizationSubscriptionPlanSelectionTest extends TestCase
             )
             ->assertOk()
             ->assertSeeText(
-                'Invoice issued — payment required'
-            )
-            ->assertSeeText(
-                'Payment Instructions'
+                'Pending plan change'
             )
             ->assertSeeText(
                 $invoice->invoice_number
             )
             ->assertSeeText(
-                $dueDate->format('M d, Y')
-            )
-            ->assertSeeText(
-                'M-Pesa'
-            )
-            ->assertSeeText(
-                'Paybill'
-            )
-            ->assertSeeText(
-                '400200'
-            )
-            ->assertSeeText(
-                'Example Commercial Bank'
-            )
-            ->assertSeeText(
-                '0102030405'
-            )
-            ->assertSeeText(
-                'billing@example.com'
+                $dueDate->format('M j, Y')
             )
             ->assertSeeText(
                 'View Invoice'
             )
             ->assertSeeText(
                 'Download PDF'
+            )
+            ->assertSeeText(
+                'Cancel Request'
+            )
+            ->assertSeeText(
+                'Pending request active'
+            )
+            ->assertDontSeeText(
+                'Payment Instructions'
+            )
+            ->assertDontSeeText(
+                'M-Pesa'
+            )
+            ->assertDontSeeText(
+                '400200'
             )
             ->assertSee(
                 route(
@@ -1070,14 +1036,7 @@ class OrganizationSubscriptionPlanSelectionTest extends TestCase
                     $invoice
                 ),
                 false
-            )
-            ->assertDontSeeText(
-                'Cancel Request'
-            )
-            ->assertDontSeeText(
-                'Draft - not yet payable'
             );
     }
-
 
 }

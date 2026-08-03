@@ -541,7 +541,7 @@
                                                 @php
                             $renewalPeriodStartValue = old(
                                 'current_period_starts_at',
-                                now()->format('d/m/Y')
+                                now()->copy()->timezone(config('app.display_timezone'))->format('d/m/Y')
                             );
 
                             $renewalPeriodEndValue = old(
@@ -549,7 +549,7 @@
                                 now()
                                     ->copy()
                                     ->addMonth()
-                                    ->format('d/m/Y')
+                                    ->copy()->timezone(config('app.display_timezone'))->format('d/m/Y')
                             );
 
                             $renewalFinalEndValue = old(
@@ -557,7 +557,7 @@
                                 $subscription->ends_at
                                     ? $subscription
                                         ->ends_at
-                                        ->format('d/m/Y')
+                                        ->copy()->timezone(config('app.display_timezone'))->format('d/m/Y')
                                     : ''
                             );
                         @endphp
@@ -1176,7 +1176,7 @@
                                         </dt>
 
                                         <dd class="mt-1 text-green-950">
-                                            {{ $subscription->bypass_approved_at?->format('M d, Y H:i') ?? '—' }}
+                                            {{ $subscription->bypass_approved_at?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i') ?? '—' }}
                                         </dd>
                                     </div>
                                 </dl>
@@ -1317,7 +1317,7 @@
                                 ? data_get(
                                     $organization,
                                     'created_at'
-                                )->format('M d, Y H:i')
+                                )->copy()->timezone(config('app.display_timezone'))->format('M d, Y H:i')
                                 : '—' }}
                         </dd>
                     </div>

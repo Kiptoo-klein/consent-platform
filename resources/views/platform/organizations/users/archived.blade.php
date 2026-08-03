@@ -118,7 +118,7 @@
 
                                     <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-600">
                                         {{ $user->deleted_at
-                                            ? $user->deleted_at->format(
+                                            ? $user->deleted_at->copy()->timezone(config('app.display_timezone'))->format(
                                                 'M d, Y H:i'
                                             )
                                             : '—' }}

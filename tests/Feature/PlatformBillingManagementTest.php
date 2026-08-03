@@ -102,9 +102,9 @@ class PlatformBillingManagementTest extends TestCase
         $response
             ->assertOk()
             ->assertSeeText('Billing Management')
-            ->assertSeeText('Manual payment workflow')
+            ->assertSeeText('Payment verification at a glance')
             ->assertSeeText('Central Billing Clinic')
-            ->assertSeeText('Payment attention')
+            ->assertSeeText('Outstanding')
             ->assertSeeText('1 outstanding')
             ->assertSeeText('Invoices')
             ->assertSeeText('Payments')

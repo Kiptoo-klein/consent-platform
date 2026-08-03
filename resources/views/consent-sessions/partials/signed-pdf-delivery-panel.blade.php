@@ -20,7 +20,7 @@
 
             try {
                 if ($value instanceof \DateTimeInterface) {
-                    return $value->format('d/m/y H:i');
+                    return \App\Support\DisplayTime::format($value, 'd/m/y H:i', (string) $value);
                 }
 
                 return \Illuminate\Support\Carbon::parse($value)

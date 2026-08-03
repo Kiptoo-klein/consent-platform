@@ -79,7 +79,7 @@
                         </p>
 
                         <p class="mt-2 text-base font-semibold text-gray-900">
-                            {{ $consentSession->completed_at?->format('M d, Y H:i') ?? 'Just now' }}
+                            {{ $consentSession->completed_at?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i') ?? 'Just now' }}
                         </p>
                     </div>
                 </div>

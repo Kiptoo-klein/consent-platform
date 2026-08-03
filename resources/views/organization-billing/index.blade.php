@@ -58,6 +58,166 @@
 
     <div class="py-8 sm:py-10">
         <div class="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
+
+            @if ($latestSuccessfulTransaction)
+                <section
+                    class="overflow-hidden rounded-3xl border shadow-md"
+                    style="background-color:#ecfdf5 !important;border-color:#86efac !important;"
+                    data-payment-confirmed-banner
+                    data-transaction-id="{{ $latestSuccessfulTransaction->id }}"
+                >
+                    <div class="p-6 sm:p-7">
+                        <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                            <div class="flex min-w-0 items-start gap-4">
+                                <div
+                                    class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full"
+                                    style="background-color:#16a34a !important;color:#ffffff !important;"
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2.5"
+                                        class="h-6 w-6"
+                                        aria-hidden="true"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M5 12l4 4L19 6"
+                                        />
+                                    </svg>
+                                </div>
+
+                                <div class="min-w-0">
+                                    <p
+                                        class="text-xs font-extrabold uppercase tracking-[0.16em]"
+                                        style="color:#15803d !important;"
+                                    >
+                                        Payment confirmed
+                                    </p>
+
+                                    <h2
+                                        class="mt-1 text-xl font-black sm:text-2xl"
+                                        style="color:#14532d !important;"
+                                    >
+                                        Your receipt is ready
+                                    </h2>
+
+                                    <p
+                                        class="mt-2 max-w-3xl text-sm font-medium leading-6"
+                                        style="color:#166534 !important;"
+                                    >
+                                        Platform Billing verified this payment.
+                                        You can now view or download the official
+                                        receipt at any time.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="flex shrink-0 flex-col gap-3 sm:flex-row">
+                                <a
+                                    href="{{ route(
+                                        'organization-billing.receipts.show',
+                                        $latestSuccessfulTransaction
+                                    ) }}"
+                                    class="inline-flex items-center justify-center rounded-xl px-5 py-3 text-sm font-extrabold text-white shadow-sm transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2"
+                                    style="background-color:#15803d !important;color:#ffffff !important;"
+                                >
+                                    View Receipt
+                                </a>
+
+                                <a
+                                    href="{{ route(
+                                        'organization-billing.receipts.download',
+                                        $latestSuccessfulTransaction
+                                    ) }}"
+                                    class="inline-flex items-center justify-center rounded-xl border px-5 py-3 text-sm font-extrabold shadow-sm transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2"
+                                    style="background-color:#ffffff !important;color:#166534 !important;border-color:#4ade80 !important;"
+                                >
+                                    Download Receipt
+                                </a>
+                            </div>
+                        </div>
+
+                        <dl
+                            class="mt-6 grid gap-3 border-t pt-5 sm:grid-cols-2 lg:grid-cols-4"
+                            style="border-color:#bbf7d0 !important;"
+                        >
+                            <div>
+                                <dt
+                                    class="text-xs font-bold uppercase tracking-wide"
+                                    style="color:#15803d !important;"
+                                >
+                                    Amount paid
+                                </dt>
+
+                                <dd
+                                    class="mt-1 text-base font-black"
+                                    style="color:#14532d !important;"
+                                >
+                                    {{ $latestSuccessfulTransaction->currency }}
+                                    {{ number_format(
+                                        (float) $latestSuccessfulTransaction->amount,
+                                        2
+                                    ) }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt
+                                    class="text-xs font-bold uppercase tracking-wide"
+                                    style="color:#15803d !important;"
+                                >
+                                    Plan
+                                </dt>
+
+                                <dd
+                                    class="mt-1 text-base font-black"
+                                    style="color:#14532d !important;"
+                                >
+                                    {{ $latestSuccessfulTransaction->plan?->name ?? '—' }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt
+                                    class="text-xs font-bold uppercase tracking-wide"
+                                    style="color:#15803d !important;"
+                                >
+                                    Paid
+                                </dt>
+
+                                <dd
+                                    class="mt-1 text-base font-black"
+                                    style="color:#14532d !important;"
+                                >
+                                    {{ $latestSuccessfulTransaction->paid_at?->copy()?->timezone(config('app.display_timezone'))?->format(
+                                        'M j, Y g:i A'
+                                    ) ?? '—' }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt
+                                    class="text-xs font-bold uppercase tracking-wide"
+                                    style="color:#15803d !important;"
+                                >
+                                    Receipt reference
+                                </dt>
+
+                                <dd
+                                    class="mt-1 break-all text-base font-black"
+                                    style="color:#14532d !important;"
+                                >
+                                    {{ $latestSuccessfulTransaction->reference }}
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
+                </section>
+            @endif
+
             {{-- BILLING_OWNER_ROLE_ASSIGNMENT --}}
             <section class="overflow-hidden rounded-3xl border border-teal-200 bg-white shadow-lg dark:border-teal-900 dark:bg-gray-900">
                 <div class="bg-gradient-to-r from-teal-900 via-teal-800 to-teal-700 px-6 py-6 sm:px-8">
@@ -148,84 +308,180 @@
                             action="{{ route(
                                 'organization-billing.owner.update'
                             ) }}"
-                            class="rounded-2xl border border-teal-200 bg-teal-50/50 p-6 shadow-sm dark:border-teal-900 dark:bg-teal-950/20"
+                            class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+                            style="background-color:#ffffff !important;border-color:#cbd5e1 !important;"
+                            data-billing-owner-assignment-panel
                         >
                             @csrf
                             @method('PATCH')
 
-                            <h3 class="text-lg font-bold text-gray-950 dark:text-white">
-                                Assign Billing Role
-                            </h3>
-
-                            <p class="mt-2 text-base font-medium leading-7 text-gray-700 dark:text-gray-300">
-                                Assign the Billing Owner role to an active
-                                organization user.
-                            </p>
-
-                            <p class="mt-1 text-sm leading-6 text-gray-700 dark:text-gray-300">
-                                Their normal organization role will not be changed.
-                            </p>
-
-                            <label
-                                for="billing_owner_user_id"
-                                class="mt-5 block text-sm font-bold text-gray-950 dark:text-white"
+                            <div
+                                class="border-t-4 px-6 pb-5 pt-6"
+                                style="border-color:#0f766e !important;"
                             >
-                                User receiving Billing Owner role
-                            </label>
-
-                            <select
-                                id="billing_owner_user_id"
-                                name="billing_owner_user_id"
-                                required
-                                class="mt-2 block w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-base font-semibold text-gray-950 shadow-sm focus:border-teal-700 focus:ring-teal-700 dark:border-gray-600 dark:bg-gray-950 dark:text-white"
-                            >
-                                @foreach ($billingUsers as $billingUser)
-                                    <option
-                                        value="{{ $billingUser->id }}"
-                                        @selected(
-                                            (int) old(
-                                                'billing_owner_user_id',
-                                                $subscription
-                                                    ->billing_owner_user_id
-                                            )
-                                            === (int) $billingUser->id
-                                        )
+                                <div class="flex items-start gap-3">
+                                    <div
+                                        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                                        style="background-color:#ccfbf1 !important;color:#0f766e !important;"
                                     >
-                                        {{ $billingUser->name }}
-                                        — {{ $billingUser->email }}
-                                        — {{ $billingUser->roles
-                                            ->first()?->name
-                                            ?? 'No organization role' }}
-                                    </option>
-                                @endforeach
-                            </select>
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                            class="h-5 w-5"
+                                            aria-hidden="true"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"
+                                            />
+                                            <circle cx="9" cy="7" r="4" />
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M19 8v6M22 11h-6"
+                                            />
+                                        </svg>
+                                    </div>
 
-                            @error('billing_owner_user_id')
-                                <p class="mt-2 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-bold text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
-                                    {{ $message }}
-                                </p>
-                            @enderror
+                                    <div>
+                                        <h3
+                                            class="text-lg font-extrabold"
+                                            style="color:#111827 !important;"
+                                        >
+                                            Assign Billing Role
+                                        </h3>
 
-                            <div class="mt-5 rounded-xl border-2 border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-                                <p class="font-bold">
-                                    Billing role changes immediately
-                                </p>
+                                        <p
+                                            class="mt-1 text-sm font-medium leading-6"
+                                            style="color:#475569 !important;"
+                                        >
+                                            Choose the active organization user
+                                            who should manage invoices, receipts,
+                                            reminders, and billing notifications.
+                                        </p>
 
-                                <p class="mt-1 text-sm font-medium leading-6">
-                                    The selected user gains access to billing
-                                    records, invoices, receipts, reminder
-                                    settings, and billing notifications. The
-                                    previous Billing Owner loses this access
-                                    unless they are an Organization Admin.
-                                </p>
+                                        <p
+                                            class="mt-1 text-xs font-semibold"
+                                            style="color:#64748b !important;"
+                                        >
+                                            Their normal organization role will not be changed.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
 
-                            <button
-                                type="submit"
-                                class="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-teal-800 px-5 py-3 text-base font-bold text-white shadow-sm transition hover:bg-teal-900 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 sm:w-auto"
-                            >
-                                Assign Billing Role
-                            </button>
+                            <div class="space-y-4 px-6 pb-6">
+                                <div
+                                    class="rounded-xl border p-4"
+                                    style="background-color:#f8fafc !important;border-color:#e2e8f0 !important;"
+                                >
+                                    <label
+                                        for="billing_owner_user_id"
+                                        class="block text-sm font-extrabold"
+                                        style="color:#1f2937 !important;"
+                                    >
+                                        User receiving Billing Owner role
+                                    </label>
+
+                                    <p
+                                        class="mt-1 text-xs font-medium"
+                                        style="color:#64748b !important;"
+                                    >
+                                        Select one active user from this organization.
+                                    </p>
+
+                                    <select
+                                        id="billing_owner_user_id"
+                                        name="billing_owner_user_id"
+                                        required
+                                        class="mt-3 block w-full rounded-xl border-2 bg-white px-4 py-3 text-base font-semibold shadow-sm focus:border-teal-700 focus:ring-teal-700"
+                                        style="background-color:#ffffff !important;color:#111827 !important;border-color:#cbd5e1 !important;"
+                                    >
+                                        @foreach ($billingUsers as $billingUser)
+                                            <option
+                                                value="{{ $billingUser->id }}"
+                                                @selected(
+                                                    (int) old(
+                                                        'billing_owner_user_id',
+                                                        $subscription
+                                                            ->billing_owner_user_id
+                                                    )
+                                                    === (int) $billingUser->id
+                                                )
+                                            >
+                                                {{ $billingUser->name }}
+                                                — {{ $billingUser->email }}
+                                                — {{ $billingUser->roles
+                                                    ->first()?->name
+                                                    ?? 'No organization role' }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+
+                                    @error('billing_owner_user_id')
+                                        <p class="mt-2 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+                                </div>
+
+                                <div
+                                    class="flex items-start gap-3 rounded-xl border p-4"
+                                    style="background-color:#fffbeb !important;border-color:#f59e0b !important;"
+                                >
+                                    <div
+                                        class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                                        style="background-color:#fef3c7 !important;color:#b45309 !important;"
+                                    >
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                            class="h-4 w-4"
+                                            aria-hidden="true"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M12 9v4m0 4h.01M10.3 3.7L2.8 17a2 2 0 001.7 3h15a2 2 0 001.7-3L13.7 3.7a2 2 0 00-3.4 0z"
+                                            />
+                                        </svg>
+                                    </div>
+
+                                    <div>
+                                        <p
+                                            class="font-extrabold"
+                                            style="color:#92400e !important;"
+                                        >
+                                            Billing role changes immediately
+                                        </p>
+
+                                        <p
+                                            class="mt-1 text-sm font-medium leading-6"
+                                            style="color:#9a3412 !important;"
+                                        >
+                                            The selected user gains billing access
+                                            immediately. The previous Billing Owner
+                                            loses this access unless they are also an
+                                            Organization Admin.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="pt-1">
+                                    <button
+                                        type="submit"
+                                        class="inline-flex w-full items-center justify-center rounded-xl px-5 py-3 text-base font-extrabold text-white shadow-sm transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 sm:w-auto"
+                                        style="background-color:#0f766e !important;color:#ffffff !important;"
+                                    >
+                                        Assign Billing Role
+                                    </button>
+                                </div>
+                            </div>
                         </form>
                     @else
                         <div class="rounded-2xl border border-gray-200 bg-gray-50 p-6 shadow-sm dark:border-gray-700 dark:bg-gray-950">
@@ -305,7 +561,7 @@
                         </dt>
 
                         <dd class="mt-1 font-semibold text-gray-900 dark:text-white">
-                            {{ $subscription->current_period_starts_at?->format('M d, Y H:i') ?? '—' }}
+                            {{ $subscription->current_period_starts_at?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i') ?? '—' }}
                         </dd>
                     </div>
 
@@ -315,7 +571,7 @@
                         </dt>
 
                         <dd class="mt-1 font-semibold text-gray-900 dark:text-white">
-                            {{ $subscription->current_period_ends_at?->format('M d, Y H:i') ?? '—' }}
+                            {{ $subscription->current_period_ends_at?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i') ?? '—' }}
                         </dd>
                     </div>
                 </dl>
@@ -387,11 +643,11 @@
                                         </td>
 
                                         <td class="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
-                                            {{ $invoice->issue_date?->format('M d, Y') ?? '—' }}
+                                            {{ $invoice->issue_date?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y') ?? '—' }}
                                         </td>
 
                                         <td class="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
-                                            {{ $invoice->due_date?->format('M d, Y') ?? '—' }}
+                                            {{ $invoice->due_date?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y') ?? '—' }}
                                         </td>
 
                                         <td class="px-5 py-4">
@@ -499,7 +755,7 @@
                                         </td>
 
                                         <td class="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
-                                            {{ $transaction->paid_at?->format('M d, Y H:i') ?? '—' }}
+                                            {{ $transaction->paid_at?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i') ?? '—' }}
                                         </td>
 
                                         <td class="px-5 py-4">

@@ -91,7 +91,7 @@
                         </dt>
 
                         <dd class="mt-1 font-semibold text-gray-950">
-                            {{ $campaign->created_at?->format('d M Y, H:i') }}
+                            {{ $campaign->created_at?->copy()?->timezone(config('app.display_timezone'))?->format('d M Y, H:i') }}
                         </dd>
                     </div>
 
@@ -101,7 +101,7 @@
                         </dt>
 
                         <dd class="mt-1 font-semibold text-gray-950">
-                            {{ $campaign->expires_at?->format('d M Y, H:i') ?? 'No deadline' }}
+                            {{ $campaign->expires_at?->copy()?->timezone(config('app.display_timezone'))?->format('d M Y, H:i') ?? 'No deadline' }}
                         </dd>
                     </div>
                 </dl>

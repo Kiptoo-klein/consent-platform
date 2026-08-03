@@ -179,9 +179,7 @@
 
                         <p class="mt-5 max-w-2xl text-sm font-medium leading-7 text-teal-50">
                             @if ($currentPlan)
-                                Selecting another plan creates a pending request
-                                and a draft invoice. Your current plan remains
-                                unchanged until payment is confirmed.
+                                Selecting another plan creates a pending request and issues its invoice immediately. Your current plan remains unchanged until payment is confirmed.
                             @else
                                 No plan has been selected for this organization.
                                 Compare every active plan below, then choose a
@@ -310,327 +308,164 @@
                         );
                 @endphp
 
-                @if ($isDraftInvoice)
-                    <section
-                        class="rounded-3xl border-2 p-6 shadow-sm sm:p-7"
-                        style="background-color:#fffbeb;border-color:#f59e0b;"
+                @php
+                    $pendingPlanName =
+                        $pendingRequest
+                            ->requestedPlan
+                            ?->name
+                        ?? 'Requested plan';
+
+                    $pendingCycleLabel =
+                        $formatCycle(
+                            $pendingRequest
+                                ->billing_cycle
+                        );
+
+                    $pendingInvoiceNumber =
+                        $pendingInvoice
+                            ?->invoice_number;
+
+                    $pendingAmountLabel =
+                        $pendingInvoice
+                            ? (
+                                $pendingInvoice->currency
+                                .' '
+                                .number_format(
+                                    (float) $pendingInvoice
+                                        ->total_amount,
+                                    2
+                                )
+                            )
+                            : (
+                                $pendingRequest->currency
+                                .' '
+                                .number_format(
+                                    (float) $pendingRequest
+                                        ->amount_snapshot,
+                                    2
+                                )
+                            );
+
+                    $pendingStatusLabel =
+                        $pendingInvoiceStatus
+                            ?->label()
+                        ?? 'Pending';
+
+                    $canCancelDraftRequest =
+                        $isDraftInvoice
+                        && $pendingRequest
+                            ->canBeCancelledByOrganization();
+
+                    $canCancelIssuedRequest =
+                        $isPayableInvoice
+                        && ! $pendingRequest
+                            ->hasPendingPaymentClaim()
+                        && ! $pendingRequest
+                            ->hasConfirmedPaymentClaim();
+
+                    $canCancelPendingRequest =
+                        $canCancelDraftRequest
+                        || $canCancelIssuedRequest;
+                @endphp
+
+                <section
+                    class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+                    data-pending-subscription-summary
+                >
+                    <div
+                        class="px-6 py-6 text-white sm:px-8"
+                        style="background:linear-gradient(135deg,#0f172a 0%,#172554 58%,#312e81 100%);"
                     >
-                        <div class="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-                            <div class="max-w-2xl">
-                                <div
-                                    class="inline-flex rounded-full px-3 py-1 text-xs font-extrabold uppercase tracking-wide"
-                                    style="background-color:#fef3c7;color:#78350f;"
-                                >
-                                    Awaiting Platform Billing review
-                                </div>
+                        <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                            <div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="inline-flex rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.14em] text-indigo-100">
+                                        Pending plan change
+                                    </span>
 
-                                <h2
-                                    class="mt-4 text-2xl font-extrabold"
-                                    style="color:#111827;"
-                                >
-                                    {{ $pendingRequest
-                                        ->requestedPlan
-                                        ?->name }}
-                                    —
-                                    {{ $formatCycle(
-                                        $pendingRequest
-                                            ->billing_cycle
-                                    ) }}
-                                </h2>
-
-                                <p
-                                    class="mt-3 text-sm font-semibold leading-6"
-                                    style="color:#374151;"
-                                >
-                                    Requested by
-                                    {{ $pendingRequest
-                                        ->requestedBy
-                                        ?->name
-                                        ?? 'an organization user' }}
-                                    on
-                                    {{ $pendingRequest
-                                        ->requested_at
-                                        ?->format('M d, Y H:i') }}.
-                                </p>
-
-                                <p
-                                    class="mt-4 text-sm font-bold leading-6"
-                                    style="color:#78350f;"
-                                >
-                                    Platform Billing must review this request
-                                    and issue the invoice before payment can
-                                    be made.
-                                </p>
-                            </div>
-
-                            <div
-                                class="w-full rounded-2xl border-2 p-5 shadow-sm xl:max-w-md"
-                                style="background-color:#ffffff;border-color:#d1d5db;"
-                            >
-                                <div class="flex flex-wrap items-start justify-between gap-3">
-                                    <div>
-                                        <p
-                                            class="text-xs font-extrabold uppercase tracking-wide"
-                                            style="color:#4b5563;"
-                                        >
-                                            Draft invoice prepared
-                                        </p>
-
-                                        <p
-                                            class="mt-2 text-lg font-extrabold"
-                                            style="color:#111827;"
-                                        >
-                                            {{ $pendingInvoice
-                                                ?->invoice_number
-                                                ?? 'Invoice number pending' }}
-                                        </p>
-                                    </div>
-
-                                    <span
-                                        class="rounded-full px-3 py-1 text-xs font-extrabold"
-                                        style="background-color:#e5e7eb;color:#111827;"
-                                    >
-                                        Draft - not yet payable
+                                    <span class="inline-flex rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-extrabold text-white">
+                                        {{ $pendingStatusLabel }}
                                     </span>
                                 </div>
 
-                                <div
-                                    class="mt-5 border-t pt-5"
-                                    style="border-color:#e5e7eb;"
-                                >
-                                    <p
-                                        class="text-xs font-extrabold uppercase tracking-wide"
-                                        style="color:#4b5563;"
-                                    >
-                                        Invoice amount
-                                    </p>
+                                <h2 class="mt-4 text-2xl font-black">
+                                    {{ $pendingPlanName }}
+                                    · {{ $pendingCycleLabel }}
+                                </h2>
 
-                                    <p
-                                        class="mt-2 text-2xl font-extrabold"
-                                        style="color:#111827;"
-                                    >
-                                        {{ $pendingRequest->currency }}
-                                        {{ number_format(
-                                            (float) $pendingRequest
-                                                ->amount_snapshot,
-                                            2
-                                        ) }}
-                                    </p>
-                                </div>
+                                <p class="mt-2 max-w-2xl text-sm font-medium leading-6 text-indigo-100">
+                                    The invoice is managed from Billing. Your
+                                    current subscription remains active until
+                                    payment is verified and this plan is activated.
+                                </p>
+                            </div>
 
-                                <div
-                                    class="mt-5 rounded-xl p-4 text-sm font-semibold leading-6"
-                                    style="background-color:#f3f4f6;color:#374151;"
-                                >
-                                    Platform Billing will issue this invoice
-                                    after review. Its due date, payment
-                                    instructions, and PDF download will appear
-                                    here once it is ready.
-                                </div>
+                            <div class="rounded-2xl border border-white/15 bg-white/10 px-5 py-4 lg:min-w-[230px] lg:text-right">
+                                <p class="text-xs font-bold uppercase tracking-[0.14em] text-indigo-200">
+                                    Invoice amount
+                                </p>
+
+                                <p class="mt-2 text-2xl font-black text-white">
+                                    {{ $pendingAmountLabel }}
+                                </p>
+
+                                @if ($pendingInvoice?->due_date)
+                                    <p class="mt-2 text-xs font-semibold text-slate-300">
+                                        Due
+                                        {{ $pendingInvoice
+                                            ->due_date
+                                            ->copy()->timezone(config('app.display_timezone'))->format('M j, Y') }}
+                                    </p>
+                                @endif
                             </div>
                         </div>
+                    </div>
 
-                        <div
-                            class="mt-6 rounded-xl border p-4 text-sm font-bold leading-6"
-                            style="background-color:#ecfdf5;color:#065f46;border-color:#6ee7b7;"
-                        >
-                            @if ($currentPlan)
-                                Your current subscription remains active while
-                                this plan request is being processed.
-                            @else
-                                No customer-selected plan is active yet. The
-                                requested plan becomes active only after
-                                payment is confirmed.
-                            @endif
-                        </div>
-
-                        <div
-                            class="mt-6 flex flex-col gap-4 rounded-2xl border p-5 sm:flex-row sm:items-center sm:justify-between"
-                            style="background-color:#eff6ff;border-color:#93c5fd;"
-                        >
+                    <div class="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_auto] lg:items-center">
+                        <dl class="grid gap-5 sm:grid-cols-3">
                             <div>
-                                <p
-                                    class="text-sm font-extrabold"
-                                    style="color:#1e3a8a;"
-                                >
-                                    Waiting for Platform Billing
-                                </p>
+                                <dt class="text-xs font-extrabold uppercase tracking-[0.12em] text-slate-500">
+                                    Requested plan
+                                </dt>
 
-                                <p
-                                    class="mt-1 text-sm font-semibold leading-6"
-                                    style="color:#1e40af;"
-                                >
-                                    The invoice is not payable yet. Platform
-                                    Billing must review and issue it before
-                                    payment instructions become available.
-                                </p>
+                                <dd class="mt-1 font-extrabold text-slate-950">
+                                    {{ $pendingPlanName }}
+                                </dd>
                             </div>
 
-                            <span
-                                class="inline-flex w-fit rounded-full border px-4 py-2 text-xs font-extrabold uppercase tracking-wide"
-                                style="background-color:#dbeafe;color:#1e3a8a;border-color:#60a5fa;"
-                            >
-                                Action required by Platform Billing
-                            </span>
-                        </div>
+                            <div>
+                                <dt class="text-xs font-extrabold uppercase tracking-[0.12em] text-slate-500">
+                                    Billing cycle
+                                </dt>
 
-                        @if (
-                            $pendingRequest
-                                ->canBeCancelledByOrganization()
-                        )
-                            <div
-                                class="mt-6 flex flex-col gap-3 border-t pt-6 sm:flex-row sm:items-center sm:justify-between"
-                                style="border-color:#fcd34d;"
-                            >
-                                <p
-                                    class="text-sm font-semibold leading-6"
-                                    style="color:#78350f;"
-                                >
-                                    Selected the wrong plan or billing
-                                    cycle? You may cancel while the invoice
-                                    is still a draft.
-                                </p>
-
-                                <form
-                                    method="POST"
-                                    action="{{ route(
-                                        'organization-subscription-plans.cancel',
-                                        $pendingRequest
-                                    ) }}"
-                                    onsubmit="return confirm('Cancel this plan request? The draft invoice will also be cancelled, and your current subscription will remain unchanged.');"
-                                >
-                                    @csrf
-                                    @method('DELETE')
-
-                                    <button
-                                        type="submit"
-                                        class="inline-flex items-center justify-center rounded-xl border px-5 py-2.5 text-sm font-extrabold shadow-sm transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                                        style="background-color:#b91c1c !important;color:#ffffff !important;border-color:#991b1b !important;"
-                                    >
-                                        Cancel Request
-                                    </button>
-                                </form>
-                            </div>
-                        @endif
-                    </section>
-                @elseif ($isPayableInvoice)
-                    <section
-                        class="overflow-hidden rounded-3xl border-2 shadow-sm"
-                        style="background-color:#ffffff;border-color:#dc2626;"
-                    >
-                        <div
-                            class="px-6 py-6 sm:px-8"
-                            style="background-color:#7f1d1d;color:#ffffff;"
-                        >
-                            <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                                <div>
-                                    <div
-                                        class="inline-flex rounded-full px-3 py-1 text-xs font-extrabold uppercase tracking-wide"
-                                        style="background-color:#fee2e2;color:#7f1d1d;"
-                                    >
-                                        @if (
-                                            $pendingInvoiceStatus
-                                            === \App\Enums\SubscriptionInvoiceStatus::
-                                                OVERDUE
-                                        )
-                                            Invoice overdue — payment required
-                                        @else
-                                            Invoice issued — payment required
-                                        @endif
-                                    </div>
-
-                                    <h2 class="mt-4 text-2xl font-extrabold">
-                                        {{ $pendingRequest
-                                            ->requestedPlan
-                                            ?->name }}
-                                        —
-                                        {{ $formatCycle(
-                                            $pendingRequest
-                                                ->billing_cycle
-                                        ) }}
-                                    </h2>
-
-                                    <p class="mt-3 max-w-2xl text-sm font-semibold leading-6 text-red-50">
-                                        Platform Billing has issued the
-                                        subscription invoice. Complete
-                                        payment using one of the approved
-                                        methods below.
-                                    </p>
-                                </div>
-
-                                <span
-                                    class="inline-flex w-fit rounded-full px-3 py-1 text-sm font-extrabold"
-                                    style="background-color:#ffffff;color:#7f1d1d;"
-                                >
-                                    {{ $pendingInvoiceStatus?->label() }}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="space-y-6 p-6 sm:p-8">
-                            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                                @foreach ([
-                                    [
-                                        'label' => 'Invoice number',
-                                        'value' => $pendingInvoice
-                                            ?->invoice_number
-                                            ?? 'Unavailable',
-                                    ],
-                                    [
-                                        'label' => 'Amount payable',
-                                        'value' => $pendingInvoice
-                                            ?->currency
-                                            .' '
-                                            .number_format(
-                                                (float) $pendingInvoice
-                                                    ?->total_amount,
-                                                2
-                                            ),
-                                    ],
-                                    [
-                                        'label' => 'Issue date',
-                                        'value' => $pendingInvoice
-                                            ?->issue_date
-                                            ?->format('M d, Y')
-                                            ?? 'Unavailable',
-                                    ],
-                                    [
-                                        'label' => 'Due date',
-                                        'value' => $pendingInvoice
-                                            ?->due_date
-                                            ?->format('M d, Y')
-                                            ?? 'Unavailable',
-                                    ],
-                                ] as $item)
-                                    <div
-                                        class="rounded-2xl border p-5"
-                                        style="background-color:#f9fafb;border-color:#d1d5db;"
-                                    >
-                                        <p
-                                            class="text-xs font-extrabold uppercase tracking-wide"
-                                            style="color:#4b5563;"
-                                        >
-                                            {{ $item['label'] }}
-                                        </p>
-
-                                        <p
-                                            class="mt-2 font-extrabold"
-                                            style="color:#111827;"
-                                        >
-                                            {{ $item['value'] }}
-                                        </p>
-                                    </div>
-                                @endforeach
+                                <dd class="mt-1 font-extrabold text-slate-950">
+                                    {{ $pendingCycleLabel }}
+                                </dd>
                             </div>
 
-                            <div class="flex flex-wrap gap-3">
+                            <div>
+                                <dt class="text-xs font-extrabold uppercase tracking-[0.12em] text-slate-500">
+                                    Invoice
+                                </dt>
+
+                                <dd class="mt-1 break-words font-extrabold text-slate-950">
+                                    {{ $pendingInvoiceNumber
+                                        ?? 'Preparing invoice' }}
+                                </dd>
+                            </div>
+                        </dl>
+
+                        <div class="flex flex-wrap gap-3 lg:justify-end">
+                            @if (
+                                $pendingInvoice
+                                && ! $isDraftInvoice
+                            )
                                 <a
                                     href="{{ route(
                                         'organization-billing.invoices.show',
                                         $pendingInvoice
                                     ) }}"
-                                    class="inline-flex items-center justify-center rounded-xl border px-5 py-2.5 text-sm font-extrabold shadow-sm transition hover:opacity-90"
-                                    style="background-color:#1d4ed8 !important;color:#ffffff !important;border-color:#1e40af !important;"
+                                    class="inline-flex items-center justify-center rounded-xl bg-indigo-700 px-5 py-3 text-sm font-extrabold text-white shadow-sm transition hover:bg-indigo-800"
                                 >
                                     View Invoice
                                 </a>
@@ -640,336 +475,40 @@
                                         'organization-billing.invoices.download',
                                         $pendingInvoice
                                     ) }}"
-                                    class="inline-flex items-center justify-center rounded-xl border px-5 py-2.5 text-sm font-extrabold shadow-sm transition hover:opacity-90"
-                                    style="background-color:#4338ca !important;color:#ffffff !important;border-color:#3730a3 !important;"
+                                    class="inline-flex items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-sm font-extrabold text-indigo-800 shadow-sm transition hover:bg-indigo-100"
                                 >
                                     Download PDF
                                 </a>
-                            </div>
+                            @endif
 
-                            <section
-                                class="rounded-2xl border-2 p-5 sm:p-6"
-                                style="background-color:#f0fdf4;border-color:#22c55e;"
-                            >
-                                <h3
-                                    class="text-lg font-extrabold"
-                                    style="color:#14532d;"
-                                >
-                                    Payment Instructions
-                                </h3>
-
-                                @if ($hasPaymentInformation)
-                                    <div class="mt-5 grid gap-5 lg:grid-cols-2">
-                                        @if ($mpesaEnabled)
-                                            <div
-                                                class="rounded-xl border p-5"
-                                                style="background-color:#ffffff;border-color:#86efac;"
-                                            >
-                                                <h4
-                                                    class="font-extrabold"
-                                                    style="color:#14532d;"
-                                                >
-                                                    M-Pesa
-                                                </h4>
-
-                                                <dl class="mt-4 space-y-3 text-sm">
-                                                    <div>
-                                                        <dt
-                                                            class="font-bold"
-                                                            style="color:#4b5563;"
-                                                        >
-                                                            Payment type
-                                                        </dt>
-
-                                                        <dd
-                                                            class="mt-1 font-extrabold"
-                                                            style="color:#111827;"
-                                                        >
-                                                            {{ ucfirst(
-                                                                (string) data_get(
-                                                                    $paymentDetails,
-                                                                    'mpesa_type',
-                                                                    'M-Pesa'
-                                                                )
-                                                            ) }}
-                                                        </dd>
-                                                    </div>
-
-                                                    <div>
-                                                        <dt
-                                                            class="font-bold"
-                                                            style="color:#4b5563;"
-                                                        >
-                                                            Paybill or Till number
-                                                        </dt>
-
-                                                        <dd
-                                                            class="mt-1 font-extrabold"
-                                                            style="color:#111827;"
-                                                        >
-                                                            {{ data_get(
-                                                                $paymentDetails,
-                                                                'mpesa_business_number',
-                                                                'Unavailable'
-                                                            ) }}
-                                                        </dd>
-                                                    </div>
-                                                </dl>
-
-                                                @if (
-                                                    filled(
-                                                        data_get(
-                                                            $paymentDetails,
-                                                            'mpesa_account_reference_instructions'
-                                                        )
-                                                    )
-                                                )
-                                                    <p
-                                                        class="mt-4 whitespace-pre-line text-sm font-semibold leading-6"
-                                                        style="color:#374151;"
-                                                    >
-                                                        {{ data_get(
-                                                            $paymentDetails,
-                                                            'mpesa_account_reference_instructions'
-                                                        ) }}
-                                                    </p>
-                                                @endif
-
-                                                @if (
-                                                    filled(
-                                                        data_get(
-                                                            $paymentDetails,
-                                                            'mpesa_instructions'
-                                                        )
-                                                    )
-                                                )
-                                                    <p
-                                                        class="mt-3 whitespace-pre-line text-sm leading-6"
-                                                        style="color:#374151;"
-                                                    >
-                                                        {{ data_get(
-                                                            $paymentDetails,
-                                                            'mpesa_instructions'
-                                                        ) }}
-                                                    </p>
-                                                @endif
-                                            </div>
-                                        @endif
-
-                                        @if ($bankEnabled)
-                                            <div
-                                                class="rounded-xl border p-5"
-                                                style="background-color:#ffffff;border-color:#bfdbfe;"
-                                            >
-                                                <h4
-                                                    class="font-extrabold"
-                                                    style="color:#1e3a8a;"
-                                                >
-                                                    Bank Transfer
-                                                </h4>
-
-                                                <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                                                    @foreach ([
-                                                        'Bank' =>
-                                                            data_get(
-                                                                $paymentDetails,
-                                                                'bank_name'
-                                                            ),
-
-                                                        'Account name' =>
-                                                            data_get(
-                                                                $paymentDetails,
-                                                                'bank_account_name'
-                                                            ),
-
-                                                        'Account number' =>
-                                                            data_get(
-                                                                $paymentDetails,
-                                                                'bank_account_number'
-                                                            ),
-
-                                                        'Branch' =>
-                                                            data_get(
-                                                                $paymentDetails,
-                                                                'bank_branch'
-                                                            ),
-
-                                                        'SWIFT / BIC' =>
-                                                            data_get(
-                                                                $paymentDetails,
-                                                                'bank_swift_code'
-                                                            ),
-                                                    ] as $label => $value)
-                                                        @if (filled($value))
-                                                            <div>
-                                                                <dt
-                                                                    class="font-bold"
-                                                                    style="color:#4b5563;"
-                                                                >
-                                                                    {{ $label }}
-                                                                </dt>
-
-                                                                <dd
-                                                                    class="mt-1 break-words font-extrabold"
-                                                                    style="color:#111827;"
-                                                                >
-                                                                    {{ $value }}
-                                                                </dd>
-                                                            </div>
-                                                        @endif
-                                                    @endforeach
-                                                </dl>
-
-                                                @if (
-                                                    filled(
-                                                        data_get(
-                                                            $paymentDetails,
-                                                            'bank_reference_instructions'
-                                                        )
-                                                    )
-                                                )
-                                                    <p
-                                                        class="mt-4 whitespace-pre-line text-sm font-semibold leading-6"
-                                                        style="color:#374151;"
-                                                    >
-                                                        {{ data_get(
-                                                            $paymentDetails,
-                                                            'bank_reference_instructions'
-                                                        ) }}
-                                                    </p>
-                                                @endif
-
-                                                @if (
-                                                    filled(
-                                                        data_get(
-                                                            $paymentDetails,
-                                                            'bank_instructions'
-                                                        )
-                                                    )
-                                                )
-                                                    <p
-                                                        class="mt-3 whitespace-pre-line text-sm leading-6"
-                                                        style="color:#374151;"
-                                                    >
-                                                        {{ data_get(
-                                                            $paymentDetails,
-                                                            'bank_instructions'
-                                                        ) }}
-                                                    </p>
-                                                @endif
-                                            </div>
-                                        @endif
-                                    </div>
-
-                                    @if (
-                                        filled($billingEmail)
-                                        || filled($billingPhone)
-                                        || filled(
-                                            $additionalInstructions
+                            @if ($canCancelPendingRequest)
+                                <form
+                                    method="POST"
+                                    action="{{ $canCancelDraftRequest
+                                        ? route(
+                                            'organization-subscription-plans.cancel',
+                                            $pendingRequest
                                         )
-                                    )
-                                        <div
-                                            class="mt-5 rounded-xl border p-5"
-                                            style="background-color:#ffffff;border-color:#d1d5db;"
-                                        >
-                                            <h4
-                                                class="font-extrabold"
-                                                style="color:#111827;"
-                                            >
-                                                Billing Contact
-                                            </h4>
+                                        : route(
+                                            'organization-subscription-payment-claims.cancel',
+                                            $pendingRequest
+                                        ) }}"
+                                    onsubmit="return confirm('Cancel this subscription request and invoice? Your current subscription will remain unchanged.');"
+                                >
+                                    @csrf
+                                    @method('DELETE')
 
-                                            @if (filled($billingEmail))
-                                                <p
-                                                    class="mt-3 text-sm font-semibold"
-                                                    style="color:#374151;"
-                                                >
-                                                    Email:
-                                                    {{ $billingEmail }}
-                                                </p>
-                                            @endif
-
-                                            @if (filled($billingPhone))
-                                                <p
-                                                    class="mt-2 text-sm font-semibold"
-                                                    style="color:#374151;"
-                                                >
-                                                    Phone:
-                                                    {{ $billingPhone }}
-                                                </p>
-                                            @endif
-
-                                            @if (
-                                                filled(
-                                                    $additionalInstructions
-                                                )
-                                            )
-                                                <p
-                                                    class="mt-3 whitespace-pre-line text-sm leading-6"
-                                                    style="color:#374151;"
-                                                >
-                                                    {{ $additionalInstructions }}
-                                                </p>
-                                            @endif
-                                        </div>
-                                    @endif
-                                @else
-                                    <div
-                                        class="mt-4 rounded-xl border p-4 text-sm font-bold leading-6"
-                                        style="background-color:#fff7ed;color:#9a3412;border-color:#fdba74;"
+                                    <button
+                                        type="submit"
+                                        class="inline-flex items-center justify-center rounded-xl border border-red-200 bg-white px-5 py-3 text-sm font-extrabold text-red-700 shadow-sm transition hover:bg-red-50"
                                     >
-                                        Payment details were not attached
-                                        to this invoice. Contact Platform
-                                        Billing before sending payment.
-                                    </div>
-                                @endif
-                            </section>
-
-                            <div
-                                class="rounded-xl border p-4 text-sm font-bold leading-6"
-                                style="background-color:#ecfdf5;color:#065f46;border-color:#6ee7b7;"
-                            >
-                                @if ($currentPlan)
-                                    Your current subscription remains active
-                                    until payment is confirmed and the requested
-                                    plan is activated.
-                                @else
-                                    No customer-selected plan is active yet.
-                                    The requested plan will be activated after
-                                    payment is confirmed.
-                                @endif
-                            </div>
+                                        Cancel Request
+                                    </button>
+                                </form>
+                            @endif
                         </div>
-                    </section>
-                @else
-                    <section
-                        class="rounded-3xl border-2 p-6 shadow-sm"
-                        style="background-color:#f9fafb;border-color:#9ca3af;"
-                    >
-                        <span
-                            class="inline-flex rounded-full px-3 py-1 text-xs font-extrabold uppercase tracking-wide"
-                            style="background-color:#e5e7eb;color:#111827;"
-                        >
-                            {{ $pendingInvoiceStatus?->label()
-                                ?? 'Processing' }}
-                        </span>
-
-                        <h2
-                            class="mt-4 text-xl font-extrabold"
-                            style="color:#111827;"
-                        >
-                            Platform Billing is processing this request
-                        </h2>
-
-                        <p
-                            class="mt-2 text-sm font-semibold leading-6"
-                            style="color:#4b5563;"
-                        >
-                            The current subscription remains unchanged
-                            until the plan request is completed.
-                        </p>
-                    </section>
-                @endif
+                    </div>
+                </section>
             @endif
 
             <div class="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
@@ -1166,7 +705,7 @@
                                         <form
                                             method="POST"
                                             action="{{ route(
-                                                'organization-subscription-plans.request',
+                                                'organization-subscription-plans.select-and-issue',
                                                 $plan
                                             ) }}"
                                         >
@@ -1186,8 +725,29 @@
                                             </button>
                                         </form>
                                     @else
-                                        <div class="rounded-xl bg-teal-100 px-4 py-3 text-center text-sm font-bold text-teal-900 dark:bg-teal-950 dark:text-teal-200">
-                                            Current monthly plan
+                                        <div
+                                            aria-current="true"
+                                            class="inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-center text-sm font-extrabold text-white shadow-sm"
+                                            style="background-color:#0f766e !important;color:#ffffff !important;border-color:#115e59 !important;opacity:1 !important;"
+                                        >
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="2.25"
+                                                class="h-4 w-4"
+                                                aria-hidden="true"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    d="M5 12l4 4L19 6"
+                                                />
+                                            </svg>
+
+                                            <span>
+                                                Current monthly plan
+                                            </span>
                                         </div>
                                     @endif
 
@@ -1206,7 +766,7 @@
                                             <form
                                                 method="POST"
                                                 action="{{ route(
-                                                    'organization-subscription-plans.request',
+                                                    'organization-subscription-plans.select-and-issue',
                                                     $plan
                                                 ) }}"
                                             >
@@ -1226,16 +786,123 @@
                                                 </button>
                                             </form>
                                         @else
-                                            <div class="rounded-xl bg-indigo-100 px-4 py-3 text-center text-sm font-bold text-indigo-900 dark:bg-indigo-950 dark:text-indigo-200">
-                                                Current annual plan
+                                            <div
+                                                aria-current="true"
+                                                class="inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-center text-sm font-extrabold text-white shadow-sm"
+                                                style="background-color:#4338ca !important;color:#ffffff !important;border-color:#3730a3 !important;opacity:1 !important;"
+                                            >
+                                                <svg
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    stroke-width="2.25"
+                                                    class="h-4 w-4"
+                                                    aria-hidden="true"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        d="M5 12l4 4L19 6"
+                                                    />
+                                                </svg>
+
+                                                <span>
+                                                    Current annual plan
+                                                </span>
                                             </div>
                                         @endif
                                     @endif
                                 </div>
                             @elseif ($pendingRequest)
-                                <p class="rounded-xl bg-amber-100 px-4 py-3 text-center text-sm font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-                                    Request pending
-                                </p>
+                                @if (
+                                    (int) $pendingRequest
+                                        ->requested_subscription_plan_id
+                                    === (int) $plan->id
+                                )
+                                    <p
+                                        class="rounded-xl border px-4 py-3 text-center text-sm font-extrabold shadow-sm"
+                                        style="background-color:#f59e0b !important;color:#ffffff !important;border-color:#d97706 !important;"
+                                    >
+                                        Pending request
+                                    </p>
+                                @else
+                                    @if ($canCancelPendingRequest)
+                                        @if ($isCurrentPlan)
+                                            <form
+                                                method="POST"
+                                                action="{{ $canCancelDraftRequest
+                                                    ? route(
+                                                        'organization-subscription-plans.cancel',
+                                                        $pendingRequest
+                                                    )
+                                                    : route(
+                                                        'organization-subscription-payment-claims.cancel',
+                                                        $pendingRequest
+                                                    ) }}"
+                                                onsubmit="return confirm('Cancel this subscription request and invoice? Your current subscription will remain unchanged, and you may then choose another plan.');"
+                                            >
+                                                @csrf
+                                                @method('DELETE')
+
+                                                <button
+                                                    type="submit"
+                                                    class="inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-center text-xs font-extrabold leading-5 text-white shadow-sm transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                                                    style="background-color:#dc2626 !important;color:#ffffff !important;border-color:#b91c1c !important;"
+                                                >
+                                                    <svg
+                                                        viewBox="0 0 24 24"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        stroke-width="2"
+                                                        class="h-4 w-4"
+                                                        aria-hidden="true"
+                                                    >
+                                                        <path
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            d="M6 6l12 12M18 6 6 18"
+                                                        />
+                                                    </svg>
+
+                                                    <span>
+                                                        Cancel pending change
+                                                    </span>
+                                                </button>
+                                            </form>
+                                        @else
+                                            <div
+                                                class="rounded-xl border px-4 py-3 text-center shadow-sm"
+                                                style="background-color:#fffbeb !important;border-color:#f59e0b !important;"
+                                            >
+                                                <div class="flex items-center justify-center gap-2">
+                                                    <span
+                                                        class="h-2.5 w-2.5 rounded-full"
+                                                        style="background-color:#f59e0b !important;"
+                                                        aria-hidden="true"
+                                                    ></span>
+
+                                                    <p
+                                                        class="text-xs font-extrabold"
+                                                        style="color:#92400e !important;"
+                                                    >
+                                                        Pending request active
+                                                    </p>
+                                                </div>
+
+                                                <p
+                                                    class="mt-1 text-xs font-semibold leading-5"
+                                                    style="color:#b45309 !important;"
+                                                >
+                                                    Cancel it above before choosing this plan.
+                                                </p>
+                                            </div>
+                                        @endif
+                                    @else
+                                        <p class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center text-xs font-bold leading-5 text-slate-600">
+                                            Payment verification is pending
+                                        </p>
+                                    @endif
+                                @endif
                             @elseif (! $pricingConfigured)
                                 <p class="rounded-xl bg-gray-100 px-4 py-3 text-center text-sm font-bold text-gray-700 dark:bg-gray-800 dark:text-gray-300">
                                     Unavailable

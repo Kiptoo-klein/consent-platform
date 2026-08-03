@@ -315,7 +315,7 @@
                                                 </td>
 
                                                 <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                                                    {{ $session->created_at?->format('d M Y, H:i') }}
+                                                    {{ $session->created_at?->copy()?->timezone(config('app.display_timezone'))?->format('d M Y, H:i') }}
                                                 </td>
 
                                                 <td class="whitespace-nowrap px-6 py-4 text-right">
@@ -428,7 +428,7 @@
                                 </dt>
 
                                 <dd class="mt-1 text-sm text-gray-700 dark:text-gray-300">
-                                    {{ $signingStation->created_at?->format('d M Y, H:i') }}
+                                    {{ $signingStation->created_at?->copy()?->timezone(config('app.display_timezone'))?->format('d M Y, H:i') }}
                                 </dd>
                             </div>
                         </dl>

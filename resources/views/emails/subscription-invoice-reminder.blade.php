@@ -106,7 +106,7 @@
                                             align="right"
                                             style="padding:5px 0;font-weight:700;"
                                         >
-                                            {{ $invoice->due_date?->format('d M Y') }}
+                                            {{ $invoice->due_date?->copy()?->timezone(config('app.display_timezone'))?->format('d M Y') }}
                                         </td>
                                     </tr>
 

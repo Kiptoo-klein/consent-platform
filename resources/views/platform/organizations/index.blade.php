@@ -122,7 +122,7 @@
                                             ? data_get(
                                                 $organization,
                                                 'created_at'
-                                            )->format('M d, Y')
+                                            )->copy()->timezone(config('app.display_timezone'))->format('M d, Y')
                                             : '—' }}
                                     </td>
 

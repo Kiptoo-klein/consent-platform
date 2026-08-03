@@ -294,13 +294,13 @@
                                     <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-600">
                                         <div>
                                             {{ $log->created_at
-                                                ? $log->created_at->format('M d, Y')
+                                                ? $log->created_at->copy()->timezone(config('app.display_timezone'))->format('M d, Y')
                                                 : '—' }}
                                         </div>
 
                                         <div class="mt-1 text-xs text-gray-400">
                                             {{ $log->created_at
-                                                ? $log->created_at->format('H:i:s')
+                                                ? $log->created_at->copy()->timezone(config('app.display_timezone'))->format('H:i:s')
                                                 : '' }}
                                         </div>
                                     </td>

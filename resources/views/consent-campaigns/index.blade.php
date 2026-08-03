@@ -97,7 +97,7 @@
                                             </p>
 
                                             <p class="mt-1 text-xs text-gray-400">
-                                                Created {{ $campaign->created_at?->format('d M Y, H:i') }}
+                                                Created {{ $campaign->created_at?->copy()?->timezone(config('app.display_timezone'))?->format('d M Y, H:i') }}
                                             </p>
                                         </td>
 
@@ -134,7 +134,7 @@
                                         </td>
 
                                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
-                                            {{ $campaign->expires_at?->format('d M Y, H:i') ?? 'No deadline' }}
+                                            {{ $campaign->expires_at?->copy()?->timezone(config('app.display_timezone'))?->format('d M Y, H:i') ?? 'No deadline' }}
                                         </td>
 
                                         <td class="whitespace-nowrap px-6 py-4 text-right">

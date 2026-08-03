@@ -63,6 +63,39 @@ class BackNavigationResolverTest extends TestCase
         );
     }
 
+    public function test_organization_invoice_returns_to_subscription_plans(): void
+    {
+        $fallback =
+            route(
+                'dashboard'
+            );
+
+        $this->assertSame(
+            route(
+                'organization-subscription-plans.index'
+            ),
+            BackNavigation::forRoute(
+                'organization-billing.invoices.show',
+                [
+                    'subscriptionInvoice' =>
+                        12,
+                ],
+                $fallback
+            )
+        );
+
+        $this->assertSame(
+            route(
+                'organization-subscription.show'
+            ),
+            BackNavigation::forRoute(
+                'organization-billing.index',
+                [],
+                $fallback
+            )
+        );
+    }
+
     public function test_platform_nested_pages_return_through_their_hierarchy(): void
     {
         $fallback = route('platform.dashboard');

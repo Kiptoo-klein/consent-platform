@@ -298,7 +298,7 @@
 
                                         <td class="px-6 py-5 text-gray-600">
                                             @if ($consentTemplate->activeVersion)
-                                                {{ $consentTemplate->activeVersion->published_at?->format('M d, Y H:i') ?? 'Unknown' }}
+                                                {{ $consentTemplate->activeVersion->published_at?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i') ?? 'Unknown' }}
                                             @else
                                                 —
                                             @endif

@@ -262,7 +262,7 @@
                                 id="expires_date"
                                 name="expires_date"
                                 type="date"
-                                min="{{ now()->format('Y-m-d') }}"
+                                min="{{ now()->copy()->timezone(config('app.display_timezone'))->format('Y-m-d') }}"
                                 value="{{ old('expires_date') }}"
                                 class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
                             >
@@ -284,7 +284,7 @@
                                 class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 disabled:cursor-not-allowed disabled:bg-gray-100"
                             >
                             <p class="mt-2 text-xs text-gray-500">
-                                After selecting a date, the default time is 00:00 in {{ config('app.timezone') }}. A time without a date is invalid.
+                                After selecting a date, the default time is 00:00 in {{ config('app.display_timezone') }}. A time without a date is invalid.
                             </p>
                         </div>
                     </div>

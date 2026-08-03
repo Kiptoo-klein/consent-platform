@@ -107,7 +107,7 @@
                         </dt>
 
                         <dd class="mt-2 font-semibold text-gray-900">
-                            {{ $transaction->paid_at?->format('M d, Y H:i') ?? '—' }}
+                            {{ $transaction->paid_at?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i') ?? '—' }}
                         </dd>
                     </div>
 
@@ -127,7 +127,7 @@
                         </dt>
 
                         <dd class="mt-2 font-semibold text-gray-900">
-                            {{ $transaction->period_starts_at?->format('M d, Y H:i') ?? '—' }}
+                            {{ $transaction->period_starts_at?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i') ?? '—' }}
                         </dd>
                     </div>
 
@@ -137,7 +137,7 @@
                         </dt>
 
                         <dd class="mt-2 font-semibold text-gray-900">
-                            {{ $transaction->period_ends_at?->format('M d, Y H:i') ?? '—' }}
+                            {{ $transaction->period_ends_at?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i') ?? '—' }}
                         </dd>
                     </div>
                 </dl>

@@ -280,10 +280,10 @@ class PlatformInvoicePaymentRecordingTest extends TestCase
                 'KES 10,000.00'
             )
             ->assertSeeText(
-                'Jan 31, 2026 14:45:30'
+                'Jan 31, 2026 17:45:30'
             )
             ->assertSeeText(
-                'Feb 28, 2026 14:45:30'
+                'Feb 28, 2026 17:45:30'
             )
             ->assertDontSee(
                 'name="subscription_invoice_id"',

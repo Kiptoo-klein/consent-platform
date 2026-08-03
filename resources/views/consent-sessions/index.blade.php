@@ -580,11 +580,11 @@
 
                                         <td class="px-6 py-5">
                                             <p class="text-sm text-gray-700">
-                                                {{ $consentSession->created_at->format('M d, Y') }}
+                                                {{ $consentSession->created_at->copy()->timezone(config('app.display_timezone'))->format('M d, Y') }}
                                             </p>
 
                                             <p class="mt-1 text-xs text-gray-400">
-                                                {{ $consentSession->created_at->format('H:i') }}
+                                                {{ $consentSession->created_at->copy()->timezone(config('app.display_timezone'))->format('H:i') }}
                                             </p>
 
                                             @if ($consentSession->expires_at)
@@ -596,7 +596,7 @@
                                                     ])
                                                 >
                                                     {{ $consentSession->isExpired() ? 'Expired' : 'Expires' }}
-                                                    {{ $consentSession->expires_at->format('M d, Y H:i') }}
+                                                    {{ $consentSession->expires_at->copy()->timezone(config('app.display_timezone'))->format('M d, Y H:i') }}
                                                 </p>
                                             @endif
                                         </td>

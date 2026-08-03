@@ -211,7 +211,7 @@
 
                                     <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-600">
                                         {{ $user->created_at
-                                            ? $user->created_at->format(
+                                            ? $user->created_at->copy()->timezone(config('app.display_timezone'))->format(
                                                 'M d, Y'
                                             )
                                             : '—' }}

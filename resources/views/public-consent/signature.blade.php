@@ -42,7 +42,7 @@
             <p class="mt-3 text-gray-600">
                 This consent record expired
                 {{ $consentSession->expires_at
-                    ? 'on '.$consentSession->expires_at->format('M d, Y H:i')
+                    ? 'on '.$consentSession->expires_at->copy()->timezone(config('app.display_timezone'))->format('M d, Y H:i')
                     : 'before it was completed' }}
                 and can no longer be signed.
             </p>

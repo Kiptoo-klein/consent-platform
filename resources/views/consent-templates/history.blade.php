@@ -127,7 +127,7 @@
                                                 </dt>
 
                                                 <dd class="mt-1 text-gray-900">
-                                                    {{ $version->published_at?->format('M d, Y H:i') ?? 'Unknown' }}
+                                                    {{ $version->published_at?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i') ?? 'Unknown' }}
                                                 </dd>
                                             </div>
 

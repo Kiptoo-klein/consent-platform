@@ -77,7 +77,7 @@
                         <p class="mt-1 text-sm font-medium text-gray-900">
                             {{
                                 $consentSession->completed_at
-                                    ? $consentSession->completed_at->format('j M Y, g:i A')
+                                    ? $consentSession->completed_at->copy()->timezone(config('app.display_timezone'))->format('j M Y, g:i A')
                                     : 'Not completed'
                             }}
                         </p>
@@ -194,7 +194,7 @@
                                                 </dt>
 
                                                 <dd class="mt-1 text-gray-900">
-                                                    {{ $event->created_at->format('j M Y, g:i:s A') }}
+                                                    {{ $event->created_at->copy()->timezone(config('app.display_timezone'))->format('j M Y, g:i:s A') }}
                                                 </dd>
                                             </div>
                                         </dl>

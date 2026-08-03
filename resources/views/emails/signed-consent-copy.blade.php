@@ -18,7 +18,7 @@
         try {
             $completedLabel = \Illuminate\Support\Carbon::parse(
                 $consentSession->completed_at
-            )->format('j F Y, g:i A');
+            )->copy()->timezone(config('app.display_timezone'))->format('j F Y, g:i A');
         } catch (\Throwable $exception) {
             $completedLabel = (string) $consentSession->completed_at;
         }

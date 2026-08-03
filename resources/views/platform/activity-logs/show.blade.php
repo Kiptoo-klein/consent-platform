@@ -209,7 +209,7 @@
 
                     <p class="mt-4 font-semibold text-gray-900">
                         {{ $activityLog->created_at
-                            ? $activityLog->created_at->format(
+                            ? $activityLog->created_at->copy()->timezone(config('app.display_timezone'))->format(
                                 'M d, Y'
                             )
                             : '—' }}
@@ -217,7 +217,7 @@
 
                     <p class="mt-1 text-sm text-gray-500">
                         {{ $activityLog->created_at
-                            ? $activityLog->created_at->format(
+                            ? $activityLog->created_at->copy()->timezone(config('app.display_timezone'))->format(
                                 'H:i:s'
                             )
                             : '' }}

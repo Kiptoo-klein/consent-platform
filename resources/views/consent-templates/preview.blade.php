@@ -204,7 +204,7 @@
                                 <input
                                     type="text"
                                     disabled
-                                    value="{{ now()->format('M d, Y') }}"
+                                    value="{{ now()->copy()->timezone(config('app.display_timezone'))->format('M d, Y') }}"
                                     class="mt-2 block w-full cursor-not-allowed rounded-lg border-gray-300 bg-gray-100 text-gray-500 shadow-sm"
                                 >
                             </div>

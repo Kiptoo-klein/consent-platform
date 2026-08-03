@@ -195,6 +195,14 @@ final class BackNavigation
                     $fallback
                 ),
 
+            $routeName ===
+                'organization-billing.invoices.show' =>
+                self::to(
+                    'organization-subscription-plans.index',
+                    [],
+                    $fallback
+                ),
+
             str_starts_with($routeName, 'organization-billing.')
             && $routeName !== 'organization-billing.index' =>
                 self::to(

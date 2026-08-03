@@ -130,7 +130,7 @@
                             </td>
 
                             <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
-                                {{ $notification->created_at?->format(
+                                {{ $notification->created_at?->copy()?->timezone(config('app.display_timezone'))?->format(
                                     'M d, Y H:i'
                                 ) ?? '—' }}
                             </td>

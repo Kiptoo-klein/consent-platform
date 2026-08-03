@@ -63,8 +63,8 @@
                                 @if ($consentSession->expires_at)
                                     <div style="margin-top:10px;font-size:14px;color:#92400e;">
                                         Signing deadline:
-                                        {{ $consentSession->expires_at->format('d/m/y H:i') }}
-                                        {{ config('app.timezone') }}
+                                        {{ $consentSession->expires_at->copy()->timezone(config('app.display_timezone'))->format('d/m/y H:i') }}
+                                        {{ config('app.display_timezone') }}
                                     </div>
                                 @endif
                             </div>

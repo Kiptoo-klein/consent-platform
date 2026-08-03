@@ -70,16 +70,16 @@
 
         $signedConsentPeriodLabel =
             $usagePeriodStart && $usagePeriodEnd
-                ? $usagePeriodStart->format('M d, Y')
+                ? $usagePeriodStart->copy()->timezone(config('app.display_timezone'))->format('M d, Y')
                     .' – '
                     .$usagePeriodEnd->copy()
                         ->subSecond()
-                        ->format('M d, Y')
+                        ->copy()->timezone(config('app.display_timezone'))->format('M d, Y')
                 : (
                     $usagePeriodStart
                         ? 'From '
                             .$usagePeriodStart
-                                ->format('M d, Y')
+                                ->copy()->timezone(config('app.display_timezone'))->format('M d, Y')
                         : 'Current subscription period'
                 );
     @endphp

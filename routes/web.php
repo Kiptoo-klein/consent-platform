@@ -1532,3 +1532,67 @@ unset(
 */
 
 require __DIR__.'/auth.php';
+
+
+/*
+|--------------------------------------------------------------------------
+| Automatic subscription invoice and payment-claim workflow
+|--------------------------------------------------------------------------
+*/
+Route::middleware([
+    'auth',
+    'verified',
+])->group(function (): void {
+    Route::post(
+        '/organization/subscription/plans/{subscriptionPlan}/select-and-issue',
+        \App\Http\Controllers\AutomaticOrganizationSubscriptionPlanController::class
+    )->name(
+        'organization-subscription-plans.select-and-issue'
+    );
+
+    Route::post(
+        '/organization/subscription/payment-claims/{planRequest}',
+        [
+            \App\Http\Controllers\OrganizationSubscriptionPaymentClaimController::class,
+            'store',
+        ]
+    )->name(
+        'organization-subscription-payment-claims.store'
+    );
+
+    Route::delete(
+        '/organization/subscription/payment-claims/{planRequest}',
+        [
+            \App\Http\Controllers\OrganizationSubscriptionPaymentClaimController::class,
+            'cancel',
+        ]
+    )->name(
+        'organization-subscription-payment-claims.cancel'
+    );
+});
+
+Route::middleware([
+    'auth',
+    'verified',
+    'platform.role:super-admin,billing',
+])->prefix('platform')->group(function (): void {
+    Route::post(
+        '/organizations/{organization}/subscription-invoices/{subscriptionInvoice}/payment-claim/confirm',
+        [
+            \App\Http\Controllers\Platform\SubscriptionPaymentClaimController::class,
+            'confirm',
+        ]
+    )->name(
+        'platform.organizations.subscription-invoices.payment-claim.confirm'
+    );
+
+    Route::post(
+        '/organizations/{organization}/subscription-invoices/{subscriptionInvoice}/payment-claim/reject',
+        [
+            \App\Http\Controllers\Platform\SubscriptionPaymentClaimController::class,
+            'reject',
+        ]
+    )->name(
+        'platform.organizations.subscription-invoices.payment-claim.reject'
+    );
+});

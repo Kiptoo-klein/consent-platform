@@ -797,7 +797,7 @@
                         </td>
 
                         <td class="metadata-value">
-                            {{ $invoice->issue_date?->format('d M Y') ?? '-' }}
+                            {{ $invoice->issue_date?->copy()?->timezone(config('app.display_timezone'))?->format('d M Y') ?? '-' }}
                         </td>
                     </tr>
 
@@ -807,7 +807,7 @@
                         </td>
 
                         <td class="metadata-value">
-                            {{ $invoice->due_date?->format('d M Y') ?? '-' }}
+                            {{ $invoice->due_date?->copy()?->timezone(config('app.display_timezone'))?->format('d M Y') ?? '-' }}
                         </td>
                     </tr>
 
@@ -913,7 +913,7 @@
                 @if ($invoice->paid_at)
                     <div style="margin-top:8px;">
                         <strong>Payment recorded:</strong>
-                        {{ $invoice->paid_at->format('d M Y H:i') }}
+                        {{ $invoice->paid_at->copy()->timezone(config('app.display_timezone'))->format('d M Y H:i') }}
                     </div>
                 @endif
             </td>

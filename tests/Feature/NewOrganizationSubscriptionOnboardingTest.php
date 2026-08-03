@@ -200,10 +200,10 @@ class NewOrganizationSubscriptionOnboardingTest extends TestCase
             )
             ->assertOk()
             ->assertSeeText(
-                'Waiting for Platform Billing'
+                'Pending plan change'
             )
             ->assertSeeText(
-                'Action required by Platform Billing'
+                'Cancel Request'
             )
             ->assertDontSeeText(
                 'Continue to Payment'

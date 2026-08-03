@@ -160,8 +160,8 @@
                     <p class="mt-1 text-sm">
                         This record can no longer be reviewed, changed, signed, or cancelled.
                         It expired
-                        {{ $consentSession->expired_at?->format('M d, Y H:i')
-                            ?? $consentSession->expires_at?->format('M d, Y H:i')
+                        {{ $consentSession->expired_at?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i')
+                            ?? $consentSession->expires_at?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i')
                             ?? 'after its signing deadline' }}.
                     </p>
                 </div>
@@ -208,7 +208,7 @@
                             @if ($consentSession->expires_at)
                                 <span class="inline-flex w-fit rounded-full bg-white px-3 py-1 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
                                     Expires
-                                    {{ $consentSession->expires_at->format('d/m/y H:i') }}
+                                    {{ $consentSession->expires_at->copy()->timezone(config('app.display_timezone'))->format('d/m/y H:i') }}
                                 </span>
                             @endif
                         </div>
@@ -429,9 +429,9 @@
 
                                         <div class="shrink-0 text-left text-xs text-gray-500 sm:text-right">
                                             <p>
-                                                {{ $notification->sent_at?->format('d/m/y H:i')
-                                                    ?? $notification->failed_at?->format('d/m/y H:i')
-                                                    ?? $notification->created_at?->format('d/m/y H:i') }}
+                                                {{ $notification->sent_at?->copy()?->timezone(config('app.display_timezone'))?->format('d/m/y H:i')
+                                                    ?? $notification->failed_at?->copy()?->timezone(config('app.display_timezone'))?->format('d/m/y H:i')
+                                                    ?? $notification->created_at?->copy()?->timezone(config('app.display_timezone'))?->format('d/m/y H:i') }}
                                             </p>
 
                                             <p class="mt-1">
@@ -537,7 +537,7 @@
 
                         <p class="mt-2 font-semibold text-gray-900">
                             {{ $consentSession->completed_at
-                                ? $consentSession->completed_at->format('M d, Y H:i')
+                                ? $consentSession->completed_at->copy()->timezone(config('app.display_timezone'))->format('M d, Y H:i')
                                 : 'Not completed' }}
                         </p>
                     </div>
@@ -741,7 +741,7 @@
                                             </p>
 
                                             <p class="mt-1 font-semibold text-gray-900">
-                                                {{ $signedAt?->format('M d, Y H:i:s') ?? 'Unavailable' }}
+                                                {{ $signedAt?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i:s') ?? 'Unavailable' }}
                                             </p>
                                         </div>
                                     </div>
@@ -916,7 +916,7 @@
                                 </dt>
 
                                 <dd class="mt-1 text-sm font-semibold text-gray-900">
-                                    {{ $consentSession->created_at->format('M d, Y H:i:s') }}
+                                    {{ $consentSession->created_at->copy()->timezone(config('app.display_timezone'))->format('M d, Y H:i:s') }}
                                 </dd>
                             </div>
 
@@ -927,7 +927,7 @@
 
                                 <dd class="mt-1 text-sm font-semibold text-gray-900">
                                     {{ $consentSession->expires_at
-                                        ? $consentSession->expires_at->format('M d, Y H:i:s')
+                                        ? $consentSession->expires_at->copy()->timezone(config('app.display_timezone'))->format('M d, Y H:i:s')
                                         : 'No expiry' }}
                                 </dd>
                             </div>
@@ -939,7 +939,7 @@
                                     </dt>
 
                                     <dd class="mt-1 text-sm font-semibold text-amber-800">
-                                        {{ $consentSession->expired_at->format('M d, Y H:i:s') }}
+                                        {{ $consentSession->expired_at->copy()->timezone(config('app.display_timezone'))->format('M d, Y H:i:s') }}
                                     </dd>
                                 </div>
                             @endif
@@ -991,7 +991,7 @@
                                 </dt>
 
                                 <dd class="mt-1 text-sm font-semibold text-gray-900">
-                                    {{ $signedAt?->format('M d, Y H:i:s') ?? 'Not signed' }}
+                                    {{ $signedAt?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i:s') ?? 'Not signed' }}
                                 </dd>
                             </div>
 
@@ -1027,7 +1027,7 @@
                                     </p>
 
                                     <p class="mt-1 text-sm text-gray-500">
-                                        {{ $consentSession->created_at->format('M d, Y H:i:s') }}
+                                        {{ $consentSession->created_at->copy()->timezone(config('app.display_timezone'))->format('M d, Y H:i:s') }}
                                     </p>
                                 </li>
 
@@ -1046,7 +1046,7 @@
 
                                     <p class="mt-1 text-sm text-gray-500">
                                         {{ $consentSession->started_at
-                                            ? $consentSession->started_at->format('M d, Y H:i:s')
+                                            ? $consentSession->started_at->copy()->timezone(config('app.display_timezone'))->format('M d, Y H:i:s')
                                             : 'Not started' }}
                                     </p>
                                 </li>
@@ -1060,7 +1060,7 @@
                                         </p>
 
                                         <p class="mt-1 text-sm text-gray-500">
-                                            {{ $consentSession->completed_at->format('M d, Y H:i:s') }}
+                                            {{ $consentSession->completed_at->copy()->timezone(config('app.display_timezone'))->format('M d, Y H:i:s') }}
                                         </p>
                                     </li>
                                 @endif
@@ -1074,7 +1074,7 @@
                                         </p>
 
                                         <p class="mt-1 text-sm text-gray-500">
-                                            {{ $consentSession->cancelled_at->format('M d, Y H:i:s') }}
+                                            {{ $consentSession->cancelled_at->copy()->timezone(config('app.display_timezone'))->format('M d, Y H:i:s') }}
                                         </p>
                                     </li>
                                 @endif

@@ -194,7 +194,7 @@
                                         id="expires_date"
                                         name="expires_date"
                                         type="date"
-                                        min="{{ now()->format('Y-m-d') }}"
+                                        min="{{ now()->copy()->timezone(config('app.display_timezone'))->format('Y-m-d') }}"
                                         value="{{ old('expires_date') }}"
                                         class="block w-full min-w-0 border-0 bg-transparent p-0 text-gray-900 focus:ring-0"
                                     >
@@ -256,7 +256,7 @@
                             Leave the date blank when the signing link should not expire.
                             Times use the application timezone:
                             <span class="font-semibold">
-                                {{ config('app.timezone') }}
+                                {{ config('app.display_timezone') }}
                             </span>.
                         </p>
                     </div>

@@ -61,7 +61,7 @@
             <p class="mt-3 text-gray-600">
                 This consent record expired
                 {{ $consentSession->expires_at
-                    ? 'on '.$consentSession->expires_at->format('M d, Y H:i')
+                    ? 'on '.$consentSession->expires_at->copy()->timezone(config('app.display_timezone'))->format('M d, Y H:i')
                     : 'before it was completed' }}
                 and can no longer be reviewed or signed.
             </p>
@@ -87,7 +87,7 @@
                 <div class="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
                     <p class="font-semibold">
                         Complete this consent before
-                        {{ $consentSession->expires_at->format('M d, Y H:i') }}.
+                        {{ $consentSession->expires_at->copy()->timezone(config('app.display_timezone'))->format('M d, Y H:i') }}.
                     </p>
 
                     <p class="mt-1 text-amber-800">

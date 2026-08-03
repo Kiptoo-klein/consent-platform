@@ -429,7 +429,7 @@
                                         </td>
 
                                         <td class="px-5 py-4 text-sm text-gray-700">
-                                            {{ $transaction->paid_at?->format('M d, Y H:i') ?? '—' }}
+                                            {{ $transaction->paid_at?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i') ?? '—' }}
                                         </td>
 
                                         <td class="px-5 py-4 text-right">

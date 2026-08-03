@@ -783,8 +783,7 @@
                 <td>
                     <div class="meta-label">Started</div>
                     <div class="meta-value">
-                        {{ optional($consentSession->started_at)
-                            ->format('j M Y, g:i A')
+                        {{ \App\Support\DisplayTime::format($consentSession->started_at, 'j M Y, g:i A', '')
                             ?: 'Not recorded' }}
                     </div>
                 </td>
@@ -792,8 +791,7 @@
                 <td>
                     <div class="meta-label">Completed</div>
                     <div class="meta-value">
-                        {{ optional($consentSession->completed_at)
-                            ->format('j M Y, g:i A')
+                        {{ \App\Support\DisplayTime::format($consentSession->completed_at, 'j M Y, g:i A', '')
                             ?: 'Not recorded' }}
                     </div>
                 </td>
@@ -950,8 +948,7 @@
                             <div class="signature-detail">
                                 <div class="field-label">Signed at</div>
                                 <div class="field-value">
-                                    {{ optional($signature->signed_at)
-                                        ->format('j F Y, g:i A')
+                                    {{ \App\Support\DisplayTime::format($signature->signed_at, 'j F Y, g:i A', '')
                                         ?: 'Not recorded' }}
                                 </div>
                             </div>
