@@ -36,8 +36,16 @@
     </x-slot>
 
     @php
+        $brandingDisk =
+            (string) config(
+                'organization-branding.disk',
+                'public'
+            );
+
         $currentLogoUrl = $organization->logo
-            ? asset('storage/'.$organization->logo)
+            ? \Illuminate\Support\Facades\Storage::disk(
+                $brandingDisk
+            )->url($organization->logo)
             : null;
 
         $primaryColor = old(

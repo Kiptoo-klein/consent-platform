@@ -142,6 +142,12 @@ class OrganizationBrandingController extends Controller
             );
         }
 
+        $brandingDisk =
+            (string) config(
+                'organization-branding.disk',
+                'public'
+            );
+
         $oldLogoPath = $organization->logo;
         $newLogoPath = null;
 
@@ -149,7 +155,10 @@ class OrganizationBrandingController extends Controller
             if ($request->hasFile('logo')) {
                 $newLogoPath = $request
                     ->file('logo')
-                    ->store('organization-logos', 'public');
+                    ->store(
+                        'organization-logos',
+                        $brandingDisk
+                    );
 
                 $validated['logo'] = $newLogoPath;
             }
@@ -169,16 +178,16 @@ class OrganizationBrandingController extends Controller
             if (
                 $oldLogoPath
                 && ($logoWasReplaced || $logoWasRemoved)
-                && Storage::disk('public')->exists($oldLogoPath)
+                && Storage::disk($brandingDisk)->exists($oldLogoPath)
             ) {
-                Storage::disk('public')->delete($oldLogoPath);
+                Storage::disk($brandingDisk)->delete($oldLogoPath);
             }
         } catch (Throwable $exception) {
             if (
                 $newLogoPath
-                && Storage::disk('public')->exists($newLogoPath)
+                && Storage::disk($brandingDisk)->exists($newLogoPath)
             ) {
-                Storage::disk('public')->delete($newLogoPath);
+                Storage::disk($brandingDisk)->delete($newLogoPath);
             }
 
             report($exception);

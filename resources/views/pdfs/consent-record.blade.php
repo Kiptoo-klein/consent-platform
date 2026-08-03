@@ -504,7 +504,12 @@
         if (filled($organizationLogoPath)) {
             try {
                 $logoDisk =
-                    \Illuminate\Support\Facades\Storage::disk('public');
+                    \Illuminate\Support\Facades\Storage::disk(
+                        (string) config(
+                            'organization-branding.disk',
+                            'public'
+                        )
+                    );
 
                 if ($logoDisk->exists($organizationLogoPath)) {
                     $logoBytes = $logoDisk->get(
