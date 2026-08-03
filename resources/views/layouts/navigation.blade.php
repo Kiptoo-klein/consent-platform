@@ -306,7 +306,7 @@
                 sidebarCollapsed ? 'true' : 'false'
             );
         "
-        class="econsent-sidebar-edge-toggle"
+        class="hidden econsent-sidebar-edge-toggle lg:inline-flex"
         data-sidebar-edge-toggle
         :aria-label="
             sidebarCollapsed
