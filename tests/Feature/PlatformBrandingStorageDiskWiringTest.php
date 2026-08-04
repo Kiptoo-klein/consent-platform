@@ -53,6 +53,16 @@ class PlatformBrandingStorageDiskWiringTest extends TestCase
         );
 
         $this->assertStringContainsString(
+            'filesystems.disks.{$diskName}.driver',
+            $service
+        );
+
+        $this->assertStringNotContainsString(
+            '$diskName === \'public\'',
+            $service
+        );
+
+        $this->assertStringContainsString(
             '$disk->url(',
             $service
         );

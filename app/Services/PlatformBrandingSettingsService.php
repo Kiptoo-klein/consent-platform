@@ -195,8 +195,14 @@ class PlatformBrandingSettingsService
             $diskName =
                 $this->brandingDisk();
 
+            $driver =
+                (string) config(
+                    "filesystems.disks.{$diskName}.driver",
+                    ''
+                );
+
             $url =
-                $diskName === 'public'
+                $driver === 'local'
                     ? '/storage/'
                         .ltrim(
                             $path,

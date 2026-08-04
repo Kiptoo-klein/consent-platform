@@ -56,6 +56,8 @@ class ConsentCompletedMail extends Mailable
                 $pdfService->downloadFilename(
                     $this->consentSession
                 )
+            )->withMime(
+                'application/pdf'
             ),
         ];
     }
