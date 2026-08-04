@@ -133,7 +133,7 @@ class PlatformBrandingSettingsService
 
         try {
             $disk =
-                Storage::disk('public');
+                Storage::disk($this->brandingDisk());
 
             if (! $disk->exists($path)) {
                 return null;
@@ -186,25 +186,39 @@ class PlatformBrandingSettingsService
 
         try {
             $disk =
-                Storage::disk('public');
+                Storage::disk($this->brandingDisk());
 
             if (! $disk->exists($path)) {
                 return null;
             }
 
+            $diskName =
+                $this->brandingDisk();
+
             $url =
-                '/storage/'
-                .ltrim(
-                    $path,
-                    '/'
-                );
+                $diskName === 'public'
+                    ? '/storage/'
+                        .ltrim(
+                            $path,
+                            '/'
+                        )
+                    : $disk->url(
+                        $path
+                    );
 
             try {
                 $version =
                     $disk->lastModified($path);
 
                 return $url
-                    .'?v='
+                    .(
+                        str_contains(
+                            $url,
+                            '?'
+                        )
+                            ? '&v='
+                            : '?v='
+                    )
                     .$version;
             } catch (Throwable) {
                 return $url;
@@ -212,6 +226,14 @@ class PlatformBrandingSettingsService
         } catch (Throwable) {
             return null;
         }
+    }
+
+    private function brandingDisk(): string
+    {
+        return (string) config(
+            'platform-branding.disk',
+            'public'
+        );
     }
 
     /**

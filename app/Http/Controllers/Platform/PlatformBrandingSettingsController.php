@@ -181,19 +181,19 @@ class PlatformBrandingSettingsController extends Controller
                             ->file('logo')
                             ->store(
                                 'platform-branding/logos',
-                                'public'
+                                $this->brandingDisk()
                             );
 
                     if (
                         ! is_string($newLogoPath)
                         || $newLogoPath === ''
-                        || ! Storage::disk('public')
+                        || ! Storage::disk($this->brandingDisk())
                             ->exists($newLogoPath)
                     ) {
                         throw ValidationException::withMessages([
                             'logo' =>
                                 'The uploaded logo could not be stored. '
-                                .'Check public storage and try again.',
+                                .'Check the configured branding storage and try again.',
                         ]);
                     }
 
@@ -252,19 +252,19 @@ class PlatformBrandingSettingsController extends Controller
                             ->file('favicon')
                             ->store(
                                 'platform-branding/favicons',
-                                'public'
+                                $this->brandingDisk()
                             );
 
                     if (
                         ! is_string($newFaviconPath)
                         || $newFaviconPath === ''
-                        || ! Storage::disk('public')
+                        || ! Storage::disk($this->brandingDisk())
                             ->exists($newFaviconPath)
                     ) {
                         throw ValidationException::withMessages([
                             'favicon' =>
                                 'The uploaded favicon could not be stored. '
-                                .'Check public storage and try again.',
+                                .'Check the configured branding storage and try again.',
                         ]);
                     }
 
@@ -319,19 +319,19 @@ class PlatformBrandingSettingsController extends Controller
                             ->file('logo')
                             ->store(
                                 'platform-branding/logos',
-                                'public'
+                                $this->brandingDisk()
                             );
 
                     if (
                         ! is_string($newLogoPath)
                         || $newLogoPath === ''
-                        || ! Storage::disk('public')
+                        || ! Storage::disk($this->brandingDisk())
                             ->exists($newLogoPath)
                     ) {
                         throw ValidationException::withMessages([
                             'logo' =>
                                 'The uploaded logo could not be stored. '
-                                .'Check public storage and try again.',
+                                .'Check the configured branding storage and try again.',
                         ]);
                     }
 
@@ -352,19 +352,19 @@ class PlatformBrandingSettingsController extends Controller
                             ->file('favicon')
                             ->store(
                                 'platform-branding/favicons',
-                                'public'
+                                $this->brandingDisk()
                             );
 
                     if (
                         ! is_string($newFaviconPath)
                         || $newFaviconPath === ''
-                        || ! Storage::disk('public')
+                        || ! Storage::disk($this->brandingDisk())
                             ->exists($newFaviconPath)
                     ) {
                         throw ValidationException::withMessages([
                             'favicon' =>
                                 'The uploaded favicon could not be stored. '
-                                .'Check public storage and try again.',
+                                .'Check the configured branding storage and try again.',
                         ]);
                     }
 
@@ -666,10 +666,10 @@ class PlatformBrandingSettingsController extends Controller
             ] as $newPath) {
                 if (
                     is_string($newPath)
-                    && Storage::disk('public')
+                    && Storage::disk($this->brandingDisk())
                         ->exists($newPath)
                 ) {
-                    Storage::disk('public')
+                    Storage::disk($this->brandingDisk())
                         ->delete($newPath);
                 }
             }
@@ -890,6 +890,14 @@ class PlatformBrandingSettingsController extends Controller
             : $value;
     }
 
+    private function brandingDisk(): string
+    {
+        return (string) config(
+            'platform-branding.disk',
+            'public'
+        );
+    }
+
     private function deleteReplacedAsset(
         mixed $oldPath,
         mixed $newPath
@@ -903,7 +911,7 @@ class PlatformBrandingSettingsController extends Controller
         }
 
         $disk =
-            Storage::disk('public');
+            Storage::disk($this->brandingDisk());
 
         if ($disk->exists($oldPath)) {
             $disk->delete(
