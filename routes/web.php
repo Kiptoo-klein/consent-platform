@@ -31,6 +31,7 @@ use App\Http\Controllers\Platform\PlatformBrandingSettingsController;
 use App\Http\Controllers\Platform\PlatformStaffController;
 use App\Http\Controllers\Platform\SubscriptionTransactionController;
 use App\Http\Controllers\Platform\PlatformOrganizationUserController;
+use App\Http\Controllers\Platform\PlatformOrganizationSupportController;
 use App\Http\Controllers\Platform\PlatformActivityLogController;
 use App\Http\Controllers\ConsentPdfController;
 use App\Http\Controllers\ConsentAuditController;
@@ -1171,6 +1172,46 @@ Route::prefix('platform')
         */
 
         Route::get(
+            '/organizations/{organization}/support',
+            [
+                PlatformOrganizationSupportController::class,
+                'index',
+            ]
+        )->name(
+            'organizations.support.index'
+        );
+
+        Route::get(
+            '/organizations/{organization}/support/consent-records',
+            [
+                PlatformOrganizationSupportController::class,
+                'consentRecords',
+            ]
+        )->name(
+            'organizations.support.consent-records.index'
+        );
+
+        Route::post(
+            '/organizations/{organization}/support/consent-records/{consentSession}/download',
+            [
+                PlatformOrganizationSupportController::class,
+                'downloadConsentRecord',
+            ]
+        )->name(
+            'organizations.support.consent-records.download'
+        );
+
+        Route::post(
+            '/organizations/{organization}/support/users/{user}/password-reset',
+            [
+                PlatformOrganizationSupportController::class,
+                'sendPasswordResetLink',
+            ]
+        )->name(
+            'organizations.support.users.password-reset'
+        );
+
+        Route::get(
             '/organizations/{organization}/users',
             [PlatformOrganizationUserController::class, 'index']
         )->name('organizations.users.index');
@@ -1399,6 +1440,11 @@ $platformRouteRolePolicies = [
 
         'platform.organizations.subscription-bypass.approve',
         'platform.organizations.subscription-bypass.revoke',
+
+        'platform.organizations.support.index',
+        'platform.organizations.support.consent-records.index',
+        'platform.organizations.support.consent-records.download',
+        'platform.organizations.support.users.password-reset',
 
         'platform.organizations.users.create',
         'platform.organizations.users.store',

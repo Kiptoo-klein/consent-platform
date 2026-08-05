@@ -1325,4 +1325,43 @@
             </section>
         </div>
     </div>
+    @if (
+        auth()->user()
+            ?->platformRole
+            ?->slug
+        === 'super-admin'
+    )
+        <div class="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
+            <section class="rounded-2xl border border-teal-200 bg-teal-50 p-6">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm font-semibold text-teal-700">
+                            Platform support
+                        </p>
+
+                        <h3 class="mt-1 text-lg font-bold text-teal-950">
+                            Support & recovery
+                        </h3>
+
+                        <p class="mt-2 text-sm leading-6 text-teal-900">
+                            Recover immutable consent PDFs, send secure
+                            password-reset links, and manage organization
+                            users through audited support actions.
+                        </p>
+                    </div>
+
+                    <a
+                        href="{{ route(
+                            'platform.organizations.support.index',
+                            $organization
+                        ) }}"
+                        class="inline-flex shrink-0 items-center justify-center rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-800"
+                    >
+                        Open support tools
+                    </a>
+                </div>
+            </section>
+        </div>
+    @endif
+
 </x-app-layout>
