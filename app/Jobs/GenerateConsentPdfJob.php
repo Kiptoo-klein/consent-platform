@@ -75,16 +75,6 @@ class GenerateConsentPdfJob implements ShouldQueue
                 $consentSession
             );
 
-            /* SIGNED PDF AUTO EMAIL HOOK */
-            $__signedPdfDeliverySessionId = (is_object($consentSession) && method_exists($consentSession, 'getKey') ? $consentSession->getKey() : null);
-
-            if ($__signedPdfDeliverySessionId) {
-                \App\Jobs\SendSignedConsentPdfJob::dispatch(
-                    (int) $__signedPdfDeliverySessionId
-                )->afterCommit();
-            }
-
-
             $consentSession->refresh();
         } else {
             /*
@@ -94,6 +84,28 @@ class GenerateConsentPdfJob implements ShouldQueue
             $consentPdfService->generateAndStore(
                 $consentSession
             );
+        }
+
+        /*
+         * Public signing-station records use the organization-branded
+         * signed-copy email. Returning here prevents the general
+         * eConsent completion email from being sent as a duplicate.
+         */
+        if (filled($consentSession->signing_station_id)) {
+            if (blank($consentSession->signer_email)) {
+                $this->recordEmailSkippedIfMissing(
+                    $consentSession,
+                    $consentAuditService
+                );
+
+                return;
+            }
+
+            SendSignedConsentPdfJob::dispatch(
+                (int) $consentSession->id
+            )->afterCommit();
+
+            return;
         }
 
         /*

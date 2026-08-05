@@ -23,6 +23,10 @@
 
     $organizationReplyToEmail = collect([
         $organizationForEmailSettings?->email,
+        data_get(
+            $organizationForEmailSettings,
+            'contact_email'
+        ),
         $organizationForEmailSettings?->support_email,
     ])->first(
         fn ($email): bool =>
