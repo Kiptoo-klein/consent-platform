@@ -11,7 +11,8 @@ use RuntimeException;
 class ConsentPdfService
 {
     public function __construct(
-        private readonly ConsentAuditService $consentAuditService
+        private readonly ConsentAuditService $consentAuditService,
+        private readonly ConsentTemplateContentService $templateContentService
     ) {
     }
 
@@ -103,6 +104,29 @@ class ConsentPdfService
                 'content'
             );
 
+        $storedConsentHtml =
+            data_get(
+                $publishedVersion,
+                'template_schema.consent_html'
+            )
+            ?? data_get(
+                $publishedVersion,
+                'consent_html'
+            );
+
+        $consentHtml =
+            $this->templateContentService
+                ->forPdf(
+                    is_string($storedConsentHtml)
+                        ? $storedConsentHtml
+                        : null,
+                    is_string($consentText)
+                        ? $consentText
+                        : null,
+                    (int) $consentSession
+                        ->organization_id
+                );
+
         $pdf = Pdf::loadView(
             'pdfs.consent-record',
             [
@@ -120,6 +144,9 @@ class ConsentPdfService
 
                 'consentText' =>
                     $consentText,
+
+                'consentHtml' =>
+                    $consentHtml,
             ]
         );
 

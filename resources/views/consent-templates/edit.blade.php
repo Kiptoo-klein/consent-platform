@@ -16,7 +16,9 @@
 
     $savedConsentText = old(
         'content',
-        $savedSchema['consent_text'] ?? ''
+        $savedSchema['consent_html']
+            ?? $savedSchema['consent_text']
+            ?? ''
     );
 
     $savedUsageTypes = old(
@@ -225,30 +227,19 @@
                         @enderror
                     </div>
 
-                    <!-- Consent Text -->
+                    <x-consent-template-docx-import />
+
+                    <!-- Rich Consent Document -->
                     <div class="mb-10">
-
-                        <label
-                            for="content"
-                            class="block font-semibold mb-2"
-                        >
-                            Consent Text
-                        </label>
-
-                        <textarea
-                            id="content"
-                            name="content"
-                            rows="10"
-                            class="w-full border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:ring-blue-500"
-                            required
-                        >{{ $savedConsentText }}</textarea>
+                        <x-consent-template-rich-editor
+                            :value="$savedConsentText"
+                        />
 
                         @error('content')
                             <p class="text-sm text-red-600 mt-2">
                                 {{ $message }}
                             </p>
                         @enderror
-
                     </div>
 
                     <hr class="my-8">

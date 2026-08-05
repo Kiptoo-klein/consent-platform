@@ -537,6 +537,13 @@ Route::post('/consent-templates/import-docx', [
     ->middleware('throttle:20,1')
     ->name('consent-templates.import-docx');
 
+Route::post('/consent-templates/upload-image', [
+    \App\Http\Controllers\ConsentTemplateImageUploadController::class,
+    '__invoke',
+])
+    ->middleware('throttle:20,1')
+    ->name('consent-templates.upload-image');
+
 Route::post('/consent-templates', [
     ConsentTemplateController::class,
     'store',

@@ -276,6 +276,54 @@
             line-height: 1.75;
         }
 
+        .consent-content p {
+            margin: 0 0 9px 0;
+        }
+
+        .consent-content h1,
+        .consent-content h2,
+        .consent-content h3,
+        .consent-content h4 {
+            margin: 12px 0 7px 0;
+            color: #152536;
+            line-height: 1.25;
+        }
+
+        .consent-content h1 { font-size: 18px; }
+        .consent-content h2 { font-size: 15px; }
+        .consent-content h3 { font-size: 12.5px; }
+
+        .consent-content ul,
+        .consent-content ol {
+            margin: 7px 0 10px 20px;
+            padding-left: 10px;
+        }
+
+        .consent-content img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            margin: 10px auto;
+        }
+
+        .consent-content table {
+            width: 100%;
+            margin: 10px 0;
+            border-collapse: collapse;
+        }
+
+        .consent-content th,
+        .consent-content td {
+            padding: 5px 6px;
+            border: 1px solid #cbd5e1;
+            vertical-align: top;
+        }
+
+        .consent-content th {
+            background: #f1f5f9;
+            font-weight: bold;
+        }
+
         .identity-table {
             border-collapse: separate;
             border-spacing: 8px 0;
@@ -820,8 +868,8 @@
         </div>
 
         <div class="consent-content">
-            @if (filled($consentText))
-                {!! nl2br(e($consentText)) !!}
+            @if (filled($consentHtml))
+                {!! $consentHtml !!}
             @else
                 <span class="empty">
                     No consent text was stored with this published version.

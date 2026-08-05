@@ -116,6 +116,14 @@ class IndividualConsentWizardController extends Controller
                     (int) Auth::user()
                         ->organization_id;
 
+                $preparedContent =
+                    app(
+                        \App\Services\ConsentTemplateContentService::class
+                    )->prepare(
+                        $validated['content'],
+                        $organizationId
+                    );
+
                 $usageLimitService
                     ->assertSignedConsentSlotAvailableLocked(
                         $organizationId
@@ -127,8 +135,9 @@ class IndividualConsentWizardController extends Controller
                     );
 
                 $templateSchema = [
-                    'builder_version' => 1,
-                    'consent_text' => $validated['content'],
+                    'builder_version' => 2,
+                    'consent_html' => $preparedContent['html'],
+                    'consent_text' => $preparedContent['text'],
                     'additional_fields' => $additionalFields,
                 ];
 

@@ -4,6 +4,16 @@
     :title="$station->consentTemplate?->title ?? 'Review Consent'"
 >
     @php
+        $consentHtml =
+            data_get(
+                $publishedVersion,
+                'template_schema.consent_html'
+            )
+            ?? data_get(
+                $publishedVersion,
+                'consent_html'
+            );
+
         $consentText =
             data_get($publishedVersion, 'consent_text')
             ?? data_get(
@@ -135,10 +145,13 @@
                     </div>
 
                     <div class="px-6 py-7 sm:px-8 sm:py-9">
-                        @if ($consentText)
-                            <div class="prose prose-slate max-w-none whitespace-pre-line text-base leading-8 text-slate-700">
-                                {{ $consentText }}
-                            </div>
+                        @if ($consentHtml || $consentText)
+                            <x-consent-template-content
+                                :html="$consentHtml"
+                                :text="$consentText"
+                                :organization-id="$station->organization_id"
+                                class="text-base leading-8 text-slate-700"
+                            />
                         @else
                             <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5">
                                 <div class="flex items-start gap-3">

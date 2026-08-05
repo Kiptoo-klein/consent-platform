@@ -22,6 +22,7 @@
 
     @php
         $schema = $publishedVersion->template_schema ?? [];
+        $consentHtml = $schema['consent_html'] ?? null;
         $consentText = $schema['consent_text'] ?? '';
         $additionalFields = $schema['additional_fields'] ?? [];
     @endphp
@@ -112,7 +113,12 @@
                         Consent Text
                     </h2>
 
-                    <div class="mt-4 whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-5 leading-7 text-gray-800">{{ $consentText }}</div>
+                    <x-consent-template-content
+                        :html="$consentHtml"
+                        :text="$consentText"
+                        :organization-id="$consentTemplate->organization_id"
+                        class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-5 leading-7 text-gray-800"
+                    />
                 </div>
 
                 <div class="p-6">

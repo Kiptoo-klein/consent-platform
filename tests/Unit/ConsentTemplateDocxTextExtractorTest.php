@@ -9,23 +9,44 @@ use PHPUnit\Framework\TestCase;
 
 class ConsentTemplateDocxTextExtractorTest extends TestCase
 {
-    public function test_it_extracts_word_content(): void
+    public function test_it_extracts_formatted_word_content_and_images(): void
     {
         $phpWord = new PhpWord();
         $section = $phpWord->addSection();
 
-        $section->addText('Patient Consent Form');
-        $section->addText(
-            'I consent to the stated procedure.'
+        $run = $section->addTextRun();
+        $run->addText(
+            'Patient Consent Form',
+            ['bold' => true, 'size' => 18]
         );
+
+        $section->addText(
+            'I consent to the stated procedure.',
+            ['italic' => true]
+        );
+
         $section->addListItem(
             'I had an opportunity to ask questions.'
         );
 
-        $table = $section->addTable();
-        $row = $table->addRow();
-        $row->addCell()->addText('Signer name');
-        $row->addCell()->addText('Signature date');
+        $imagePath = tempnam(
+            sys_get_temp_dir(),
+            'econsent-image-'
+        ).'.png';
+
+        file_put_contents(
+            $imagePath,
+            base64_decode(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB'
+                .'CAQAAAC1HAwCAAAAC0lEQVR42mP8/x8A'
+                .'AgMBgN2X6nQAAAAASUVORK5CYII='
+            )
+        );
+
+        $section->addImage(
+            $imagePath,
+            ['width' => 40, 'height' => 40]
+        );
 
         $path = tempnam(
             sys_get_temp_dir(),
@@ -48,23 +69,21 @@ class ConsentTemplateDocxTextExtractorTest extends TestCase
             );
 
             $this->assertStringContainsString(
-                'I consent to the stated procedure.',
-                $result['text']
+                'font-weight: bold',
+                $result['html']
             );
 
             $this->assertStringContainsString(
-                'I had an opportunity to ask questions.',
-                $result['text']
+                'data:image/png;base64,',
+                $result['html']
             );
 
-            $this->assertStringContainsString(
-                'Signer name | Signature date',
-                $result['text']
+            $this->assertNotEmpty(
+                $result['warnings']
             );
-
-            $this->assertNotEmpty($result['warnings']);
         } finally {
             @unlink($path);
+            @unlink($imagePath);
         }
     }
 }

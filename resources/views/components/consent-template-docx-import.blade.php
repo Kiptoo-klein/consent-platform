@@ -13,15 +13,11 @@
             this.success = '';
             this.warnings = [];
 
-            if (! file) {
+            if (!file) {
                 return;
             }
 
-            if (
-                ! file.name
-                    .toLowerCase()
-                    .endsWith('.docx')
-            ) {
+            if (!file.name.toLowerCase().endsWith('.docx')) {
                 this.error =
                     'Only Microsoft Word .docx files are supported.';
                 return;
@@ -34,32 +30,31 @@
             }
 
             const content =
-                document.getElementById(
-                    'content'
-                );
+                document.getElementById('content');
 
-            if (! content) {
+            if (!content) {
                 this.error =
-                    'The consent text field could not be found.';
+                    'The consent editor could not be found.';
                 return;
             }
 
+            const visibleText =
+                content.value
+                    .replace(/<[^>]+>/g, ' ')
+                    .replace(/&nbsp;/g, ' ')
+                    .trim();
+
             if (
-                content.value.trim() !== ''
-                && ! window.confirm(
-                    'Replace the current consent text with the imported Word document?'
+                visibleText !== ''
+                && !window.confirm(
+                    'Replace the current consent document with the imported Word document?'
                 )
             ) {
                 return;
             }
 
-            const formData =
-                new FormData();
-
-            formData.append(
-                'document',
-                file
-            );
+            const formData = new FormData();
+            formData.append('document', file);
 
             const csrfToken =
                 this.$root
@@ -72,11 +67,9 @@
                     .querySelector(
                         'meta[name=&quot;csrf-token&quot;]'
                     )
-                    ?.getAttribute(
-                        'content'
-                    );
+                    ?.getAttribute('content');
 
-            if (! csrfToken) {
+            if (!csrfToken) {
                 this.error =
                     'The security token could not be found. Refresh the page and try again.';
                 return;
@@ -86,31 +79,22 @@
 
             try {
                 const response = await fetch(
-                    @js(
-                        route(
-                            'consent-templates.import-docx'
-                        )
-                    ),
+                    @js(route('consent-templates.import-docx')),
                     {
                         method: 'POST',
                         headers: {
-                            Accept:
-                                'application/json',
-                            'X-CSRF-TOKEN':
-                                csrfToken,
+                            Accept: 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
                         },
                         body: formData,
                     }
                 );
 
-                const data =
-                    await response.json();
+                const data = await response.json();
 
-                if (! response.ok) {
+                if (!response.ok) {
                     const validationError =
-                        data.errors
-                        && data.errors.document
-                        && data.errors.document[0];
+                        data.errors?.document?.[0];
 
                     throw new Error(
                         validationError
@@ -119,22 +103,20 @@
                     );
                 }
 
-                content.value =
-                    data.content;
-
-                content.dispatchEvent(
-                    new Event(
-                        'input',
+                window.dispatchEvent(
+                    new CustomEvent(
+                        'econsent-set-rich-content',
                         {
-                            bubbles: true,
+                            detail: {
+                                id: 'content',
+                                html: data.content,
+                            },
                         }
                     )
                 );
 
                 const title =
-                    document.getElementById(
-                        'title'
-                    );
+                    document.getElementById('title');
 
                 if (
                     title
@@ -147,9 +129,7 @@
                     title.dispatchEvent(
                         new Event(
                             'input',
-                            {
-                                bubbles: true,
-                            }
+                            { bubbles: true }
                         )
                     );
                 }
@@ -157,8 +137,15 @@
                 this.warnings =
                     data.warnings || [];
 
+                const imageSummary =
+                    data.image_count === 1
+                        ? '1 image'
+                        : `${data.image_count || 0} images`;
+
                 this.success =
-                    `${data.filename} imported successfully (${data.character_count.toLocaleString()} characters). Review the text before saving.`;
+                    `${data.filename} imported successfully `
+                    + `(${data.character_count.toLocaleString()} characters, `
+                    + `${imageSummary}). Review the document before saving.`;
             } catch (error) {
                 this.error =
                     error.message
@@ -167,8 +154,7 @@
                 this.importing = false;
 
                 if (this.$refs.docxFile) {
-                    this.$refs.docxFile.value =
-                        '';
+                    this.$refs.docxFile.value = '';
                 }
             }
         },
@@ -183,9 +169,7 @@
         type="file"
         class="hidden"
         accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        @change="importDocument(
-            $event.target.files[0]
-        )"
+        @change="importDocument($event.target.files[0])"
     >
 
     <button
@@ -201,9 +185,7 @@
         @dragleave.prevent="dragging = false"
         @drop.prevent="
             dragging = false;
-            importDocument(
-                $event.dataTransfer.files[0]
-            );
+            importDocument($event.dataTransfer.files[0]);
         "
     >
         <span class="text-base font-semibold text-gray-900">
@@ -215,8 +197,8 @@
         </span>
 
         <span class="mt-2 text-xs text-gray-500">
-            Maximum 10 MB. The document is converted
-            to editable consent text and is not retained.
+            Maximum 10 MB. Text formatting and embedded JPG,
+            PNG and WEBP images are imported into the editor.
         </span>
 
         <span

@@ -4,6 +4,16 @@
     :organization-name="$consentSession->organization?->name ?? config('app.name')"
 >
     @php
+        $consentHtml =
+            data_get(
+                $publishedVersion,
+                'template_schema.consent_html'
+            )
+            ?? data_get(
+                $publishedVersion,
+                'consent_html'
+            );
+
         $consentText =
             data_get($publishedVersion, 'consent_text')
             ?? data_get(
@@ -143,10 +153,13 @@
                             Please Review
                         </h3>
 
-                        @if ($consentText)
-                            <div class="prose mt-4 max-w-none whitespace-pre-line text-gray-700">
-                                {{ $consentText }}
-                            </div>
+                        @if ($consentHtml || $consentText)
+                            <x-consent-template-content
+                                :html="$consentHtml"
+                                :text="$consentText"
+                                :organization-id="$consentSession->organization_id"
+                                class="mt-4 text-gray-700"
+                            />
                         @else
                             <div class="mt-4 rounded-lg border border-yellow-300 bg-yellow-50 p-4 text-yellow-800">
                                 The published consent content could not be displayed.

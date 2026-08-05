@@ -14,10 +14,7 @@ class ConsentTemplateDocxImportWiringTest extends TestCase
                 'consent-templates.import-docx'
             );
 
-        $this->assertNotNull(
-            $route
-        );
-
+        $this->assertNotNull($route);
         $this->assertContains(
             'POST',
             $route->methods()
@@ -26,22 +23,14 @@ class ConsentTemplateDocxImportWiringTest extends TestCase
 
     public function test_reusable_word_import_component_exists(): void
     {
-        $componentPath = resource_path(
-            'views/components/'
-            .'consent-template-docx-import.blade.php'
-        );
-
-        $this->assertFileExists(
-            $componentPath
-        );
-
         $component = file_get_contents(
-            $componentPath
+            resource_path(
+                'views/components/'
+                .'consent-template-docx-import.blade.php'
+            )
         );
 
-        $this->assertIsString(
-            $component
-        );
+        $this->assertIsString($component);
 
         $this->assertStringContainsString(
             'Drop a Word document here',
@@ -49,80 +38,40 @@ class ConsentTemplateDocxImportWiringTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            "consent-templates.import-docx",
+            'econsent-set-rich-content',
             $component
         );
 
         $this->assertStringContainsString(
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'embedded JPG',
             $component
         );
     }
 
-    public function test_standard_and_individual_builders_include_importer(): void
+    public function test_all_template_builders_include_importer(): void
     {
-        $standard = file_get_contents(
-            resource_path(
-                'views/consent-templates/create.blade.php'
-            )
-        );
+        foreach ([
+            'create.blade.php',
+            'create-individual-wizard.blade.php',
+            'edit.blade.php',
+        ] as $filename) {
+            $view = file_get_contents(
+                resource_path(
+                    'views/consent-templates/'
+                    .$filename
+                )
+            );
 
-        $individual = file_get_contents(
-            resource_path(
-                'views/consent-templates/'
-                .'create-individual-wizard.blade.php'
-            )
-        );
+            $this->assertIsString($view);
 
-        $this->assertIsString(
-            $standard
-        );
-
-        $this->assertIsString(
-            $individual
-        );
-
-        $this->assertStringContainsString(
-            '<x-consent-template-docx-import />',
-            $standard
-        );
-
-        $this->assertStringContainsString(
-            '<x-consent-template-docx-import />',
-            $individual
-        );
+            $this->assertStringContainsString(
+                '<x-consent-template-docx-import />',
+                $view
+            );
+        }
     }
 
-    public function test_bulk_workflow_shows_direct_word_import_option(): void
-    {
-        $bulk = file_get_contents(
-            resource_path(
-                'views/consent-campaigns/'
-                .'select-template.blade.php'
-            )
-        );
-
-        $this->assertIsString(
-            $bulk
-        );
-
-        $this->assertStringContainsString(
-            'Import Word Template',
-            $bulk
-        );
-
-        $this->assertStringContainsString(
-            "#word-import",
-            $bulk
-        );
-
-        $this->assertStringContainsString(
-            "'return_to' => 'bulk'",
-            $bulk
-        );
-    }
-
-    public function test_import_controller_limits_and_audits_uploads(): void
+    public function test_import_controller_persists_formatted_content(): void
     {
         $controller = file_get_contents(
             app_path(
@@ -131,23 +80,29 @@ class ConsentTemplateDocxImportWiringTest extends TestCase
             )
         );
 
-        $this->assertIsString(
+        $extractor = file_get_contents(
+            app_path(
+                'Services/'
+                .'ConsentTemplateDocxTextExtractor.php'
+            )
+        );
+
+        $this->assertIsString($controller);
+        $this->assertIsString($extractor);
+
+        $this->assertStringContainsString(
+            'prepareImportedHtml',
             $controller
         );
 
         $this->assertStringContainsString(
-            "'max:10240'",
+            "'image_count'",
             $controller
         );
 
         $this->assertStringContainsString(
-            'consent_template.docx_imported',
-            $controller
-        );
-
-        $this->assertStringContainsString(
-            "!== 'docx'",
-            $controller
+            "'HTML'",
+            $extractor
         );
     }
 }

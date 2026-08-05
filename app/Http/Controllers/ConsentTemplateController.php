@@ -271,6 +271,14 @@ class ConsentTemplateController extends Controller
                         (int) Auth::user()
                             ->organization_id;
 
+                    $preparedContent =
+                        app(
+                            \App\Services\ConsentTemplateContentService::class
+                        )->prepare(
+                            $validated['content'],
+                            $organizationId
+                        );
+
                     $usageLimitService
                         ->assertTemplateSlotAvailableLocked(
                             $organizationId
@@ -300,12 +308,13 @@ class ConsentTemplateController extends Controller
 
                                 'template_schema' => [
                                     'builder_version' =>
-                                        1,
+                                        2,
+
+                                    'consent_html' =>
+                                        $preparedContent['html'],
 
                                     'consent_text' =>
-                                        $validated[
-                                            'content'
-                                        ],
+                                        $preparedContent['text'],
 
                                     'additional_fields' =>
                                         $additionalFields,
@@ -515,6 +524,14 @@ class ConsentTemplateController extends Controller
             $validated['usage_types']
         );
 
+        $preparedContent =
+            app(
+                \App\Services\ConsentTemplateContentService::class
+            )->prepare(
+                $validated['content'],
+                (int) Auth::user()->organization_id
+            );
+
         if (
             ! $this->usageSupportsSigningStation($usageType)
             && $consentTemplate->signingStations()->exists()
@@ -531,8 +548,9 @@ class ConsentTemplateController extends Controller
             'usage_type' => $usageType,
 
             'template_schema' => [
-                'builder_version' => 1,
-                'consent_text' => $validated['content'],
+                'builder_version' => 2,
+                'consent_html' => $preparedContent['html'],
+                'consent_text' => $preparedContent['text'],
                 'additional_fields' => $additionalFields,
             ],
 

@@ -2,13 +2,9 @@
 
 namespace App\Services;
 
-use PhpOffice\PhpWord\Element\Image;
-use PhpOffice\PhpWord\Element\ListItem;
-use PhpOffice\PhpWord\Element\ListItemRun;
-use PhpOffice\PhpWord\Element\OLEObject;
-use PhpOffice\PhpWord\Element\PageBreak;
-use PhpOffice\PhpWord\Element\Table;
-use PhpOffice\PhpWord\Element\TextBreak;
+use DOMDocument;
+use DOMElement;
+use DOMXPath;
 use PhpOffice\PhpWord\IOFactory;
 use RuntimeException;
 use Throwable;
@@ -24,7 +20,11 @@ class ConsentTemplateDocxTextExtractor
     private array $warnings = [];
 
     /**
-     * @return array{text: string, warnings: array<int, string>}
+     * @return array{
+     *     text: string,
+     *     html: string,
+     *     warnings: array<int, string>
+     * }
      */
     public function extract(string $path): array
     {
@@ -32,7 +32,26 @@ class ConsentTemplateDocxTextExtractor
         $this->assertSafeArchive($path);
 
         try {
-            $phpWord = IOFactory::load($path, 'Word2007');
+            $phpWord = IOFactory::load(
+                $path,
+                'Word2007'
+            );
+
+            $writer = IOFactory::createWriter(
+                $phpWord,
+                'HTML'
+            );
+
+            if (method_exists(
+                $writer,
+                'setDefaultWhiteSpace'
+            )) {
+                $writer->setDefaultWhiteSpace(
+                    'normal'
+                );
+            }
+
+            $documentHtml = $writer->getContent();
         } catch (Throwable $exception) {
             throw new RuntimeException(
                 'The Word document could not be read. Confirm that it is a valid, unprotected .docx file.',
@@ -40,23 +59,23 @@ class ConsentTemplateDocxTextExtractor
             );
         }
 
-        $blocks = [];
+        $html = $this->bodyHtml(
+            $documentHtml
+        );
 
-        foreach ($phpWord->getSections() as $section) {
-            foreach ($section->getElements() as $element) {
-                $block = $this->blockText($element);
+        $text = $this->plainText(
+            $html
+        );
 
-                if (trim($block) !== '') {
-                    $blocks[] = $block;
-                }
-            }
-        }
-
-        $text = $this->normalizeText(implode("\n\n", $blocks));
-
-        if ($text === '') {
+        if (
+            $text === ''
+            && ! str_contains(
+                strtolower($html),
+                '<img'
+            )
+        ) {
             throw new RuntimeException(
-                'No readable consent text was found in the Word document.'
+                'No readable consent text or images were found in the Word document.'
             );
         }
 
@@ -67,16 +86,23 @@ class ConsentTemplateDocxTextExtractor
         }
 
         $this->warnings[] =
-            'Review the imported text before saving. Fonts, colours, images, columns, headers, footers, and exact page layout are not preserved.';
+            'Review the imported document before saving. Word page breaks, columns, floating objects, headers and footers may not match the original layout exactly.';
 
         return [
             'text' => $text,
-            'warnings' => array_values(array_unique($this->warnings)),
+            'html' => $html,
+            'warnings' =>
+                array_values(
+                    array_unique(
+                        $this->warnings
+                    )
+                ),
         ];
     }
 
-    private function assertSafeArchive(string $path): void
-    {
+    private function assertSafeArchive(
+        string $path
+    ): void {
         $zip = new ZipArchive();
         $opened = $zip->open($path);
 
@@ -88,21 +114,32 @@ class ConsentTemplateDocxTextExtractor
 
         try {
             if (
-                $zip->locateName('[Content_Types].xml') === false
-                || $zip->locateName('word/document.xml') === false
+                $zip->locateName(
+                    '[Content_Types].xml'
+                ) === false
+                || $zip->locateName(
+                    'word/document.xml'
+                ) === false
             ) {
                 throw new RuntimeException(
                     'The uploaded file is not a valid Word .docx document.'
                 );
             }
 
-            if ($zip->locateName('word/vbaProject.bin') !== false) {
+            if (
+                $zip->locateName(
+                    'word/vbaProject.bin'
+                ) !== false
+            ) {
                 throw new RuntimeException(
                     'Macro-enabled Word documents are not supported.'
                 );
             }
 
-            if ($zip->numFiles > self::MAX_ARCHIVE_ENTRIES) {
+            if (
+                $zip->numFiles
+                > self::MAX_ARCHIVE_ENTRIES
+            ) {
                 throw new RuntimeException(
                     'The Word document contains too many embedded files.'
                 );
@@ -110,34 +147,54 @@ class ConsentTemplateDocxTextExtractor
 
             $uncompressedBytes = 0;
 
-            for ($index = 0; $index < $zip->numFiles; $index++) {
+            for (
+                $index = 0;
+                $index < $zip->numFiles;
+                $index++
+            ) {
                 $stat = $zip->statIndex($index);
 
                 if (! is_array($stat)) {
                     continue;
                 }
 
-                $uncompressedBytes += (int) ($stat['size'] ?? 0);
+                $uncompressedBytes +=
+                    (int) ($stat['size'] ?? 0);
 
-                if ($uncompressedBytes > self::MAX_UNCOMPRESSED_BYTES) {
+                if (
+                    $uncompressedBytes
+                    > self::MAX_UNCOMPRESSED_BYTES
+                ) {
                     throw new RuntimeException(
                         'The Word document expands beyond the safe import size.'
                     );
                 }
 
-                $name = (string) ($stat['name'] ?? '');
+                $name =
+                    (string) ($stat['name'] ?? '');
 
-                if (str_starts_with($name, 'word/media/')) {
+                if (
+                    str_starts_with(
+                        $name,
+                        'word/header'
+                    )
+                    || str_starts_with(
+                        $name,
+                        'word/footer'
+                    )
+                ) {
                     $this->warnings[] =
-                        'Images in the Word document were not imported.';
+                        'Word headers and footers are not imported into the consent body.';
                 }
 
                 if (
-                    str_starts_with($name, 'word/header')
-                    || str_starts_with($name, 'word/footer')
+                    str_starts_with(
+                        $name,
+                        'word/embeddings/'
+                    )
                 ) {
                     $this->warnings[] =
-                        'Word headers and footers were not imported.';
+                        'Embedded Office objects are not imported.';
                 }
             }
         } finally {
@@ -145,151 +202,85 @@ class ConsentTemplateDocxTextExtractor
         }
     }
 
-    private function blockText(mixed $element): string
-    {
-        if ($element instanceof Table) {
-            return $this->tableText($element);
-        }
-
-        if (
-            $element instanceof ListItem
-            || $element instanceof ListItemRun
-        ) {
-            $text = trim($this->inlineText($element));
-
-            return $text === '' ? '' : '• '.$text;
-        }
-
-        if (
-            $element instanceof PageBreak
-            || $element instanceof TextBreak
-        ) {
-            return "\n";
-        }
-
-        if (
-            $element instanceof Image
-            || $element instanceof OLEObject
-        ) {
-            $this->warnings[] =
-                'Embedded images and objects were not imported.';
-
-            return '';
-        }
-
-        return trim($this->inlineText($element));
-    }
-
-    private function inlineText(mixed $element): string
-    {
-        if ($element === null) {
-            return '';
-        }
-
-        if (is_scalar($element)) {
-            return (string) $element;
-        }
-
-        if ($element instanceof TextBreak) {
-            return "\n";
-        }
-
-        if ($element instanceof PageBreak) {
-            return "\n\n";
-        }
-
-        if (
-            $element instanceof Image
-            || $element instanceof OLEObject
-        ) {
-            $this->warnings[] =
-                'Embedded images and objects were not imported.';
-
-            return '';
-        }
-
-        if ($element instanceof Table) {
-            return $this->tableText($element);
-        }
-
-        if (
-            is_object($element)
-            && method_exists($element, 'getTextObject')
-        ) {
-            return $this->inlineText($element->getTextObject());
-        }
-
-        if (
-            is_object($element)
-            && method_exists($element, 'getElements')
-        ) {
-            $parts = [];
-
-            foreach ($element->getElements() as $child) {
-                $parts[] = $this->inlineText($child);
-            }
-
-            return implode('', $parts);
-        }
-
-        if (
-            is_object($element)
-            && method_exists($element, 'getText')
-        ) {
-            return $this->inlineText($element->getText());
-        }
-
-        return '';
-    }
-
-    private function tableText(Table $table): string
-    {
-        $rows = [];
-
-        foreach ($table->getRows() as $row) {
-            $cells = [];
-
-            foreach ($row->getCells() as $cell) {
-                $parts = [];
-
-                foreach ($cell->getElements() as $element) {
-                    $text = trim($this->blockText($element));
-
-                    if ($text !== '') {
-                        $parts[] = $text;
-                    }
-                }
-
-                $cells[] = implode(' / ', $parts);
-            }
-
-            $rowText = trim(implode(' | ', $cells));
-
-            if ($rowText !== '') {
-                $rows[] = $rowText;
-            }
-        }
-
-        return implode("\n", $rows);
-    }
-
-    private function normalizeText(string $text): string
-    {
-        $text = str_replace(["\r\n", "\r"], "\n", $text);
-
-        $text = preg_replace(
-            '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u',
-            '',
-            $text
-        ) ?? $text;
-
-        $lines = array_map(
-            static fn (string $line): string => rtrim($line),
-            explode("\n", $text)
+    private function bodyHtml(
+        string $documentHtml
+    ): string {
+        $document = new DOMDocument(
+            '1.0',
+            'UTF-8'
         );
 
-        $text = implode("\n", $lines);
-        $text = preg_replace("/\n{3,}/", "\n\n", $text) ?? $text;
+        $previous = libxml_use_internal_errors(
+            true
+        );
+
+        try {
+            $document->loadHTML(
+                '<?xml encoding="UTF-8">'
+                .$documentHtml,
+                LIBXML_NONET
+            );
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors(
+                $previous
+            );
+        }
+
+        $xpath = new DOMXPath($document);
+        $body = $xpath->query('//body')
+            ?->item(0);
+
+        if (! $body instanceof DOMElement) {
+            throw new RuntimeException(
+                'The converted Word document body could not be read.'
+            );
+        }
+
+        $html = '';
+
+        foreach ($body->childNodes as $child) {
+            $html .= $document->saveHTML($child)
+                ?: '';
+        }
+
+        return trim($html);
+    }
+
+    private function plainText(
+        string $html
+    ): string {
+        $html = preg_replace(
+            '/<br\s*\/?>/i',
+            "\n",
+            $html
+        ) ?? $html;
+
+        $html = preg_replace(
+            '/<\/(?:p|div|h[1-6]|li|tr|table|ul|ol)>/i',
+            "\n",
+            $html
+        ) ?? $html;
+
+        $text = html_entity_decode(
+            strip_tags($html),
+            ENT_QUOTES
+            | ENT_HTML5
+            | ENT_SUBSTITUTE,
+            'UTF-8'
+        );
+
+        $text = str_replace(
+            ["\r\n", "\r"],
+            "\n",
+            $text
+        );
+
+        $text = preg_replace(
+            '/\n{3,}/',
+            "\n\n",
+            $text
+        ) ?? $text;
 
         return trim($text);
     }

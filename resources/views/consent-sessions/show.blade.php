@@ -617,10 +617,24 @@
                         </div>
 
                         <div class="p-6">
-                            @if (filled($consentText))
-                                <div class="prose max-w-none whitespace-pre-line text-gray-700">
-                                    {{ $consentText }}
-                                </div>
+                            @if (
+                                filled(
+                                    data_get(
+                                        $publishedVersion,
+                                        'template_schema.consent_html'
+                                    )
+                                )
+                                || filled($consentText)
+                            )
+                                <x-consent-template-content
+                                    :html="data_get(
+                                        $publishedVersion,
+                                        'template_schema.consent_html'
+                                    )"
+                                    :text="$consentText"
+                                    :organization-id="$consentSession->organization_id"
+                                    class="text-gray-700"
+                                />
                             @else
                                 <div class="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
                                     <p class="font-medium text-gray-700">

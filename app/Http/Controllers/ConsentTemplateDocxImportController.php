@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Services\ActivityLogger;
+use App\Services\ConsentTemplateContentService;
 use App\Services\ConsentTemplateDocxTextExtractor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -15,18 +15,20 @@ use RuntimeException;
 class ConsentTemplateDocxImportController extends Controller
 {
     public function __construct(
-        protected ActivityLogger $activityLogger
+        private readonly ActivityLogger $activityLogger
     ) {
     }
 
     public function __invoke(
         Request $request,
-        ConsentTemplateDocxTextExtractor $extractor
+        ConsentTemplateDocxTextExtractor $extractor,
+        ConsentTemplateContentService $contentService
     ): JsonResponse {
         $validated = $request->validate([
             'document' => [
                 'required',
                 'file',
+                'mimetypes:application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip,application/octet-stream',
                 'max:10240',
             ],
         ], [
@@ -42,8 +44,9 @@ class ConsentTemplateDocxImportController extends Controller
         $document = $validated['document'];
 
         if (
-            strtolower($document->getClientOriginalExtension())
-            !== 'docx'
+            strtolower(
+                $document->getClientOriginalExtension()
+            ) !== 'docx'
         ) {
             throw ValidationException::withMessages([
                 'document' =>
@@ -60,47 +63,77 @@ class ConsentTemplateDocxImportController extends Controller
             ]);
         }
 
+        $organizationId = (int) $request
+            ->user()
+            ->organization_id;
+
         try {
-            $result = $extractor->extract($path);
+            $result = $extractor->extract(
+                $path
+            );
+
+            $prepared = $contentService
+                ->prepareImportedHtml(
+                    $result['html'],
+                    $organizationId
+                );
         } catch (RuntimeException $exception) {
             throw ValidationException::withMessages([
-                'document' => $exception->getMessage(),
+                'document' =>
+                    $exception->getMessage(),
             ]);
         }
 
-        $originalName = $document->getClientOriginalName();
+        $originalName =
+            $document->getClientOriginalName();
 
         $suggestedTitle = Str::of(
-            pathinfo($originalName, PATHINFO_FILENAME)
+            pathinfo(
+                $originalName,
+                PATHINFO_FILENAME
+            )
         )
             ->replace(['-', '_'], ' ')
             ->squish()
             ->title()
             ->toString();
 
-        $organizationId = (int) Auth::user()->organization_id;
-
         $this->activityLogger->log(
-            action: 'consent_template.docx_imported',
+            action:
+                'consent_template.docx_imported',
             description:
-                'Imported consent text from a Word document.',
+                'Imported formatted consent content and images from a Word document.',
             organizationId: $organizationId,
             properties: [
-                'original_filename' => $originalName,
-                'file_size_bytes' => $document->getSize(),
+                'original_filename' =>
+                    $originalName,
+                'file_size_bytes' =>
+                    $document->getSize(),
                 'character_count' =>
-                    mb_strlen($result['text']),
-                'warnings' => $result['warnings'],
+                    mb_strlen(
+                        $prepared['text']
+                    ),
+                'image_count' =>
+                    $prepared['image_count'],
+                'warnings' =>
+                    $result['warnings'],
             ],
         );
 
         return response()->json([
-            'content' => $result['text'],
-            'suggested_title' => $suggestedTitle,
+            'content' => $prepared['html'],
+            'plain_text' => $prepared['text'],
+            'suggested_title' =>
+                $suggestedTitle,
             'filename' => $originalName,
             'character_count' =>
-                mb_strlen($result['text']),
-            'warnings' => $result['warnings'],
+                mb_strlen(
+                    $prepared['text']
+                ),
+            'image_count' =>
+                $prepared['image_count'],
+            'warnings' =>
+                $result['warnings'],
         ]);
     }
 }

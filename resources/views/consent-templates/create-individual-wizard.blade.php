@@ -113,17 +113,9 @@
                         <x-consent-template-docx-import />
 
                         <div>
-                            <label for="content" class="block text-sm font-semibold text-gray-900">
-                                Consent Text
-                            </label>
-                            <textarea
-                                id="content"
-                                name="content"
-                                rows="11"
-                                required
-                                class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Write the consent text..."
-                            >{{ old('content') }}</textarea>
+                            <x-consent-template-rich-editor
+                                :value="old('content', '')"
+                            />
                         </div>
 
                     </div>
