@@ -37,6 +37,7 @@
                 <a href="#features">Features</a>
                 <a href="#process">How it works</a>
                 <a href="#security">Security</a>
+                <a href="#contact">Contact</a>
             </nav>
 
             <div class="ec-nav-actions">
@@ -297,6 +298,59 @@
                         <li>Signed PDF and delivery records</li>
                         <li>Backup and production monitoring</li>
                     </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="contact" class="ec-section">
+            <div class="ec-container">
+                <div class="ec-section-heading">
+                    <span class="ec-kicker">Contact eConsent</span>
+
+                    <h2>Questions about setup, subscriptions or support?</h2>
+
+                    <p>
+                        Reach us directly for help getting started,
+                        choosing a plan or resolving a technical issue.
+                    </p>
+                </div>
+
+                <div class="ec-feature-grid">
+                    <article>
+                        <span>@</span>
+
+                        <h3>Email support</h3>
+
+                        <p>
+                            Send a message and we will respond as soon as
+                            possible.
+                        </p>
+
+                        <a
+                            href="mailto:kleinluche@gmail.com"
+                            class="ec-button ec-button-secondary"
+                        >
+                            kleinluche@gmail.com
+                        </a>
+                    </article>
+
+                    <article>
+                        <span>☎</span>
+
+                        <h3>Call us</h3>
+
+                        <p>
+                            Speak to us directly about your eConsent
+                            account or organization.
+                        </p>
+
+                        <a
+                            href="tel:+254716583388"
+                            class="ec-button ec-button-secondary"
+                        >
+                            +254 716 583 388
+                        </a>
+                    </article>
                 </div>
             </div>
         </section>
