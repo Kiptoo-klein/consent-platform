@@ -1011,5 +1011,37 @@
             is retained separately within the protected application audit trail.
         </div>
     </div>
+    <div
+        class="page-break-avoid"
+        style="
+            margin-top:24px;
+            padding:14px 18px;
+            border-top:2px solid #4f46e5;
+            background:#f5f7ff;
+            text-align:center;
+            color:#374151;
+            font-family:DejaVu Sans, sans-serif;
+            font-size:10px;
+            line-height:1.5;
+        "
+    >
+        <strong style="color:#312e81;">
+            Securely created with eConsent
+        </strong>
+
+        <span style="margin:0 5px;">—</span>
+
+        <a
+            href="https://econsent.site"
+            style="color:#4338ca;text-decoration:none;font-weight:bold;"
+        >
+            econsent.site
+        </a>
+
+        <div style="margin-top:4px;color:#6b7280;font-size:9px;">
+            This platform notice is separate from the consent
+            declaration and signing evidence above.
+        </div>
+    </div>
 </body>
 </html>

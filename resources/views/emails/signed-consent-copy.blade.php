@@ -102,9 +102,11 @@
                         </td>
                     </tr>
 
+                    @include('emails.partials.econsent-promotion')
+
                     <tr>
                         <td style="padding:18px 30px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;line-height:1.6;color:#6b7280;">
-                            This transactional message was generated after a consent form was signed. It was not sent as a marketing email.
+                            This transactional message was generated after a consent form was signed.
                         </td>
                     </tr>
                 </table>

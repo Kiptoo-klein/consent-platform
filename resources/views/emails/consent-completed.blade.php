@@ -153,6 +153,8 @@
                             </p>
                         </td>
                     </tr>
+
+                    @include('emails.partials.econsent-promotion')
                 </table>
             </td>
         </tr>

@@ -93,6 +93,8 @@
                         </td>
                     </tr>
 
+                    @include('emails.partials.econsent-promotion')
+
                     <tr>
                         <td style="padding:18px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;line-height:1.6;color:#6b7280;">
                             Sent securely by {{ $organizationName }} using {{ config('app.name', 'Consent Platform') }}.
