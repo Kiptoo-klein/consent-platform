@@ -106,6 +106,8 @@
                             >{{ old('description') }}</textarea>
                         </div>
 
+                        <x-consent-template-docx-import />
+
                         <div>
                             <label for="content" class="block text-sm font-semibold text-gray-900">
                                 Consent Text

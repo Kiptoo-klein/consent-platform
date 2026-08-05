@@ -54,7 +54,7 @@
                     </h1>
                 </div>
 
-                <div class="grid gap-5 p-6 md:grid-cols-2">
+                <div class="grid gap-5 p-6 lg:grid-cols-3">
                     <a
                         href="#existing-templates"
                         class="rounded-xl border border-gray-200 bg-white p-5 transition hover:border-emerald-300 hover:bg-emerald-50"
@@ -81,6 +81,22 @@
 
                         <p class="mt-2 text-sm leading-6 text-indigo-900">
                             Build a new consent template from scratch, publish it, and continue directly to recipients.
+                        </p>
+                    </a>
+
+                    <a
+                        href="{{ route('consent-templates.create', [
+                            'type' => \App\Models\ConsentTemplate::USAGE_INDIVIDUAL,
+                            'return_to' => 'bulk',
+                        ]).'#word-import' }}"
+                        class="rounded-xl border border-sky-200 bg-sky-50 p-5 transition hover:border-sky-400 hover:bg-sky-100"
+                    >
+                        <h2 class="text-lg font-bold text-sky-950">
+                            Import Word Template
+                        </h2>
+
+                        <p class="mt-2 text-sm leading-6 text-sky-900">
+                            Upload a .docx consent form, review the imported text, publish it, and continue directly to recipients.
                         </p>
                     </a>
                 </div>

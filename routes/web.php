@@ -530,6 +530,13 @@ Route::get('/consent-templates/create', [
     'create',
 ])->name('consent-templates.create');
 
+Route::post('/consent-templates/import-docx', [
+    \App\Http\Controllers\ConsentTemplateDocxImportController::class,
+    '__invoke',
+])
+    ->middleware('throttle:20,1')
+    ->name('consent-templates.import-docx');
+
 Route::post('/consent-templates', [
     ConsentTemplateController::class,
     'store',

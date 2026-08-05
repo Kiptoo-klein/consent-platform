@@ -223,6 +223,8 @@
                         @enderror
                     </div>
 
+                    <x-consent-template-docx-import />
+
                     <!-- Consent Text -->
                     <div class="mb-10">
                         <label
