@@ -10,6 +10,7 @@ use App\Models\SigningStation;
 use App\Services\ConsentAuditService;
 use App\Services\ConsentExpiryService;
 use App\Services\ConsentNotificationService;
+use App\Services\SubscriptionUsageLimitService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -27,8 +28,10 @@ class ConsentSessionController extends Controller
     /**
      * Display consent records belonging to the current organization.
      */
-    public function index(Request $request): View
-    {
+    public function index(
+        Request $request,
+        SubscriptionUsageLimitService $usageLimitService
+    ): View {
         $validated = $request->validate([
             'search' => [
                 'nullable',
@@ -77,6 +80,12 @@ class ConsentSessionController extends Controller
 
         $organizationId =
             (int) Auth::user()->organization_id;
+
+        $signedConsentCapacity =
+            $usageLimitService
+                ->signedConsentCapacity(
+                    $organizationId
+                );
 
         $search = isset($validated['search'])
             ? trim($validated['search'])
@@ -358,6 +367,8 @@ class ConsentSessionController extends Controller
                 )
                 ->exists(),
             'hasFilters' => $activeFilters !== [],
+            'signedConsentCapacity' =>
+                $signedConsentCapacity,
         ]);
     }
 
@@ -482,11 +493,18 @@ class ConsentSessionController extends Controller
      * Show the form for creating a consent record.
      */
     public function create(
-        ConsentTemplate $consentTemplate
+        ConsentTemplate $consentTemplate,
+        SubscriptionUsageLimitService $usageLimitService
     ): View|RedirectResponse {
         $this->ensureTemplateBelongsToOrganization(
             $consentTemplate
         );
+
+        $usageLimitService
+            ->assertSignedConsentCreationAvailable(
+                (int) Auth::user()
+                    ->organization_id
+            );
 
         if (! $consentTemplate->supportsIndividualConsent()) {
             return redirect()
@@ -523,6 +541,12 @@ class ConsentSessionController extends Controller
             'consentTemplate' => $consentTemplate,
             'publishedVersion' =>
                 $consentTemplate->activeVersion,
+            'signedConsentCapacity' =>
+                $usageLimitService
+                    ->signedConsentCapacity(
+                        (int) Auth::user()
+                            ->organization_id
+                    ),
         ]);
     }
 
@@ -533,7 +557,8 @@ class ConsentSessionController extends Controller
         Request $request,
         ConsentTemplate $consentTemplate,
         ConsentAuditService $consentAuditService,
-        ConsentNotificationService $consentNotificationService
+        ConsentNotificationService $consentNotificationService,
+        SubscriptionUsageLimitService $usageLimitService
     ): RedirectResponse {
         $this->ensureTemplateBelongsToOrganization(
             $consentTemplate

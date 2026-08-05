@@ -46,6 +46,11 @@
                 </div>
             @endif
 
+            <x-signed-consent-capacity
+                :capacity="$signedConsentCapacity"
+                :show-bar="true"
+            />
+
             <section class="overflow-hidden rounded-xl bg-white shadow">
                 <div class="border-b border-gray-200 px-6 py-5">
                     <h2 class="text-lg font-semibold text-gray-900">

@@ -6,6 +6,7 @@ use App\Models\ConsentTemplate;
 use App\Models\OrganizationSubscription;
 use App\Models\SigningStation;
 use App\Services\SigningStationDeviceLeaseService;
+use App\Services\SubscriptionUsageLimitService;
 use chillerlan\QRCode\QRCode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,8 +18,10 @@ use Illuminate\View\View;
 
 class SigningStationController extends Controller
 {
-    public function index(Request $request): View
-    {
+    public function index(
+        Request $request,
+        SubscriptionUsageLimitService $usageLimitService
+    ): View {
         $organizationId = $this->organizationId($request);
 
         $signingStations = SigningStation::query()
@@ -36,15 +39,69 @@ class SigningStationController extends Controller
             ->latest()
             ->paginate(12);
 
+        $kioskCapacity =
+            $usageLimitService
+                ->activeKioskCapacity(
+                    $organizationId
+                );
+
+        $existingStation =
+            SigningStation::query()
+                ->where(
+                    'organization_id',
+                    $organizationId
+                )
+                ->where(
+                    'active',
+                    true
+                )
+                ->latest()
+                ->first();
+
         return view(
             'signing-stations.index',
-            compact('signingStations')
+            compact(
+                'signingStations',
+                'kioskCapacity',
+                'existingStation'
+            )
         );
     }
 
-    public function create(Request $request): View
-    {
+    public function create(
+        Request $request,
+        SubscriptionUsageLimitService $usageLimitService
+    ): View {
         $organizationId = $this->organizationId($request);
+
+        $kioskCapacity =
+            $usageLimitService
+                ->activeKioskCapacity(
+                    $organizationId
+                );
+
+        if ($kioskCapacity['reached']) {
+            $existingStation =
+                SigningStation::query()
+                    ->where(
+                        'organization_id',
+                        $organizationId
+                    )
+                    ->where(
+                        'active',
+                        true
+                    )
+                    ->latest()
+                    ->first();
+
+            return view(
+                'signing-stations.limit-reached',
+                compact(
+                    'kioskCapacity',
+                    'existingStation'
+                )
+            );
+        }
 
         $consentTemplates = ConsentTemplate::query()
             ->where('organization_id', $organizationId)
@@ -136,11 +193,16 @@ class SigningStationController extends Controller
         }
 
         if ($this->activeKioskLimitReached($organizationId)) {
-            return back()
+            return redirect()
+                ->route(
+                    'signing-stations.create'
+                )
                 ->withInput()
                 ->withErrors([
                     'subscription' =>
-                        'The active signing station limit for this subscription plan has been reached.',
+                        'The active kiosk limit for this subscription '
+                        .'plan has been reached. Edit or pause an '
+                        .'existing kiosk, or upgrade the plan.',
                 ]);
         }
 
@@ -353,7 +415,7 @@ class SigningStationController extends Controller
         ) {
             return back()->withErrors([
                 'subscription' =>
-                    'The active signing station limit for this subscription plan has been reached.',
+                    'The active kiosk limit for this subscription plan has been reached. Pause an existing kiosk or upgrade the plan.',
             ]);
         }
 

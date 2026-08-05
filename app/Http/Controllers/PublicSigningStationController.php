@@ -7,6 +7,7 @@ use App\Services\SigningStationFlowTracker;
 use App\Models\ConsentSession;
 use App\Models\SigningStation;
 use App\Services\ConsentAuditService;
+use App\Services\SubscriptionUsageLimitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,9 +20,24 @@ class PublicSigningStationController extends Controller
     /**
      * Display the signing-station welcome page.
      */
-    public function show(string $stationToken): View
-    {
+    public function show(
+        string $stationToken,
+        SubscriptionUsageLimitService $usageLimitService
+    ): View {
         $station = $this->findStation($stationToken);
+
+        if (
+            $usageLimitService
+                ->signedConsentCapacity(
+                    (int) $station
+                        ->organization_id
+                )['reached']
+        ) {
+            return view(
+                'public-signing-stations.signed-consent-limit-reached',
+                compact('station')
+            );
+        }
 
         return view('public-signing-stations.show', [
             'station' => $station,
@@ -33,10 +49,25 @@ class PublicSigningStationController extends Controller
     /**
      * Display the consent document for review.
      */
-    public function review(Request $request,
-        string $stationToken): View
-    {
+    public function review(
+        Request $request,
+        string $stationToken,
+        SubscriptionUsageLimitService $usageLimitService
+    ): View {
         $station = $this->findStation($stationToken);
+
+        if (
+            $usageLimitService
+                ->signedConsentCapacity(
+                    (int) $station
+                        ->organization_id
+                )['reached']
+        ) {
+            return view(
+                'public-signing-stations.signed-consent-limit-reached',
+                compact('station')
+            );
+        }
 
         // KIOSK_ANALYTICS_REVIEW_STARTED
         app(SigningStationFlowTracker::class)
@@ -62,9 +93,27 @@ class PublicSigningStationController extends Controller
      */
     public function confirmReview(
         Request $request,
-        string $stationToken
+        string $stationToken,
+        SubscriptionUsageLimitService $usageLimitService
     ): RedirectResponse {
         $station = $this->findStation($stationToken);
+
+        if (
+            $usageLimitService
+                ->signedConsentCapacity(
+                    (int) $station
+                        ->organization_id
+                )['reached']
+        ) {
+            return redirect()->route(
+                'public-signing-stations.show',
+                [
+                    'stationToken' =>
+                        $station
+                            ->station_token,
+                ]
+            );
+        }
 
         $request->validate(
             [
@@ -100,9 +149,23 @@ class PublicSigningStationController extends Controller
      */
     public function details(
         Request $request,
-        string $stationToken
+        string $stationToken,
+        SubscriptionUsageLimitService $usageLimitService
     ): View|RedirectResponse {
         $station = $this->findStation($stationToken);
+
+        if (
+            $usageLimitService
+                ->signedConsentCapacity(
+                    (int) $station
+                        ->organization_id
+                )['reached']
+        ) {
+            return view(
+                'public-signing-stations.signed-consent-limit-reached',
+                compact('station')
+            );
+        }
 
         if (! $this->hasReviewedDocument($request, $station)) {
             return redirect()
@@ -147,9 +210,27 @@ class PublicSigningStationController extends Controller
     public function start(
         Request $request,
         string $stationToken,
-        ConsentAuditService $consentAuditService
+        ConsentAuditService $consentAuditService,
+        SubscriptionUsageLimitService $usageLimitService
     ): RedirectResponse {
         $station = $this->findStation($stationToken);
+
+        if (
+            $usageLimitService
+                ->signedConsentCapacity(
+                    (int) $station
+                        ->organization_id
+                )['reached']
+        ) {
+            return redirect()->route(
+                'public-signing-stations.show',
+                [
+                    'stationToken' =>
+                        $station
+                            ->station_token,
+                ]
+            );
+        }
 
         if (! $this->hasReviewedDocument($request, $station)) {
             return redirect()->route(

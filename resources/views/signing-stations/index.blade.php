@@ -41,6 +41,64 @@
                 </div>
             @endif
 
+            @if ($kioskCapacity['reached'])
+                <section
+                    data-kiosk-capacity-warning
+                    class="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-5 text-amber-950"
+                >
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-[0.16em]">
+                                Kiosk limit reached
+                            </p>
+
+                            <p class="mt-2 text-sm leading-6">
+                                Your
+                                <strong>{{ $kioskCapacity['plan_name'] ?? 'current' }}</strong>
+                                plan allows
+                                <strong>{{ $kioskCapacity['limit'] }}</strong>
+                                active
+                                {{ \Illuminate\Support\Str::plural(
+                                    'kiosk',
+                                    (int) $kioskCapacity['limit']
+                                ) }}.
+                                Edit or pause an existing kiosk, or upgrade
+                                before creating another.
+                            </p>
+                        </div>
+
+                        <div class="flex shrink-0 flex-col gap-2 sm:flex-row">
+                            @if ($existingStation !== null)
+                                <a
+                                    href="{{ route(
+                                        'signing-stations.edit',
+                                        $existingStation
+                                    ) }}"
+                                    class="inline-flex items-center justify-center rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-800"
+                                >
+                                    Edit Existing Kiosk
+                                </a>
+                            @endif
+
+                            @if (
+                                \Illuminate\Support\Facades\Route::has(
+                                    'organization-subscription-plans.index'
+                                )
+                            )
+                                <a
+                                    href="{{ route(
+                                        'organization-subscription-plans.index'
+                                    ) }}"
+                                    class="inline-flex items-center justify-center rounded-lg border border-indigo-300 bg-white px-4 py-2 text-sm font-semibold text-indigo-800 hover:bg-indigo-50"
+                                >
+                                    Upgrade Plan
+                                </a>
+                            @endif
+                        </div>
+                    </div>
+                </section>
+            @endif
+
             @if ($signingStations->isEmpty())
                 <div class="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
                     <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-300">

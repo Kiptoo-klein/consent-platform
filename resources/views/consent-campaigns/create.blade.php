@@ -45,6 +45,11 @@
 
     <div class="py-8">
         <div class="mx-auto max-w-6xl space-y-6 sm:px-6 lg:px-8">
+            <x-signed-consent-capacity
+                :capacity="$signedConsentCapacity"
+                :bulk="true"
+            />
+
             @if ($errors->any())
                 <div class="rounded-xl border border-red-300 bg-red-50 px-5 py-4 text-red-800">
                     <p class="font-semibold">
@@ -367,7 +372,8 @@
 
                         <button
                             type="submit"
-                            class="inline-flex items-center justify-center rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
+                            @disabled($signedConsentCapacity['reached'])
+                            class="inline-flex items-center justify-center rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
                         >
                             Create Campaign and Send
                         </button>

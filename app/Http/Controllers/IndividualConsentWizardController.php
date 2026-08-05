@@ -24,9 +24,20 @@ class IndividualConsentWizardController extends Controller
     /**
      * Build a new individual-consent template and its first record together.
      */
-    public function create(): View
-    {
-        return view('consent-templates.create-individual-wizard');
+    public function create(
+        SubscriptionUsageLimitService $usageLimitService
+    ): View {
+        return view(
+            'consent-templates.create-individual-wizard',
+            [
+                'signedConsentCapacity' =>
+                    $usageLimitService
+                        ->signedConsentCapacity(
+                            (int) Auth::user()
+                                ->organization_id
+                        ),
+            ]
+        );
     }
 
     /**
@@ -104,6 +115,11 @@ class IndividualConsentWizardController extends Controller
                 $organizationId =
                     (int) Auth::user()
                         ->organization_id;
+
+                $usageLimitService
+                    ->assertSignedConsentSlotAvailableLocked(
+                        $organizationId
+                    );
 
                 $usageLimitService
                     ->assertTemplateSlotAvailableLocked(

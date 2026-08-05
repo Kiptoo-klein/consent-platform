@@ -8,6 +8,7 @@ use App\Models\ConsentSession;
 use App\Models\ConsentTemplate;
 use App\Services\ConsentAuditService;
 use App\Services\ConsentNotificationService;
+use App\Services\SubscriptionUsageLimitService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -142,7 +143,8 @@ class ConsentCampaignController extends Controller
 
     public function create(
         Request $request,
-        ConsentTemplate $consentTemplate
+        ConsentTemplate $consentTemplate,
+        SubscriptionUsageLimitService $usageLimitService
     ): View|RedirectResponse {
         $this->ensureTemplateBelongsToOrganization(
             $request,
@@ -194,6 +196,14 @@ class ConsentCampaignController extends Controller
                 'maximumRecipients' =>
                     ConsentCampaign::
                         MAX_RECIPIENTS,
+
+                'signedConsentCapacity' =>
+                    $usageLimitService
+                        ->signedConsentCapacity(
+                            (int) $request
+                                ->user()
+                                ->organization_id
+                        ),
             ]
         );
     }
@@ -202,12 +212,20 @@ class ConsentCampaignController extends Controller
         Request $request,
         ConsentTemplate $consentTemplate,
         ConsentAuditService $consentAuditService,
-        ConsentNotificationService $notificationService
+        ConsentNotificationService $notificationService,
+        SubscriptionUsageLimitService $usageLimitService
     ): RedirectResponse {
         $this->ensureTemplateBelongsToOrganization(
             $request,
             $consentTemplate
         );
+
+        $usageLimitService
+            ->assertSignedConsentCreationAvailable(
+                (int) $request
+                    ->user()
+                    ->organization_id
+            );
 
         $recipients =
             $this->manualRecipients(

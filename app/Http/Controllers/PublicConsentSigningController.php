@@ -40,6 +40,22 @@ class PublicConsentSigningController extends Controller
             'signature',
         ]);
 
+        if (
+            ! $consentSession->isCompleted()
+            && app(
+                SubscriptionUsageLimitService::class
+            )
+                ->signedConsentCapacity(
+                    (int) $consentSession
+                        ->organization_id
+                )['reached']
+        ) {
+            return view(
+                'public-consent.signed-consent-limit-reached',
+                compact('consentSession')
+            );
+        }
+
         return view('public-consent.show', [
             'consentSession' => $consentSession,
             'publishedVersion' => $consentSession->consentTemplateVersion,
@@ -94,6 +110,22 @@ class PublicConsentSigningController extends Controller
                     'record' =>
                         'The signing deadline for this consent record has passed.',
                 ]);
+        }
+
+        if (
+            app(
+                SubscriptionUsageLimitService::class
+            )
+                ->signedConsentCapacity(
+                    (int) $consentSession
+                        ->organization_id
+                )['reached']
+        ) {
+            return redirect()->route(
+                'public-consent.show',
+                $consentSession
+                    ->access_token
+            );
         }
 
         $additionalFields = $this->additionalFields(
@@ -202,6 +234,25 @@ class PublicConsentSigningController extends Controller
                     'public-consent.completed',
                     $consentSession->access_token
                 );
+        }
+
+        if (
+            app(
+                SubscriptionUsageLimitService::class
+            )
+                ->signedConsentCapacity(
+                    (int) $consentSession
+                        ->organization_id
+                )['reached']
+        ) {
+            $consentSession->load(
+                'organization'
+            );
+
+            return view(
+                'public-consent.signed-consent-limit-reached',
+                compact('consentSession')
+            );
         }
 
         $consentSession->load([
@@ -382,12 +433,30 @@ class PublicConsentSigningController extends Controller
                 return false;
             }
 
-            $usageLimitService
-                ->assertSignedConsentSlotAvailableLocked(
-                    (int) $lockedSession
-                        ->organization_id,
-                    (int) $lockedSession->id
-                );
+            try {
+                $usageLimitService
+                    ->assertSignedConsentSlotAvailableLocked(
+                        (int) $lockedSession
+                            ->organization_id,
+                        (int) $lockedSession->id
+                    );
+            } catch (ValidationException $exception) {
+                if (
+                    array_key_exists(
+                        'subscription',
+                        $exception->errors()
+                    )
+                ) {
+                    throw ValidationException::withMessages([
+                        'record' =>
+                            'Signing is temporarily unavailable. '
+                            .'Please contact the organization or '
+                            .'try again later.',
+                    ]);
+                }
+
+                throw $exception;
+            }
 
             $signedAt = now();
             $completedAt = now();

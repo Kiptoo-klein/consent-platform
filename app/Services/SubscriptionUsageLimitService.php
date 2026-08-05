@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ConsentSession;
 use App\Models\ConsentTemplate;
 use App\Models\OrganizationSubscription;
+use App\Models\SigningStation;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\ValidationException;
@@ -86,6 +87,199 @@ final class SubscriptionUsageLimitService
                     .'period or upgrade the plan.',
             ]);
         }
+    }
+
+
+    /**
+     * Return signed-consent usage details for customer-facing screens.
+     *
+     * @return array{
+     *     plan_name: string|null,
+     *     limit: int|null,
+     *     used: int,
+     *     remaining: int|null,
+     *     reached: bool,
+     *     warning: bool,
+     *     period_start: CarbonInterface|null,
+     *     period_end: CarbonInterface|null
+     * }
+     */
+    public function signedConsentCapacity(
+        int $organizationId
+    ): array {
+        $subscription =
+            OrganizationSubscription::query()
+                ->where(
+                    'organization_id',
+                    $organizationId
+                )
+                ->with('plan')
+                ->first();
+
+        $rawLimit =
+            $subscription
+                ?->plan
+                ?->max_signed_consents_per_period;
+
+        $limit =
+            $rawLimit === null
+                ? null
+                : (int) $rawLimit;
+
+        $used =
+            $subscription === null
+                ? 0
+                : $this->signedConsentUsageForSubscription(
+                    $subscription
+                );
+
+        $remaining =
+            $limit === null
+                ? null
+                : max(
+                    0,
+                    $limit - $used
+                );
+
+        $bounds =
+            $subscription === null
+                ? [
+                    'start' => null,
+                    'end' => null,
+                ]
+                : $this->periodBounds(
+                    $subscription
+                );
+
+        return [
+            'plan_name' =>
+                $subscription
+                    ?->plan
+                    ?->name,
+
+            'limit' =>
+                $limit,
+
+            'used' =>
+                $used,
+
+            'remaining' =>
+                $remaining,
+
+            'reached' =>
+                $limit !== null
+                && $used >= $limit,
+
+            'warning' =>
+                $limit !== null
+                && $limit > 0
+                && $used >= (int) ceil(
+                    $limit * 0.8
+                ),
+
+            'period_start' =>
+                $bounds['start'],
+
+            'period_end' =>
+                $bounds['end'],
+        ];
+    }
+
+    /**
+     * Return active kiosk usage details for organization screens.
+     *
+     * @return array{
+     *     plan_name: string|null,
+     *     limit: int|null,
+     *     used: int,
+     *     remaining: int|null,
+     *     reached: bool
+     * }
+     */
+    public function activeKioskCapacity(
+        int $organizationId
+    ): array {
+        $subscription =
+            OrganizationSubscription::query()
+                ->where(
+                    'organization_id',
+                    $organizationId
+                )
+                ->with('plan')
+                ->first();
+
+        $rawLimit =
+            $subscription
+                ?->plan
+                ?->max_active_kiosks;
+
+        $limit =
+            $rawLimit === null
+                ? null
+                : (int) $rawLimit;
+
+        $used =
+            SigningStation::query()
+                ->where(
+                    'organization_id',
+                    $organizationId
+                )
+                ->where(
+                    'active',
+                    true
+                )
+                ->count();
+
+        return [
+            'plan_name' =>
+                $subscription
+                    ?->plan
+                    ?->name,
+
+            'limit' =>
+                $limit,
+
+            'used' =>
+                $used,
+
+            'remaining' =>
+                $limit === null
+                    ? null
+                    : max(
+                        0,
+                        $limit - $used
+                    ),
+
+            'reached' =>
+                $limit !== null
+                && $used >= $limit,
+        ];
+    }
+
+    /**
+     * Prevent new signing requests after signed-consent capacity is used.
+     *
+     * The final locked completion check remains authoritative.
+     */
+    public function assertSignedConsentCreationAvailable(
+        int $organizationId
+    ): void {
+        $capacity =
+            $this->signedConsentCapacity(
+                $organizationId
+            );
+
+        if (! $capacity['reached']) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'subscription' =>
+                'The signed consent limit for the current '
+                .'subscription period has been reached '
+                ."({$capacity['used']} of {$capacity['limit']}). "
+                .'Wait for the next billing period or upgrade the plan.',
+        ]);
     }
 
     /**

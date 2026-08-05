@@ -33,6 +33,10 @@
                 </div>
             @endif
 
+            <x-signed-consent-capacity
+                :capacity="$signedConsentCapacity"
+            />
+
             <form
                 method="POST"
                 action="{{ route('consent-templates.individual.store') }}"
@@ -311,7 +315,8 @@
 
                     <button
                         type="submit"
-                        class="inline-flex justify-center rounded-lg bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-700"
+                        @disabled($signedConsentCapacity['reached'])
+                        class="inline-flex justify-center rounded-lg bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
                     >
                         Create, Publish & Open Sharing
                     </button>

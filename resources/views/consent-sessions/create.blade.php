@@ -63,6 +63,10 @@
                     </div>
                 </div>
 
+                <x-signed-consent-capacity
+                    :capacity="$signedConsentCapacity"
+                />
+
                 <form
                     method="POST"
                     action="{{ route('consent-sessions.store', $consentTemplate) }}"
@@ -271,7 +275,8 @@
 
                         <button
                             type="submit"
-                            class="inline-flex cursor-pointer justify-center rounded-lg bg-green-600 px-5 py-3 font-medium text-white hover:bg-green-700"
+                            @disabled($signedConsentCapacity['reached'])
+                            class="inline-flex cursor-pointer justify-center rounded-lg bg-green-600 px-5 py-3 font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
                         >
                             Create Individual Consent
                         </button>
