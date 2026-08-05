@@ -267,10 +267,28 @@ export default (configuration = {}) => ({
                 .map((part) => encodeURIComponent(part))
                 .join('/');
 
-            const imageUrl =
+            /*
+             * Prefer the browser-accessible URL returned by the
+             * server. Production storage may not be available at
+             * the application's /storage path.
+             */
+            const returnedUrl = String(
+                data.url || ''
+            ).trim();
+
+            const fallbackUrl =
                 data.asset_disk === 'public' && assetPath
                     ? `${window.location.origin}/storage/${assetPath}`
-                    : data.url;
+                    : '';
+
+            const imageUrl =
+                returnedUrl || fallbackUrl;
+
+            if (!imageUrl) {
+                throw new Error(
+                    'The uploaded image URL was not returned.'
+                );
+            }
 
             const image = document.createElement('img');
             image.src = imageUrl;
