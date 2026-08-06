@@ -400,6 +400,274 @@ class SigningStationDeviceLeaseTest extends TestCase
             );
     }
 
+    public function test_editing_station_details_rotates_public_token_and_releases_device_leases(): void
+    {
+        $originalToken =
+            $this->station->station_token;
+
+        $fixedNow =
+            now()->startOfSecond();
+
+        $this->travelTo($fixedNow);
+
+        try {
+            $this
+                ->withSession([
+                    SigningStationDeviceLeaseService::
+                        SESSION_KEY =>
+                            str_repeat('U', 64),
+                ])
+                ->get(
+                    route(
+                        'public-signing-stations.show',
+                        $originalToken
+                    )
+                )
+                ->assertOk();
+
+            $this->assertDatabaseCount(
+                'signing_station_device_leases',
+                1
+            );
+
+            $this
+                ->actingAs(
+                    $this->administrator
+                )
+                ->put(
+                    route(
+                        'signing-stations.update',
+                        $this->station
+                    ),
+                    [
+                        'name' =>
+                            'Updated Reception Tablet',
+
+                        'consent_template_id' =>
+                            $this->template->id,
+
+                        'auto_reset_seconds' =>
+                            $this->station
+                                ->auto_reset_seconds,
+                    ]
+                )
+                ->assertRedirect(
+                    route(
+                        'signing-stations.show',
+                        $this->station
+                    )
+                )
+                ->assertSessionHas(
+                    'success'
+                );
+
+            $station =
+                $this->station->fresh();
+
+            $this->assertSame(
+                'Updated Reception Tablet',
+                $station->name
+            );
+
+            $this->assertNotSame(
+                $originalToken,
+                $station->station_token
+            );
+
+            $this->assertTrue(
+                $station
+                    ->qr_expires_at
+                    ->equalTo(
+                        $fixedNow
+                            ->copy()
+                            ->addHours(
+                                SigningStation::
+                                    QR_WINDOW_HOURS
+                            )
+                    )
+            );
+
+            $this->assertDatabaseCount(
+                'signing_station_device_leases',
+                0
+            );
+
+            $this
+                ->get(
+                    route(
+                        'public-signing-stations.scan',
+                        $originalToken
+                    )
+                )
+                ->assertNotFound();
+
+            $this
+                ->get(
+                    route(
+                        'public-signing-stations.scan',
+                        $station->station_token
+                    )
+                )
+                ->assertRedirect(
+                    route(
+                        'public-signing-stations.show',
+                        $station->station_token
+                    )
+                );
+        } finally {
+            $this->travelBack();
+        }
+    }
+
+    public function test_changing_station_template_rotates_the_public_qr_token(): void
+    {
+        $replacementTemplate =
+            $this->createPublishedTemplate();
+
+        $originalToken =
+            $this->station->station_token;
+
+        $fixedNow =
+            now()->startOfSecond();
+
+        $this->travelTo($fixedNow);
+
+        try {
+            $this
+                ->actingAs(
+                    $this->administrator
+                )
+                ->put(
+                    route(
+                        'signing-stations.update',
+                        $this->station
+                    ),
+                    [
+                        'name' =>
+                            $this->station->name,
+
+                        'consent_template_id' =>
+                            $replacementTemplate->id,
+
+                        'auto_reset_seconds' =>
+                            $this->station
+                                ->auto_reset_seconds,
+                    ]
+                )
+                ->assertRedirect(
+                    route(
+                        'signing-stations.show',
+                        $this->station
+                    )
+                )
+                ->assertSessionHas(
+                    'success'
+                );
+
+            $station =
+                $this->station->fresh();
+
+            $this->assertSame(
+                $replacementTemplate->id,
+                $station->consent_template_id
+            );
+
+            $this->assertNotSame(
+                $originalToken,
+                $station->station_token
+            );
+
+            $this->assertTrue(
+                $station
+                    ->qr_expires_at
+                    ->equalTo(
+                        $fixedNow
+                            ->copy()
+                            ->addHours(
+                                SigningStation::
+                                    QR_WINDOW_HOURS
+                            )
+                    )
+            );
+
+            $this
+                ->get(
+                    route(
+                        'public-signing-stations.scan',
+                        $originalToken
+                    )
+                )
+                ->assertNotFound();
+        } finally {
+            $this->travelBack();
+        }
+    }
+
+    public function test_saving_unchanged_station_details_keeps_the_current_qr_code(): void
+    {
+        $originalExpiry =
+            now()
+                ->addHours(8)
+                ->startOfSecond();
+
+        $this->station->update([
+            'qr_expires_at' =>
+                $originalExpiry,
+        ]);
+
+        $originalToken =
+            $this->station->station_token;
+
+        $this
+            ->actingAs(
+                $this->administrator
+            )
+            ->put(
+                route(
+                    'signing-stations.update',
+                    $this->station
+                ),
+                [
+                    'name' =>
+                        $this->station->name,
+
+                    'consent_template_id' =>
+                        $this->template->id,
+
+                    'auto_reset_seconds' =>
+                        $this->station
+                            ->auto_reset_seconds,
+                ]
+            )
+            ->assertRedirect(
+                route(
+                    'signing-stations.show',
+                    $this->station
+                )
+            )
+            ->assertSessionHas(
+                'success',
+                'No signing station changes were detected. '
+                .'The current QR code remains valid.'
+            );
+
+        $station =
+            $this->station->fresh();
+
+        $this->assertSame(
+            $originalToken,
+            $station->station_token
+        );
+
+        $this->assertTrue(
+            $station
+                ->qr_expires_at
+                ->equalTo(
+                    $originalExpiry
+                )
+        );
+    }
+
     public function test_first_browser_acquires_a_kiosk_device_lease(): void
     {
         $this

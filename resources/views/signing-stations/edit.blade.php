@@ -189,6 +189,82 @@
                     </div>
                 </div>
 
+                <div class="mx-6 mb-6 overflow-hidden rounded-xl border border-amber-300 bg-amber-50 text-sm text-amber-950 shadow-sm dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
+                    <div class="border-b border-amber-300 bg-amber-100 px-5 py-4 dark:border-amber-700 dark:bg-amber-900/40">
+                        <p class="font-bold">
+                            Warning: changing this kiosk creates a new QR code
+                        </p>
+
+                        <p class="mt-1 leading-6">
+                            Review the effects below before saving.
+                        </p>
+                    </div>
+
+                    <div class="px-5 py-4">
+                        <ul class="space-y-3">
+                            <li class="flex gap-3">
+                                <span aria-hidden="true">•</span>
+
+                                <span>
+                                    The current public kiosk link stops
+                                    working immediately.
+                                </span>
+                            </li>
+
+                            <li class="flex gap-3">
+                                <span aria-hidden="true">•</span>
+
+                                <span>
+                                    Every downloaded or printed QR poster
+                                    containing the old code becomes invalid.
+                                </span>
+                            </li>
+
+                            <li class="flex gap-3">
+                                <span aria-hidden="true">•</span>
+
+                                <span>
+                                    Current kiosk-device leases are released,
+                                    so kiosk browsers may need to reopen the
+                                    new link.
+                                </span>
+                            </li>
+
+                            <li class="flex gap-3">
+                                <span aria-hidden="true">•</span>
+
+                                <span>
+                                    A fresh 24-hour QR acceptance window
+                                    begins when the changes are saved.
+                                </span>
+                            </li>
+
+                            <li class="flex gap-3">
+                                <span aria-hidden="true">•</span>
+
+                                <span>
+                                    You must download and distribute a new
+                                    QR poster.
+                                </span>
+                            </li>
+
+                            <li class="flex gap-3">
+                                <span aria-hidden="true">•</span>
+
+                                <span>
+                                    Existing completed consent records are
+                                    not deleted or changed.
+                                </span>
+                            </li>
+                        </ul>
+
+                        <p class="mt-4 border-t border-amber-300 pt-4 font-semibold dark:border-amber-700">
+                            Saving without changing anything keeps the
+                            current kiosk link, QR code and expiry time.
+                        </p>
+                    </div>
+                </div>
+
                 <div class="flex flex-col-reverse gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 sm:flex-row sm:justify-end dark:border-gray-700 dark:bg-gray-800/50">
                     <a
                         href="{{ route('signing-stations.show', $signingStation) }}"
@@ -207,4 +283,78 @@
             </form>
         </div>
     </div>
+
+<script data-qr-change-confirmation>
+    document.addEventListener('DOMContentLoaded', () => {
+        const methodInput = document.querySelector(
+            'form input[name="_method"][value="PUT"]'
+        );
+
+        const form = methodInput?.form;
+
+        if (! form) {
+            return;
+        }
+
+        const snapshot = () => {
+            return JSON.stringify(
+                Array.from(
+                    new FormData(form).entries()
+                )
+                    .filter(([name]) => {
+                        return ! [
+                            '_token',
+                            '_method',
+                        ].includes(name);
+                    })
+                    .map(([name, value]) => {
+                        return [
+                            name,
+                            String(value),
+                        ];
+                    })
+                    .sort((left, right) => {
+                        const leftValue =
+                            left[0] + '\u0000' + left[1];
+
+                        const rightValue =
+                            right[0] + '\u0000' + right[1];
+
+                        return leftValue.localeCompare(
+                            rightValue
+                        );
+                    })
+            );
+        };
+
+        const original = snapshot();
+
+        form.addEventListener('submit', (event) => {
+            /*
+             * No warning is needed when no stored value was
+             * changed because the QR code will remain valid.
+             */
+            if (snapshot() === original) {
+                return;
+            }
+
+            const confirmed = window.confirm(
+                'Saving these changes will immediately invalidate ' +
+                'the current public kiosk link, QR code and every ' +
+                'printed poster.\n\n' +
+                'Current kiosk-device leases will be released, ' +
+                'and a new QR code with a fresh 24-hour window ' +
+                'will be created.\n\n' +
+                'Existing completed consent records will not be ' +
+                'deleted.\n\n' +
+                'Continue and create the new QR code?'
+            );
+
+            if (! confirmed) {
+                event.preventDefault();
+            }
+        });
+    });
+</script>
+
 </x-app-layout>

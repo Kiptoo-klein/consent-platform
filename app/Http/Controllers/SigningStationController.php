@@ -311,7 +311,8 @@ class SigningStationController extends Controller
 
     public function update(
         Request $request,
-        SigningStation $signingStation
+        SigningStation $signingStation,
+        SigningStationDeviceLeaseService $deviceLeaseService
     ): RedirectResponse {
         $this->authorizeStation($request, $signingStation);
 
@@ -385,23 +386,100 @@ class SigningStationController extends Controller
                 ]);
         }
 
-        $signingStation->update([
-            'name' => $validated['name'],
-            'consent_template_id' => $template->id,
-            'require_email' => $request->boolean('require_email'),
-            'require_reference' => false,
+        $updatedAttributes = [
+            'name' =>
+                $validated['name'],
 
-            'sender_name' => $validated['sender_name'] ?? null,
-            'reply_to_email' => $validated['reply_to_email'] ?? null,
-            'email_description' => $validated['email_description'] ?? null,
-            'auto_reset_seconds' => $validated['auto_reset_seconds'],
-        ]);
+            'consent_template_id' =>
+                $template->id,
+
+            'require_email' =>
+                $request->boolean(
+                    'require_email'
+                ),
+
+            'require_reference' =>
+                false,
+
+            'sender_name' =>
+                $validated['sender_name']
+                ?? null,
+
+            'reply_to_email' =>
+                $validated['reply_to_email']
+                ?? null,
+
+            'email_description' =>
+                $validated['email_description']
+                ?? null,
+
+            'auto_reset_seconds' =>
+                $validated['auto_reset_seconds'],
+        ];
+
+        $signingStation->fill(
+            $updatedAttributes
+        );
+
+        /*
+         * Pressing Save without changing any stored value must
+         * not invalidate a printed QR code.
+         */
+        if (! $signingStation->isDirty()) {
+            return redirect()
+                ->route(
+                    'signing-stations.show',
+                    $signingStation
+                )
+                ->with(
+                    'success',
+                    'No signing station changes were detected. '
+                    .'The current QR code remains valid.'
+                );
+        }
+
+        /*
+         * Every real configuration change creates a new public
+         * signing configuration. The previous token must never
+         * open the edited kiosk or its replacement template.
+         */
+        \Illuminate\Support\Facades\DB::transaction(
+            function () use (
+                $signingStation,
+                $deviceLeaseService
+            ): void {
+                $deviceLeaseService
+                    ->releaseForStation(
+                        $signingStation
+                    );
+
+                $signingStation
+                    ->forceFill([
+                        'station_token' =>
+                            Str::random(64),
+
+                        'qr_expires_at' =>
+                            now()->addHours(
+                                SigningStation::
+                                    QR_WINDOW_HOURS
+                            ),
+                    ])
+                    ->save();
+            },
+            3
+        );
 
         return redirect()
-            ->route('signing-stations.show', $signingStation)
+            ->route(
+                'signing-stations.show',
+                $signingStation
+            )
             ->with(
                 'success',
-                'Signing station updated successfully.'
+                'Signing station updated. '
+                .'The previous public link and QR code '
+                .'no longer work. Download a new poster; '
+                .'the new QR code is valid for 24 hours.'
             );
     }
 
