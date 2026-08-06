@@ -467,7 +467,7 @@ class PublicSigningStationController extends Controller
             $this->signingChannel($request, $station) ===
                 ConsentSession::SIGNING_CHANNEL_QR_SCAN
                     ? 'public-signing-stations.scan'
-                    : $returnRoute;
+                    : 'public-signing-stations.show';
 
         // KIOSK_ANALYTICS_STATION_CANCELLED
         app(SigningStationFlowTracker::class)->cancelStationFlow(
@@ -481,9 +481,10 @@ class PublicSigningStationController extends Controller
         );
 
         return redirect()->route(
-            'public-signing-stations.show',
+            $returnRoute,
             [
-                'stationToken' => $station->station_token,
+                'stationToken' =>
+                    $station->station_token,
             ]
         );
     }

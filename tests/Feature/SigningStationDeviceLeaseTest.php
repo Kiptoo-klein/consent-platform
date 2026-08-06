@@ -340,6 +340,66 @@ class SigningStationDeviceLeaseTest extends TestCase
         );
     }
 
+    public function test_kiosk_cancel_returns_to_the_station_without_a_server_error(): void
+    {
+        $deviceToken =
+            str_repeat('C', 64);
+
+        $session = [
+            SigningStationDeviceLeaseService::
+                SESSION_KEY =>
+                    $deviceToken,
+        ];
+
+        $this
+            ->withSession($session)
+            ->get(
+                route(
+                    'public-signing-stations.show',
+                    $this->station->station_token
+                )
+            )
+            ->assertOk();
+
+        $this
+            ->withSession($session)
+            ->post(
+                route(
+                    'public-signing-stations.cancel',
+                    $this->station->station_token
+                )
+            )
+            ->assertRedirect(
+                route(
+                    'public-signing-stations.show',
+                    $this->station->station_token
+                )
+            );
+    }
+
+    public function test_qr_cancel_returns_through_the_qr_scan_route(): void
+    {
+        $this
+            ->withSession([
+                'signing_station_channel_' .
+                    $this->station->id =>
+                        ConsentSession::
+                            SIGNING_CHANNEL_QR_SCAN,
+            ])
+            ->post(
+                route(
+                    'public-signing-stations.cancel',
+                    $this->station->station_token
+                )
+            )
+            ->assertRedirect(
+                route(
+                    'public-signing-stations.scan',
+                    $this->station->station_token
+                )
+            );
+    }
+
     public function test_first_browser_acquires_a_kiosk_device_lease(): void
     {
         $this
