@@ -241,9 +241,9 @@
         }
 
         .qr-wrapper {
-            width: 292px;
-            height: 292px;
-            margin: 15px auto 10px;
+            width: 308px;
+            height: 308px;
+            margin: 12px auto 8px;
             padding: 13px;
             border: 2px solid #d1d5db;
             border-radius: 18px;
@@ -251,8 +251,8 @@
         }
 
         .qr-wrapper img {
-            width: 262px;
-            height: 262px;
+            width: 278px;
+            height: 278px;
         }
 
         .scan-label {
@@ -265,9 +265,9 @@
         }
 
         .steps-heading {
-            margin: 13px 0 7px;
+            margin: 10px 0 6px;
             color: {{ $primaryColor }};
-            font-size: 13px;
+            font-size: 12px;
             font-weight: bold;
             letter-spacing: 1px;
             text-transform: uppercase;
@@ -276,48 +276,50 @@
         .steps {
             width: 100%;
             border-collapse: separate;
-            border-spacing: 7px 0;
+            border-spacing: 6px 0;
             table-layout: fixed;
         }
 
         .step {
             width: 33.333%;
-            padding: 10px 8px;
+            padding: 8px 7px;
             border: 1px solid #e5e7eb;
-            border-radius: 12px;
+            border-radius: 11px;
             background: #f9fafb;
             vertical-align: top;
         }
 
         .step-number {
             display: inline-block;
-            width: 25px;
-            height: 25px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
             background: {{ $accentColor }};
             color: #ffffff;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: bold;
-            line-height: 25px;
+            line-height: 28px;
+            text-align: center;
+            vertical-align: middle;
         }
 
         .step-title {
-            margin-top: 6px;
+            margin-top: 5px;
             color: #111827;
             font-size: 11px;
             font-weight: bold;
         }
 
         .step-description {
-            margin-top: 4px;
+            margin-top: 3px;
             color: #6b7280;
-            font-size: 8.5px;
-            line-height: 1.4;
+            font-size: 8px;
+            line-height: 1.35;
         }
 
         .trust-row {
             width: 84%;
-            margin: 11px auto 0;
+            margin: 8px auto 0;
             border-collapse: collapse;
         }
 
@@ -333,20 +335,21 @@
             color: {{ $accentColor }};
         }
 
-        .fallback {
+        .fallback-note {
             width: 90%;
-            margin: 10px auto 0;
+            margin: 8px auto 0;
             color: #6b7280;
-            font-size: 8px;
+            font-size: 8.5px;
             line-height: 1.4;
-            word-break: break-all;
         }
 
         .footer {
-            margin-top: 13px;
-            padding: 10px 14px;
-            border-top: 1px solid #d1d5db;
-            background: #f9fafb;
+            margin-top: 10px;
+            padding: 10px 12px;
+            border: 1px solid #e5e7eb;
+            border-left: 4px solid {{ $accentColor }};
+            border-radius: 10px;
+            background: #f8fafc;
         }
 
         .footer-table {
@@ -368,20 +371,25 @@
 
         .powered-by {
             color: {{ $primaryColor }};
-            font-size: 11px;
+            font-size: 12px;
             font-weight: bold;
         }
 
         .advert-copy {
             margin-top: 3px;
-            color: #6b7280;
+            color: #64748b;
             font-size: 8px;
             line-height: 1.4;
         }
 
         .site-address {
+            display: inline-block;
+            padding: 6px 10px;
+            border: 1px solid {{ $accentColor }};
+            border-radius: 999px;
+            background: #ffffff;
             color: {{ $accentColor }};
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
         }
     </style>
@@ -518,9 +526,8 @@
             </tr>
         </table>
 
-        <p class="fallback">
-            Cannot scan? Open:
-            {{ $scanUrl }}
+        <p class="fallback-note">
+            If you are unable to scan the QR code, please ask a staff member for assistance.
         </p>
 
         <div class="footer">
