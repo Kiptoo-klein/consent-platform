@@ -811,17 +811,30 @@
                 'consent-sessions.cancel',
                 $consentSession
             ) }}"
-            onsubmit="return confirm('Cancel this consent record? This action cannot be undone.');"
+            x-data
+            data-consent-record-cancel-confirmation
         >
             @csrf
             @method('PATCH')
 
             <button
-                type="submit"
+                type="button"
                 class="inline-flex w-full justify-center rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                x-on:click="$dispatch(
+                    'open-modal',
+                    'cancel-consent-record-{{ $consentSession->id }}'
+                )"
             >
                 Cancel Record
             </button>
+
+            <x-action-confirmation-modal
+                name="cancel-consent-record-{{ $consentSession->id }}"
+                title="Cancel this consent record?"
+                message="The signing request will be cancelled and can no longer be completed. This action cannot be undone."
+                confirm-text="Cancel consent record"
+                variant="danger"
+            />
         </form>
     @elseif ($consentSession->isCompleted())
         @if (

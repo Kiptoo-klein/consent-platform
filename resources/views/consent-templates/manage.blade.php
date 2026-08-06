@@ -331,34 +331,54 @@
                                                         method="POST"
                                                         action="{{ route('consent-templates.publish', $consentTemplate) }}"
                                                         class="col-start-2 w-24"
-                                                        onsubmit="return confirm('{{ $consentTemplate->has_unpublished_changes
-                                                            ? 'Publish these changes as a new immutable version?'
-                                                            : 'Make the latest published version live again?' }}');"
+                                                        x-data
+                                                        data-template-publish-confirmation
                                                     >
                                                         @csrf
 
                                                         <button
-                                                            type="submit"
+                                                            type="button"
                                                             class="w-full whitespace-nowrap rounded-lg border border-blue-300 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
+                                                            x-on:click="$dispatch('open-modal', 'publish-template-{{ $consentTemplate->id }}')"
                                                         >
                                                             Publish
                                                         </button>
+
+                                                        <x-action-confirmation-modal
+                                                            name="publish-template-{{ $consentTemplate->id }}"
+                                                            title="Publish consent template?"
+                                                            :message="$consentTemplate->has_unpublished_changes
+                                                                ? 'Publish these changes as a new immutable version?'
+                                                                : 'Make the latest published version live again?'"
+                                                            confirm-text="Publish template"
+                                                            variant="success"
+                                                        />
                                                     </form>
                                                 @else
                                                     <form
                                                         method="POST"
                                                         action="{{ route('consent-templates.unpublish', $consentTemplate) }}"
                                                         class="col-start-2 w-24"
-                                                        onsubmit="return confirm('Take this consent template offline? Published history will be preserved.');"
+                                                        x-data
+                                                        data-template-unpublish-confirmation
                                                     >
                                                         @csrf
 
                                                         <button
-                                                            type="submit"
+                                                            type="button"
                                                             class="w-full whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                                                            x-on:click="$dispatch('open-modal', 'unpublish-template-{{ $consentTemplate->id }}')"
                                                         >
                                                             Unpublish
                                                         </button>
+
+                                                        <x-action-confirmation-modal
+                                                            name="unpublish-template-{{ $consentTemplate->id }}"
+                                                            title="Take this template offline?"
+                                                            message="The template will no longer be available for new consent requests. Its published history will be preserved."
+                                                            confirm-text="Take template offline"
+                                                            variant="warning"
+                                                        />
                                                     </form>
                                                 @endif
 
@@ -439,16 +459,29 @@
                                                                 method="POST"
                                                                 action="{{ route('consent-templates.archive', $consentTemplate) }}"
                                                                 class="border-t border-gray-100"
-                                                                onsubmit="return confirm('Archive this consent template? It will be hidden from the normal template list, but its history will be preserved.');"
+                                                                x-data
+                                                                data-template-archive-confirmation
                                                             >
                                                                 @csrf
 
                                                                 <button
-                                                                    type="submit"
+                                                                    type="button"
                                                                     class="block w-full px-4 py-3 text-left text-sm font-medium text-red-700 hover:bg-red-50"
+                                                                    x-on:click="$dispatch(
+                                                                        'open-modal',
+                                                                        'archive-template-{{ $consentTemplate->id }}'
+                                                                    )"
                                                                 >
                                                                     Archive
                                                                 </button>
+
+                                                                <x-action-confirmation-modal
+                                                                    name="archive-template-{{ $consentTemplate->id }}"
+                                                                    title="Archive consent template?"
+                                                                    message="The template will be removed from the active templates list. Its versions, history and existing consent records will be preserved."
+                                                                    confirm-text="Archive template"
+                                                                    variant="danger"
+                                                                />
                                                             </form>
                                                         @endif
 
@@ -457,17 +490,30 @@
                                                                 method="POST"
                                                                 action="{{ route('consent-templates.restore', $consentTemplate) }}"
                                                                 class="border-t border-gray-100"
-                                                                onsubmit="return confirm('Restore this consent template to the active templates list? It will remain offline until published.');"
+                                                                x-data
+                                                                data-template-restore-confirmation
                                                             >
                                                                 @csrf
                                                                 @method('PATCH')
 
                                                                 <button
-                                                                    type="submit"
+                                                                    type="button"
                                                                     class="block w-full px-4 py-3 text-left text-sm font-medium text-green-700 hover:bg-green-50"
+                                                                    x-on:click="$dispatch(
+                                                                        'open-modal',
+                                                                        'restore-template-{{ $consentTemplate->id }}'
+                                                                    )"
                                                                 >
                                                                     Restore
                                                                 </button>
+
+                                                                <x-action-confirmation-modal
+                                                                    name="restore-template-{{ $consentTemplate->id }}"
+                                                                    title="Restore consent template?"
+                                                                    message="The template will return to the active templates list. It will remain offline until you publish it again."
+                                                                    confirm-text="Restore template"
+                                                                    variant="success"
+                                                                />
                                                             </form>
                                                         @endif
                                                     </div>
