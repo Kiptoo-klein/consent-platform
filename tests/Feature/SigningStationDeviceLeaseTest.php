@@ -499,7 +499,13 @@ class SigningStationDeviceLeaseTest extends TestCase
                         $originalToken
                     )
                 )
-                ->assertNotFound();
+                ->assertStatus(410)
+                ->assertSeeText(
+                    'This QR code is no longer available'
+                )
+                ->assertSeeText(
+                    'Ask a staff member for the latest QR poster'
+                );
 
             $this
                 ->get(
@@ -597,7 +603,13 @@ class SigningStationDeviceLeaseTest extends TestCase
                         $originalToken
                     )
                 )
-                ->assertNotFound();
+                ->assertStatus(410)
+                ->assertSeeText(
+                    'This QR code is no longer available'
+                )
+                ->assertSeeText(
+                    'Ask a staff member for the latest QR poster'
+                );
         } finally {
             $this->travelBack();
         }

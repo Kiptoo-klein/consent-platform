@@ -25,7 +25,36 @@ class PublicSigningStationController extends Controller
         Request $request,
         string $stationToken
     ): Response|RedirectResponse {
-        $station = $this->findStation($stationToken);
+        /*
+         * A well-formed QR token that no longer belongs to a
+         * station was normally replaced by a kiosk edit or
+         * manual link regeneration. Give the signer a useful
+         * explanation instead of Laravel's generic 404 page.
+         */
+        if (
+            ! SigningStation::query()
+                ->where(
+                    'station_token',
+                    $stationToken
+                )
+                ->exists()
+        ) {
+            return response()
+                ->view(
+                    'public-signing-stations.qr-unavailable',
+                    [],
+                    410
+                )
+                ->header(
+                    'Cache-Control',
+                    'private, no-store, no-cache, '
+                    .'must-revalidate, max-age=0'
+                );
+        }
+
+        $station = $this->findStation(
+            $stationToken
+        );
 
         /*
          * A fresh scan must never inherit a previous QR review
