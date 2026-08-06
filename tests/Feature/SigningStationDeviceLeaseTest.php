@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ConsentSession;
 use App\Models\ConsentTemplate;
 use App\Models\Organization;
 use App\Models\SigningStation;
@@ -91,7 +92,252 @@ class SigningStationDeviceLeaseTest extends TestCase
 
                 'auto_reset_seconds' =>
                     3,
+
+                'qr_expires_at' =>
+                    now()->addHours(24),
             ]);
+    }
+
+    public function test_expired_qr_scan_rejects_new_requests_without_using_a_kiosk_slot(): void
+    {
+        $this->station->update([
+            'qr_expires_at' =>
+                now()->subSecond(),
+        ]);
+
+        $this
+            ->get(
+                route(
+                    'public-signing-stations.scan',
+                    $this->station->station_token
+                )
+            )
+            ->assertStatus(410)
+            ->assertSeeText(
+                'QR signing window has expired'
+            );
+
+        $this->assertDatabaseCount(
+            'signing_station_device_leases',
+            0
+        );
+    }
+
+    public function test_expired_qr_does_not_disable_the_shared_kiosk(): void
+    {
+        $this->station->update([
+            'qr_expires_at' =>
+                now()->subSecond(),
+        ]);
+
+        $this
+            ->withSession([
+                SigningStationDeviceLeaseService::
+                    SESSION_KEY =>
+                        str_repeat('Q', 64),
+            ])
+            ->get(
+                route(
+                    'public-signing-stations.show',
+                    $this->station->station_token
+                )
+            )
+            ->assertOk();
+
+        $this->assertDatabaseCount(
+            'signing_station_device_leases',
+            1
+        );
+    }
+
+    public function test_authorized_user_can_renew_the_qr_window_for_twenty_four_hours(): void
+    {
+        $originalToken =
+            $this->station->station_token;
+
+        $fixedNow =
+            now()->startOfSecond();
+
+        $this->travelTo($fixedNow);
+
+        try {
+            $this
+                ->actingAs(
+                    $this->administrator
+                )
+                ->patch(
+                    route(
+                        'signing-stations.qr-window.renew',
+                        $this->station
+                    )
+                )
+                ->assertRedirect(
+                    route(
+                        'signing-stations.show',
+                        $this->station
+                    )
+                )
+                ->assertSessionHas(
+                    'success'
+                );
+
+            $station =
+                $this->station->fresh();
+
+            $this->assertSame(
+                $originalToken,
+                $station->station_token
+            );
+
+            $this->assertTrue(
+                $station
+                    ->qr_expires_at
+                    ->equalTo(
+                        $fixedNow
+                            ->copy()
+                            ->addHours(24)
+                    )
+            );
+        } finally {
+            $this->travelBack();
+        }
+    }
+
+    public function test_qr_scan_flow_does_not_consume_a_kiosk_device_slot(): void
+    {
+        $this
+            ->get(
+                route(
+                    'public-signing-stations.scan',
+                    $this->station->station_token
+                )
+            )
+            ->assertRedirect(
+                route(
+                    'public-signing-stations.show',
+                    $this->station->station_token
+                )
+            );
+
+        $this
+            ->get(
+                route(
+                    'public-signing-stations.show',
+                    $this->station->station_token
+                )
+            )
+            ->assertOk();
+
+        $this
+            ->get(
+                route(
+                    'public-signing-stations.review',
+                    $this->station->station_token
+                )
+            )
+            ->assertOk();
+
+        $this
+            ->post(
+                route(
+                    'public-signing-stations.continue',
+                    $this->station->station_token
+                ),
+                [
+                    'review_confirmed' => '1',
+                ]
+            )
+            ->assertRedirect(
+                route(
+                    'public-signing-stations.details',
+                    $this->station->station_token
+                )
+            );
+
+        $this
+            ->post(
+                route(
+                    'public-signing-stations.start',
+                    $this->station->station_token
+                ),
+                [
+                    'signer_name' => 'QR Code Signer',
+                    'signer_email' => '',
+                ]
+            )
+            ->assertRedirect();
+
+        $consentSession =
+            ConsentSession::query()
+                ->where(
+                    'signing_station_id',
+                    $this->station->id
+                )
+                ->latest('id')
+                ->firstOrFail();
+
+        $this->assertSame(
+            ConsentSession::SIGNING_CHANNEL_QR_SCAN,
+            $consentSession->signing_channel
+        );
+
+        $this->assertDatabaseCount(
+            'signing_station_device_leases',
+            0
+        );
+
+        $consentSession->update([
+            'status' =>
+                ConsentSession::STATUS_COMPLETED,
+
+            'completed_at' =>
+                now(),
+        ]);
+
+        $this
+            ->get(
+                route(
+                    'public-consent.completed',
+                    $consentSession->access_token
+                )
+            )
+            ->assertOk()
+            ->assertSeeText(
+                'You may now safely close this page.'
+            )
+            ->assertDontSeeText(
+                'Preparing for the next signer'
+            );
+
+        $this->assertDatabaseCount(
+            'signing_station_device_leases',
+            0
+        );
+    }
+
+    public function test_an_authorized_user_can_download_the_qr_poster(): void
+    {
+        $response =
+            $this
+                ->actingAs($this->administrator)
+                ->get(
+                    route(
+                        'signing-stations.qr-poster.download',
+                        $this->station
+                    )
+                );
+
+        $response
+            ->assertOk()
+            ->assertHeader(
+                'content-type',
+                'application/pdf'
+            );
+
+        $this->assertStringStartsWith(
+            '%PDF',
+            $response->getContent()
+        );
     }
 
     public function test_first_browser_acquires_a_kiosk_device_lease(): void

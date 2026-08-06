@@ -34,6 +34,10 @@ class EnsureSigningStationDeviceLease
             return $next($request);
         }
 
+        if ($this->isQrScanRequest($request, $station)) {
+            return $next($request);
+        }
+
         try {
             $lease =
                 $this
@@ -101,6 +105,42 @@ class EnsureSigningStationDeviceLease
         );
 
         return $next($request);
+    }
+
+    /**
+     * QR scans run on personal signer devices and must not consume
+     * an organization's shared-kiosk device allowance.
+     */
+    private function isQrScanRequest(
+        Request $request,
+        SigningStation $station
+    ): bool {
+        $stationSessionKey =
+            'signing_station_channel_'.$station->id;
+
+        if (
+            $request->session()->get($stationSessionKey) ===
+                ConsentSession::SIGNING_CHANNEL_QR_SCAN
+        ) {
+            return true;
+        }
+
+        $accessToken = $request->route('accessToken');
+
+        if (
+            ! is_string($accessToken)
+            || $accessToken === ''
+        ) {
+            return false;
+        }
+
+        return ConsentSession::query()
+            ->where('access_token', $accessToken)
+            ->where(
+                'signing_channel',
+                ConsentSession::SIGNING_CHANNEL_QR_SCAN
+            )
+            ->exists();
     }
 
     private function stationFor(

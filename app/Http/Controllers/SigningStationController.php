@@ -7,6 +7,7 @@ use App\Models\OrganizationSubscription;
 use App\Models\SigningStation;
 use App\Services\SigningStationDeviceLeaseService;
 use App\Services\SubscriptionUsageLimitService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use chillerlan\QRCode\QRCode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -200,9 +201,7 @@ class SigningStationController extends Controller
                 ->withInput()
                 ->withErrors([
                     'subscription' =>
-                        'The active kiosk limit for this subscription '
-                        .'plan has been reached. Edit or pause an '
-                        .'existing kiosk, or upgrade the plan.',
+                        'The active signing station limit for this subscription plan has been reached.',
                 ]);
         }
 
@@ -212,6 +211,12 @@ class SigningStationController extends Controller
             'created_by' => Auth::id(),
             'name' => $validated['name'],
             'station_token' => Str::random(64),
+
+            'qr_expires_at' =>
+                now()->addHours(
+                    SigningStation::QR_WINDOW_HOURS
+                ),
+
             'active' => true,
             'require_email' => $request->boolean('require_email'),
             'require_reference' => false,
@@ -415,7 +420,7 @@ class SigningStationController extends Controller
         ) {
             return back()->withErrors([
                 'subscription' =>
-                    'The active kiosk limit for this subscription plan has been reached. Pause an existing kiosk or upgrade the plan.',
+                    'The active signing station limit for this subscription plan has been reached.',
             ]);
         }
 
@@ -448,14 +453,72 @@ class SigningStationController extends Controller
         );
 
         $signingStation->update([
-            'station_token' => Str::random(64),
+            'station_token' =>
+                Str::random(64),
+
+            'qr_expires_at' =>
+                now()->addHours(
+                    SigningStation::QR_WINDOW_HOURS
+                ),
         ]);
 
         return redirect()
-            ->route('signing-stations.show', $signingStation)
+            ->route(
+                'signing-stations.show',
+                $signingStation
+            )
             ->with(
                 'success',
-                'The station link was regenerated. The previous link no longer works.'
+                'The station link was regenerated. '
+                .'The previous link no longer works, '
+                .'and the new QR window is valid for 24 hours.'
+            );
+    }
+
+    /**
+     * Renew this station's QR acceptance window for 24 hours.
+     */
+    public function renewQrWindow(
+        Request $request,
+        SigningStation $signingStation
+    ): RedirectResponse {
+        $this->authorizeStation(
+            $request,
+            $signingStation
+        );
+
+        $expiresAt =
+            now()->addHours(
+                SigningStation::QR_WINDOW_HOURS
+            );
+
+        $signingStation->update([
+            'qr_expires_at' =>
+                $expiresAt,
+        ]);
+
+        $displayExpiry =
+            $expiresAt
+                ->copy()
+                ->timezone(
+                    config(
+                        'app.display_timezone'
+                    )
+                )
+                ->format(
+                    'M d, Y H:i T'
+                );
+
+        return redirect()
+            ->route(
+                'signing-stations.show',
+                $signingStation
+            )
+            ->with(
+                'success',
+                'QR signing renewed until '
+                .$displayExpiry
+                .'.'
             );
     }
 
@@ -466,7 +529,7 @@ class SigningStationController extends Controller
         $this->authorizeStation($request, $signingStation);
 
         $stationUrl = route(
-            'public-signing-stations.show',
+            'public-signing-stations.scan',
             $signingStation->station_token
         );
 
@@ -498,7 +561,7 @@ class SigningStationController extends Controller
         $this->authorizeStation($request, $signingStation);
 
         $stationUrl = route(
-            'public-signing-stations.show',
+            'public-signing-stations.scan',
             $signingStation->station_token
         );
 
@@ -527,6 +590,74 @@ class SigningStationController extends Controller
 
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    /**
+     * Download an A4 poster containing the reusable scan-to-sign QR.
+     */
+    public function downloadQrPoster(
+        Request $request,
+        SigningStation $signingStation
+    ): Response {
+        $this->authorizeStation($request, $signingStation);
+
+        abort_unless(
+            $signingStation->qrWindowIsActive(),
+            422,
+            'Renew the QR signing window before '
+            .'downloading a printable poster.'
+        );
+
+        $signingStation->loadMissing([
+            'organization',
+            'consentTemplate',
+        ]);
+
+        $scanUrl = route(
+            'public-signing-stations.scan',
+            $signingStation->station_token
+        );
+
+        $qrOutput = (new QRCode())->render($scanUrl);
+
+        $svg = $this->extractQrImageContent($qrOutput);
+
+        $qrDataUri =
+            'data:image/svg+xml;base64,'.
+            base64_encode($svg);
+
+        $pdf = Pdf::loadView(
+            'signing-stations.qr-poster',
+            [
+                'signingStation' =>
+                    $signingStation,
+
+                'organization' =>
+                    $signingStation->organization,
+
+                'scanUrl' =>
+                    $scanUrl,
+
+                'qrDataUri' =>
+                    $qrDataUri,
+
+                'qrExpiresAt' =>
+                    $signingStation
+                        ->qr_expires_at
+                        ?->copy()
+                        ->timezone(
+                            config(
+                                'app.display_timezone'
+                            )
+                        ),
+            ]
+        )->setPaper('a4', 'portrait');
+
+        $filename =
+            Str::slug($signingStation->name).
+            '-scan-to-sign-poster.pdf';
+
+        return $pdf->download($filename);
     }
 
     private function extractQrImageContent(string $qrOutput): string

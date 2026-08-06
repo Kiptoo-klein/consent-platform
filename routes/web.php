@@ -66,6 +66,15 @@ Route::get('/', function () {
 |
 */
 
+Route::get('/scan/{stationToken}', [
+    PublicSigningStationController::class,
+    'scan',
+])->middleware([
+        \App\Http\Middleware\ValidateStationToken::class,
+        'throttle:public-station-view',
+    ])
+    ->name('public-signing-stations.scan');
+
 Route::get('/station/{stationToken}', [
     PublicSigningStationController::class,
     'show',
@@ -793,6 +802,16 @@ Route::get(
         SigningStationController::class,
         'downloadQrCode',
     ])->name('signing-stations.qr-code.download');
+
+    Route::get('/signing-stations/{signingStation}/qr-poster/download', [
+        SigningStationController::class,
+        'downloadQrPoster',
+    ])->name('signing-stations.qr-poster.download');
+
+    Route::patch('/signing-stations/{signingStation}/qr-window/renew', [
+        SigningStationController::class,
+        'renewQrWindow',
+    ])->name('signing-stations.qr-window.renew');
 
 });
 

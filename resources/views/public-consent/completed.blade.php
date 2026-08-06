@@ -6,6 +6,11 @@
     @php
         $signingStation = $consentSession->signingStation;
 
+        $isQrScan =
+            $consentSession->signing_channel ===
+                \App\Models\ConsentSession::
+                    SIGNING_CHANNEL_QR_SCAN;
+
         $resetSeconds = $signingStation
             ? max((int) $signingStation->auto_reset_seconds, 1)
             : null;
@@ -84,7 +89,7 @@
                     </div>
                 </div>
 
-                @if ($signingStation)
+                @if ($signingStation && ! $isQrScan)
                     <div class="mt-8 rounded-2xl border border-indigo-200 bg-indigo-50 p-5 sm:p-6">
                         <div class="flex items-start gap-4">
                             <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700">

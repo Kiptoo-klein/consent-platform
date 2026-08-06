@@ -10,6 +10,7 @@ use App\Services\ConsentAuditService;
 use App\Services\SubscriptionUsageLimitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -17,6 +18,71 @@ use Illuminate\View\View;
 
 class PublicSigningStationController extends Controller
 {
+    /**
+     * Start a reusable QR scan flow on the signer's device.
+     */
+    public function scan(
+        Request $request,
+        string $stationToken
+    ): Response|RedirectResponse {
+        $station = $this->findStation($stationToken);
+
+        /*
+         * A fresh scan must never inherit a previous QR review
+         * or signing-channel session.
+         */
+        $request->session()->forget([
+            $this->reviewSessionKey($station),
+            $this->signingChannelSessionKey($station),
+        ]);
+
+        if ($station->qrWindowHasExpired()) {
+            $expiresAt =
+                $station
+                    ->qr_expires_at
+                    ?->copy()
+                    ->timezone(
+                        config(
+                            'app.display_timezone'
+                        )
+                    );
+
+            return response()
+                ->view(
+                    'public-signing-stations.qr-expired',
+                    [
+                        'station' =>
+                            $station,
+
+                        'organization' =>
+                            $station->organization,
+
+                        'expiresAt' =>
+                            $expiresAt,
+                    ],
+                    410
+                )
+                ->header(
+                    'Cache-Control',
+                    'private, no-store, no-cache, '
+                    .'must-revalidate, max-age=0'
+                );
+        }
+
+        $request->session()->put(
+            $this->signingChannelSessionKey($station),
+            ConsentSession::SIGNING_CHANNEL_QR_SCAN
+        );
+
+        return redirect()->route(
+            'public-signing-stations.show',
+            [
+                'stationToken' =>
+                    $station->station_token,
+            ]
+        );
+    }
+
     /**
      * Display the signing-station welcome page.
      */
@@ -249,6 +315,11 @@ class PublicSigningStationController extends Controller
             'This consent template does not have a published version.'
         );
 
+        $signingChannel = $this->signingChannel(
+            $request,
+            $station
+        );
+
         $additionalFields = $this->additionalFields(
             $publishedVersion
         );
@@ -278,6 +349,7 @@ class PublicSigningStationController extends Controller
                 $publishedVersion,
                 $validated,
                 $additionalFields,
+                $signingChannel,
                 $consentAuditService,
                 $request
             ): ConsentSession {
@@ -296,6 +368,9 @@ class PublicSigningStationController extends Controller
 
                     'signing_station_id' =>
                         $station->id,
+
+                    'signing_channel' =>
+                        $signingChannel,
 
                     'access_token' =>
                         (string) Str::uuid(),
@@ -335,6 +410,9 @@ class PublicSigningStationController extends Controller
                         'source' =>
                             'signing_station',
 
+                        'signing_channel' =>
+                            $signingChannel,
+
                         'signing_station_id' =>
                             $station->id,
 
@@ -363,6 +441,10 @@ class PublicSigningStationController extends Controller
             $this->reviewSessionKey($station)
         );
 
+        $request->session()->forget(
+            $this->signingChannelSessionKey($station)
+        );
+
         return redirect()->route(
             'public-consent.signature',
             [
@@ -380,6 +462,12 @@ class PublicSigningStationController extends Controller
         string $stationToken
     ): RedirectResponse {
         $station = $this->findStation($stationToken);
+
+        $returnRoute =
+            $this->signingChannel($request, $station) ===
+                ConsentSession::SIGNING_CHANNEL_QR_SCAN
+                    ? 'public-signing-stations.scan'
+                    : $returnRoute;
 
         // KIOSK_ANALYTICS_STATION_CANCELLED
         app(SigningStationFlowTracker::class)->cancelStationFlow(
@@ -436,6 +524,36 @@ class PublicSigningStationController extends Controller
         );
 
         return $station;
+    }
+
+    /**
+     * Determine how the current station flow was opened.
+     */
+    private function signingChannel(
+        Request $request,
+        SigningStation $station
+    ): string {
+        $channel = $request->session()->get(
+            $this->signingChannelSessionKey($station)
+        );
+
+        if (
+            $channel ===
+                ConsentSession::SIGNING_CHANNEL_QR_SCAN
+        ) {
+            return ConsentSession::SIGNING_CHANNEL_QR_SCAN;
+        }
+
+        return ConsentSession::SIGNING_CHANNEL_KIOSK;
+    }
+
+    /**
+     * Build the session key used to remember the signing channel.
+     */
+    private function signingChannelSessionKey(
+        SigningStation $station
+    ): string {
+        return 'signing_station_channel_'.$station->id;
     }
 
     /**

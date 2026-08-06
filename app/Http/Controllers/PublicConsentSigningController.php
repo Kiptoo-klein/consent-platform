@@ -37,6 +37,7 @@ class PublicConsentSigningController extends Controller
             'organization',
             'consentTemplate',
             'consentTemplateVersion',
+            'signingStation',
             'signature',
         ]);
 
@@ -585,7 +586,7 @@ class PublicConsentSigningController extends Controller
                 );
 
                 return redirect()->route(
-                    'public-signing-stations.show',
+                    $this->stationReturnRoute($consentSession),
                     [
                         'stationToken' =>
                             $consentSession
@@ -692,7 +693,7 @@ class PublicConsentSigningController extends Controller
                 );
 
                 return redirect()->route(
-                    'public-signing-stations.show',
+                    $this->stationReturnRoute($consentSession),
                     [
                         'stationToken' =>
                             $consentSession
@@ -720,7 +721,7 @@ class PublicConsentSigningController extends Controller
             );
 
             return redirect()->route(
-                'public-signing-stations.show',
+                $this->stationReturnRoute($consentSession),
                 [
                     'stationToken' =>
                         $consentSession
@@ -766,6 +767,23 @@ class PublicConsentSigningController extends Controller
         return view('public-consent.completed', [
             'consentSession' => $consentSession,
         ]);
+    }
+
+    /**
+     * Return QR signers to the reusable QR entry rather than
+     * placing their personal device into shared-kiosk mode.
+     */
+    private function stationReturnRoute(
+        ConsentSession $consentSession
+    ): string {
+        if (
+            $consentSession->signing_channel ===
+                ConsentSession::SIGNING_CHANNEL_QR_SCAN
+        ) {
+            return 'public-signing-stations.scan';
+        }
+
+        return 'public-signing-stations.show';
     }
 
     /**

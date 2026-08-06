@@ -342,8 +342,92 @@
                         </h3>
 
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            Scan this code to open the public signing station.
+                            Scan this code on a personal phone to create an individual consent record.
                         </p>
+
+                        @php
+                            $qrWindowActive =
+                                $signingStation
+                                    ->qrWindowIsActive();
+
+                            $qrExpiresAt =
+                                $signingStation
+                                    ->qr_expires_at
+                                    ?->copy()
+                                    ->timezone(
+                                        config(
+                                            'app.display_timezone'
+                                        )
+                                    );
+                        @endphp
+
+                        <div
+                            class="mt-4 rounded-xl border p-4
+                                {{
+                                    $qrWindowActive
+                                        ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30'
+                                        : 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30'
+                                }}"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <p
+                                        class="text-sm font-bold
+                                            {{
+                                                $qrWindowActive
+                                                    ? 'text-green-800 dark:text-green-300'
+                                                    : 'text-amber-800 dark:text-amber-300'
+                                            }}"
+                                    >
+                                        {{
+                                            $qrWindowActive
+                                                ? 'Accepting QR scans'
+                                                : 'QR window expired'
+                                        }}
+                                    </p>
+
+                                    <p
+                                        class="mt-1 text-xs leading-5
+                                            {{
+                                                $qrWindowActive
+                                                    ? 'text-green-700 dark:text-green-400'
+                                                    : 'text-amber-700 dark:text-amber-400'
+                                            }}"
+                                    >
+                                        @if ($qrExpiresAt)
+                                            {{
+                                                $qrWindowActive
+                                                    ? 'Valid until '
+                                                    : 'Expired '
+                                            }}
+
+                                            {{
+                                                $qrExpiresAt->format(
+                                                    'M d, Y H:i T'
+                                                )
+                                            }}
+                                        @else
+                                            No QR deadline is currently scheduled.
+                                        @endif
+                                    </p>
+                                </div>
+
+                                <span
+                                    class="rounded-full px-2.5 py-1 text-xs font-bold
+                                        {{
+                                            $qrWindowActive
+                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
+                                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
+                                        }}"
+                                >
+                                    {{
+                                        $qrWindowActive
+                                            ? 'Active'
+                                            : 'Expired'
+                                    }}
+                                </span>
+                            </div>
+                        </div>
 
                         <div class="mt-5 flex justify-center rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700">
                             <img
@@ -356,15 +440,55 @@
                             >
                         </div>
 
-                        <a
-                            href="{{ route(
-                                'signing-stations.qr-code.download',
-                                $signingStation
-                            ) }}"
-                            class="mt-4 inline-flex w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                        >
-                            Download QR Code
-                        </a>
+                        <div class="mt-4 space-y-3">
+                            <form
+                                method="POST"
+                                action="{{ route(
+                                    'signing-stations.qr-window.renew',
+                                    $signingStation
+                                ) }}"
+                            >
+                                @csrf
+                                @method('PATCH')
+
+                                <button
+                                    type="submit"
+                                    class="inline-flex w-full items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700"
+                                >
+                                    {{
+                                        $qrWindowActive
+                                            ? 'Restart 24-Hour Window'
+                                            : 'Renew for 24 Hours'
+                                    }}
+                                </button>
+                            </form>
+
+                            <a
+                                href="{{ route(
+                                    'signing-stations.qr-code.download',
+                                    $signingStation
+                                ) }}"
+                                class="inline-flex w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                            >
+                                Download QR Image
+                            </a>
+
+                            @if ($qrWindowActive)
+                                <a
+                                    href="{{ route(
+                                        'signing-stations.qr-poster.download',
+                                        $signingStation
+                                    ) }}"
+                                    class="inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                                >
+                                    Download Printable Poster
+                                </a>
+                            @else
+                                <p class="rounded-lg bg-gray-100 px-4 py-3 text-center text-xs leading-5 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                                    Renew the QR window before downloading a new printable poster.
+                                </p>
+                            @endif
+                        </div>
                     </div>
 
                     <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">

@@ -22,6 +22,10 @@ class ConsentSession extends Model
 
     public const STATUS_EXPIRED = 'expired';
 
+    public const SIGNING_CHANNEL_KIOSK = 'kiosk';
+
+    public const SIGNING_CHANNEL_QR_SCAN = 'qr_scan';
+
     protected $fillable = [
         'organization_id',
         'consent_template_id',
@@ -33,6 +37,7 @@ class ConsentSession extends Model
         'signer_email',
         'signer_reference',
         'access_token',
+        'signing_channel',
         'status',
         'responses',
         'started_at',
