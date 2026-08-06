@@ -1036,18 +1036,31 @@
                                             $workflowPlanRequest
                                         ) }}"
                                         class="shrink-0"
-                                        onsubmit="return confirm('Cancel this subscription request and invoice? Your current subscription will remain unchanged.');"
+                                        x-data
+                                        data-billing-request-cancel-confirmation
                                     >
                                         @csrf
                                         @method('DELETE')
 
                                         <button
-                                            type="submit"
+                                            type="button"
                                             class="inline-flex w-full items-center justify-center rounded-xl border px-5 py-3 text-sm font-extrabold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 lg:w-auto text-white hover:opacity-90"
                                             style="background-color:#b91c1c !important;color:#ffffff !important;border-color:#991b1b !important;"
+                                            x-on:click="$dispatch(
+                                                'open-modal',
+                                                'cancel-billing-request-{{ $workflowPlanRequest->id }}'
+                                            )"
                                         >
                                             Cancel Request
                                         </button>
+
+                                        <x-action-confirmation-modal
+                                            name="cancel-billing-request-{{ $workflowPlanRequest->id }}"
+                                            title="Cancel subscription request?"
+                                            message="The unpaid invoice and requested plan change will be cancelled. Your current subscription will remain unchanged."
+                                            confirm-text="Cancel request"
+                                            variant="danger"
+                                        />
                                     </form>
                                 </div>
                             </div>
