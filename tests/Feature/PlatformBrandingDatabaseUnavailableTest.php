@@ -18,16 +18,23 @@ class PlatformBrandingDatabaseUnavailableTest extends TestCase
         );
 
         /*
-         * Clear the normal test cache while its database is still available.
+         * Clear the normal test cache while its database is still
+         * available.
          */
         $service->forgetCache();
 
         $originalConnection =
-            config('database.default');
+            (string) config(
+                'database.default'
+            );
 
-        $originalDatabase =
+        $temporaryConnection =
+            'branding_unavailable';
+
+        $sqliteConfiguration =
             config(
-                'database.connections.sqlite.database'
+                'database.connections.sqlite',
+                []
             );
 
         $missingDatabase =
@@ -37,16 +44,38 @@ class PlatformBrandingDatabaseUnavailableTest extends TestCase
                 .'.sqlite'
             );
 
+        /*
+         * Use a separate connection so the RefreshDatabase
+         * transaction on the normal in-memory SQLite connection
+         * remains intact for subsequent tests.
+         */
         config([
-            'database.default' => 'sqlite',
-            'database.connections.sqlite.database' =>
-                $missingDatabase,
+            'database.connections.'
+                .$temporaryConnection =>
+                    array_merge(
+                        is_array($sqliteConfiguration)
+                            ? $sqliteConfiguration
+                            : [],
+                        [
+                            'driver' =>
+                                'sqlite',
+
+                            'database' =>
+                                $missingDatabase,
+                        ]
+                    ),
+
+            'database.default' =>
+                $temporaryConnection,
         ]);
 
-        DB::purge('sqlite');
+        DB::purge(
+            $temporaryConnection
+        );
 
         try {
-            $settings = $service->settings();
+            $settings =
+                $service->settings();
 
             $this->assertSame(
                 'eConsent',
@@ -61,13 +90,23 @@ class PlatformBrandingDatabaseUnavailableTest extends TestCase
             config([
                 'database.default' =>
                     $originalConnection,
-
-                'database.connections.sqlite.database' =>
-                    $originalDatabase,
             ]);
 
-            DB::purge('sqlite');
+            DB::purge(
+                $temporaryConnection
+            );
+
+            config([
+                'database.connections.'
+                    .$temporaryConnection =>
+                        null,
+            ]);
+
             $service->forgetCache();
+
+            if (is_file($missingDatabase)) {
+                @unlink($missingDatabase);
+            }
         }
     }
 }
