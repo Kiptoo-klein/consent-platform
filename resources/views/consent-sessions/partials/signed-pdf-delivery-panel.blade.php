@@ -228,17 +228,36 @@
                             'consent-sessions.signed-pdf.retry',
                             $consentSession
                         ) }}"
-                        onsubmit="return confirm('{{ $delivery?->sent_at ? 'Send another signed PDF copy to this signer?' : 'Queue this signed PDF for email delivery?' }}');"
                         class="shrink-0"
+                        x-data
+                        data-signed-pdf-delivery-confirmation
                     >
                         @csrf
 
                         <button
-                            type="submit"
+                            type="button"
                             class="inline-flex w-full cursor-pointer items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 sm:w-auto"
+                            x-on:click="$dispatch(
+                                'open-modal',
+                                'signed-pdf-delivery-{{ $consentSession->id }}'
+                            )"
                         >
                             {{ $retryButtonLabel }}
                         </button>
+
+                        <x-action-confirmation-modal
+                            name="signed-pdf-delivery-{{ $consentSession->id }}"
+                            :title="$delivery?->sent_at
+                                ? 'Send another signed PDF copy?'
+                                : 'Queue signed PDF delivery?'"
+                            :message="$delivery?->sent_at
+                                ? 'Another signed PDF copy will be queued for delivery to this signer.'
+                                : 'The completed signed PDF will be queued for email delivery to this signer.'"
+                            :confirm-text="$delivery?->sent_at
+                                ? 'Send another copy'
+                                : 'Queue PDF delivery'"
+                            variant="success"
+                        />
                     </form>
                 @endif
             </div>

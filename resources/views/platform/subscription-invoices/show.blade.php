@@ -611,7 +611,8 @@
                                         ]
                                     ) }}"
                                     class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5"
-                                    onsubmit="return confirm('Confirm this payment and activate the requested plan?');"
+                                    x-data
+                                    data-payment-activation-confirmation
                                 >
                                     @csrf
 
@@ -629,11 +630,23 @@
                                     </p>
 
                                     <button
-                                        type="submit"
+                                        type="button"
                                         class="mt-5 inline-flex rounded-xl bg-emerald-700 px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-emerald-800"
+                                        x-on:click="$dispatch(
+                                            'open-modal',
+                                            'confirm-payment-{{ $invoice->id }}'
+                                        )"
                                     >
                                         Confirm Payment &amp; Activate
                                     </button>
+
+                                    <x-action-confirmation-modal
+                                        name="confirm-payment-{{ $invoice->id }}"
+                                        title="Confirm payment and activate plan?"
+                                        message="The payment will be recorded, the requested subscription plan will be activated, and a customer receipt will be queued."
+                                        confirm-text="Confirm and activate"
+                                        variant="success"
+                                    />
                                 </form>
 
                                 <form

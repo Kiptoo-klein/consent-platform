@@ -131,17 +131,30 @@
                                                 $organizationUserRoutePrefix.'.restore',
                                                 [$organization, $user]
                                             ) }}"
-                                            onsubmit="return confirm('Restore this user account?')"
+                                            x-data
+                                            data-user-restore-confirmation
                                         >
                                             @csrf
                                             @method('PATCH')
 
                                             <button
-                                                type="submit"
+                                                type="button"
                                                 class="inline-flex items-center rounded-lg border border-green-300 bg-green-50 px-4 py-2 text-sm font-semibold text-green-800 transition hover:bg-green-100"
+                                                x-on:click="$dispatch(
+                                                    'open-modal',
+                                                    'restore-user-{{ $organization->id }}-{{ $user->id }}'
+                                                )"
                                             >
                                                 Restore
                                             </button>
+
+                                            <x-action-confirmation-modal
+                                                name="restore-user-{{ $organization->id }}-{{ $user->id }}"
+                                                title="Restore user account?"
+                                                message="The account will return to the active users list and regain access according to its assigned role."
+                                                confirm-text="Restore user"
+                                                variant="success"
+                                            />
                                         </form>
                                     </td>
                                 </tr>

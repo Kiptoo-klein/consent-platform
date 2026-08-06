@@ -194,7 +194,8 @@
                     method="POST"
                     action="{{ route('profile.destroy') }}"
                     class="mt-6 space-y-5"
-                    onsubmit="return confirm('Archive your account?')"
+                    x-data
+                    data-profile-archive-confirmation
                 >
                     @csrf
                     @method('DELETE')
@@ -214,6 +215,7 @@
                             required
                             autocomplete="current-password"
                             class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-red-600 focus:ring-red-600"
+                            x-ref="archivePassword"
                         >
 
                         @error('password', 'userDeletion')
@@ -224,11 +226,30 @@
                     </div>
 
                     <button
-                        type="submit"
+                        type="button"
                         class="inline-flex items-center rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-800"
+                        x-on:click="
+                            if (
+                                $refs.archivePassword
+                                    .reportValidity()
+                            ) {
+                                $dispatch(
+                                    'open-modal',
+                                    'archive-profile-{{ auth()->id() }}'
+                                )
+                            }
+                        "
                     >
                         Archive Account
                     </button>
+
+                    <x-action-confirmation-modal
+                        name="archive-profile-{{ auth()->id() }}"
+                        title="Archive your account?"
+                        message="Your account will be archived immediately and you will be logged out. Your organization records will remain preserved."
+                        confirm-text="Archive my account"
+                        variant="danger"
+                    />
                 </form>
             </section>
         </div>

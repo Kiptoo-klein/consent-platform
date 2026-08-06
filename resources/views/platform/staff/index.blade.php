@@ -236,9 +236,8 @@
                                                             'platform.staff.status',
                                                             $staffMember
                                                         ) }}"
-                                                        onsubmit="return confirm('{{ $staffMember->is_active
-                                                            ? 'Disable this platform staff account?'
-                                                            : 'Enable this platform staff account?' }}');"
+                                                        x-data
+                                                        data-platform-staff-status-confirmation
                                                     >
                                                         @csrf
                                                         @method('PATCH')
@@ -252,16 +251,36 @@
                                                         >
 
                                                         <button
-                                                            type="submit"
+                                                            type="button"
                                                             class="inline-flex rounded-lg border px-3 py-2 text-xs font-extrabold"
                                                             style="{{ $staffMember->is_active
                                                                 ? 'background-color:#b91c1c !important;color:#ffffff !important;border-color:#991b1b !important;'
                                                                 : 'background-color:#15803d !important;color:#ffffff !important;border-color:#166534 !important;' }}"
+                                                            x-on:click="$dispatch(
+                                                                'open-modal',
+                                                                'platform-staff-status-{{ $staffMember->id }}'
+                                                            )"
                                                         >
                                                             {{ $staffMember->is_active
                                                                 ? 'Disable'
                                                                 : 'Enable' }}
                                                         </button>
+
+                                                        <x-action-confirmation-modal
+                                                            name="platform-staff-status-{{ $staffMember->id }}"
+                                                            :title="$staffMember->is_active
+                                                                ? 'Disable platform staff account?'
+                                                                : 'Enable platform staff account?'"
+                                                            :message="$staffMember->is_active
+                                                                ? 'This staff member will lose access to platform administration until the account is enabled again.'
+                                                                : 'This staff member will regain access to platform administration.'"
+                                                            :confirm-text="$staffMember->is_active
+                                                                ? 'Disable staff account'
+                                                                : 'Enable staff account'"
+                                                            :variant="$staffMember->is_active
+                                                                ? 'danger'
+                                                                : 'success'"
+                                                        />
                                                     </form>
                                                 @endunless
                                             </div>

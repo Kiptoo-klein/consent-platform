@@ -493,17 +493,30 @@
                                             'organization-subscription-payment-claims.cancel',
                                             $pendingRequest
                                         ) }}"
-                                    onsubmit="return confirm('Cancel this subscription request and invoice? Your current subscription will remain unchanged.');"
+                                    x-data
+                                    data-subscription-summary-cancel-confirmation
                                 >
                                     @csrf
                                     @method('DELETE')
 
                                     <button
-                                        type="submit"
+                                        type="button"
                                         class="inline-flex items-center justify-center rounded-xl border border-red-200 bg-white px-5 py-3 text-sm font-extrabold text-red-700 shadow-sm transition hover:bg-red-50"
+                                        x-on:click="$dispatch(
+                                            'open-modal',
+                                            'cancel-subscription-summary-{{ $pendingRequest->id }}'
+                                        )"
                                     >
                                         Cancel Request
                                     </button>
+
+                                    <x-action-confirmation-modal
+                                        name="cancel-subscription-summary-{{ $pendingRequest->id }}"
+                                        title="Cancel this subscription request and invoice?"
+                                        message="The pending plan request and associated invoice will be cancelled. Your current subscription will remain unchanged."
+                                        confirm-text="Cancel request"
+                                        variant="danger"
+                                    />
                                 </form>
                             @endif
                         </div>
@@ -839,15 +852,20 @@
                                                         'organization-subscription-payment-claims.cancel',
                                                         $pendingRequest
                                                     ) }}"
-                                                onsubmit="return confirm('Cancel this subscription request and invoice? Your current subscription will remain unchanged, and you may then choose another plan.');"
+                                                x-data
+                                                data-subscription-card-cancel-confirmation
                                             >
                                                 @csrf
                                                 @method('DELETE')
 
                                                 <button
-                                                    type="submit"
+                                                    type="button"
                                                     class="inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-center text-xs font-extrabold leading-5 text-white shadow-sm transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                                                     style="background-color:#dc2626 !important;color:#ffffff !important;border-color:#b91c1c !important;"
+                                                    x-on:click="$dispatch(
+                                                        'open-modal',
+                                                        'cancel-subscription-card-{{ $pendingRequest->id }}-{{ $plan->id }}'
+                                                    )"
                                                 >
                                                     <svg
                                                         viewBox="0 0 24 24"
@@ -868,6 +886,14 @@
                                                         Cancel pending change
                                                     </span>
                                                 </button>
+
+                                                <x-action-confirmation-modal
+                                                    name="cancel-subscription-card-{{ $pendingRequest->id }}-{{ $plan->id }}"
+                                                    title="Cancel pending plan change?"
+                                                    message="The pending request and associated invoice will be cancelled. Your current subscription will remain active, and you may then choose another plan."
+                                                    confirm-text="Cancel pending change"
+                                                    variant="danger"
+                                                />
                                             </form>
                                         @else
                                             <div

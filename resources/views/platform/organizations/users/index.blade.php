@@ -235,9 +235,8 @@
                                                     $organizationUserRoutePrefix.'.status',
                                                     [$organization, $user]
                                                 ) }}"
-                                                onsubmit="return confirm('{{ $user->is_active
-                                                    ? 'Disable this user account?'
-                                                    : 'Enable this user account?' }}')"
+                                                x-data
+                                                data-user-status-confirmation
                                             >
                                                 @csrf
                                                 @method('PATCH')
@@ -251,15 +250,35 @@
                                                 >
 
                                                 <button
-                                                    type="submit"
+                                                    type="button"
                                                     class="inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold transition {{ $user->is_active
                                                         ? 'border-red-200 bg-red-50 text-red-800 hover:bg-red-100'
                                                         : 'border-green-200 bg-green-50 text-green-800 hover:bg-green-100' }}"
+                                                    x-on:click="$dispatch(
+                                                        'open-modal',
+                                                        'user-status-{{ $organization->id }}-{{ $user->id }}'
+                                                    )"
                                                 >
                                                     {{ $user->is_active
                                                         ? 'Disable'
                                                         : 'Enable' }}
                                                 </button>
+
+                                                <x-action-confirmation-modal
+                                                    name="user-status-{{ $organization->id }}-{{ $user->id }}"
+                                                    :title="$user->is_active
+                                                        ? 'Disable user account?'
+                                                        : 'Enable user account?'"
+                                                    :message="$user->is_active
+                                                        ? 'This user will no longer be able to access the organization until the account is enabled again.'
+                                                        : 'This user will regain access according to their assigned organization role.'"
+                                                    :confirm-text="$user->is_active
+                                                        ? 'Disable user'
+                                                        : 'Enable user'"
+                                                    :variant="$user->is_active
+                                                        ? 'danger'
+                                                        : 'success'"
+                                                />
                                             </form>
 
                                             <form
@@ -268,17 +287,30 @@
                                                     $organizationUserRoutePrefix.'.destroy',
                                                     [$organization, $user]
                                                 ) }}"
-                                                onsubmit="return confirm('Archive this user account? It can be restored later.')"
+                                                x-data
+                                                data-user-archive-confirmation
                                             >
                                                 @csrf
                                                 @method('DELETE')
 
                                                 <button
-                                                    type="submit"
+                                                    type="button"
                                                     class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-100"
+                                                    x-on:click="$dispatch(
+                                                        'open-modal',
+                                                        'archive-user-{{ $organization->id }}-{{ $user->id }}'
+                                                    )"
                                                 >
                                                     Archive
                                                 </button>
+
+                                                <x-action-confirmation-modal
+                                                    name="archive-user-{{ $organization->id }}-{{ $user->id }}"
+                                                    title="Archive user account?"
+                                                    message="This user will lose access to the organization. The account and its history will be preserved and can be restored later."
+                                                    confirm-text="Archive user"
+                                                    variant="danger"
+                                                />
                                             </form>
                                         </div>
                                     </td>

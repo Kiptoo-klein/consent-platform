@@ -261,16 +261,26 @@
                             <form
                                 method="POST"
                                 action="{{ route('consent-templates.publish', $consentTemplate) }}"
-                                onsubmit="return confirm('Publish this working copy as Version {{ $nextVersionNumber }}?');"
+                                x-data
+                                data-preview-publish-confirmation
                             >
                                 @csrf
 
                                 <button
-                                    type="submit"
+                                    type="button"
                                     class="w-full cursor-pointer rounded-lg bg-green-600 px-5 py-3 text-white hover:bg-green-700"
+                                    x-on:click="$dispatch('open-modal', 'preview-publish-template-{{ $consentTemplate->id }}')"
                                 >
                                     Publish Version {{ $nextVersionNumber }}
                                 </button>
+
+                                <x-action-confirmation-modal
+                                    name="preview-publish-template-{{ $consentTemplate->id }}"
+                                    title="Publish Version {{ $nextVersionNumber }}?"
+                                    message="This working copy will become a new immutable published version and will be made live."
+                                    confirm-text="Publish Version {{ $nextVersionNumber }}"
+                                    variant="success"
+                                />
                             </form>
                         @endif
                     </div>
