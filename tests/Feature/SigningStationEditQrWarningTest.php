@@ -24,7 +24,9 @@ class SigningStationEditQrWarningTest extends TestCase
             'fresh 24-hour QR acceptance window',
             'Existing completed consent records are',
             'data-qr-change-confirmation',
-            'window.confirm',
+            'name="signing-station-qr-change"',
+            'confirm-event="signing-station-qr-change-confirmed"',
+            'form.requestSubmit()',
             'snapshot() === original',
         ] as $expectedText) {
             $this->assertStringContainsString(

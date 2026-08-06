@@ -1,14 +1,34 @@
 <div
     id="word-import"
     class="mb-8"
+    x-on:docx-import-replacement-confirmed.window="
+        confirmDocumentReplacement()
+    "
     x-data="{
         dragging: false,
         importing: false,
         error: '',
         success: '',
         warnings: [],
+        pendingFile: null,
 
-        async importDocument(file) {
+        confirmDocumentReplacement() {
+            const file = this.pendingFile;
+
+            this.pendingFile = null;
+
+            if (file) {
+                this.importDocument(
+                    file,
+                    true
+                );
+            }
+        },
+
+        async importDocument(
+            file,
+            replacementConfirmed = false
+        ) {
             this.error = '';
             this.success = '';
             this.warnings = [];
@@ -46,12 +66,19 @@
 
             if (
                 visibleText !== ''
-                && !window.confirm(
-                    'Replace the current consent document with the imported Word document?'
-                )
+                && ! replacementConfirmed
             ) {
+                this.pendingFile = file;
+
+                this.$dispatch(
+                    'open-modal',
+                    'replace-consent-document'
+                );
+
                 return;
             }
+
+            this.pendingFile = null;
 
             const formData = new FormData();
             formData.append('document', file);
@@ -236,4 +263,13 @@
             <li x-text="warning"></li>
         </template>
     </ul>
+    <x-action-confirmation-modal
+        name="replace-consent-document"
+        title="Replace the current consent document with the imported Word document?"
+        message="The imported Word document will replace all content currently in the consent editor. Unsaved editor content will be lost."
+        confirm-text="Replace document"
+        variant="danger"
+        confirm-event="docx-import-replacement-confirmed"
+    />
+
 </div>

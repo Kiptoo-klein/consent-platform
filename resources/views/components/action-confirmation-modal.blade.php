@@ -4,6 +4,7 @@
     'message',
     'confirmText' => 'Continue',
     'variant' => 'warning',
+    'confirmEvent' => null,
 ])
 
 @php
@@ -175,13 +176,27 @@
                     Go back
                 </button>
 
-                <button
-                    type="submit"
-                    class="inline-flex min-h-11 items-center justify-center rounded-xl px-5 py-2.5 text-sm font-bold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2 {{ $styles['button'] }}"
-                    data-action-confirmation-submit
-                >
-                    {{ $confirmText }}
-                </button>
+                @if ($confirmEvent)
+                    <button
+                        type="button"
+                        class="inline-flex min-h-11 items-center justify-center rounded-xl px-5 py-2.5 text-sm font-bold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2 {{ $styles['button'] }}"
+                        x-on:click="
+                            $dispatch(@js($confirmEvent));
+                            show = false
+                        "
+                        data-action-confirmation-event
+                    >
+                        {{ $confirmText }}
+                    </button>
+                @else
+                    <button
+                        type="submit"
+                        class="inline-flex min-h-11 items-center justify-center rounded-xl px-5 py-2.5 text-sm font-bold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2 {{ $styles['button'] }}"
+                        data-action-confirmation-submit
+                    >
+                        {{ $confirmText }}
+                    </button>
+                @endif
             </div>
         </div>
     </section>

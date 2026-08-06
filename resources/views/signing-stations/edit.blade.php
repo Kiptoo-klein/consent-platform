@@ -40,6 +40,8 @@
                 method="POST"
                 action="{{ route('signing-stations.update', $signingStation) }}"
                 class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
+                x-data
+                data-signing-station-edit-form
             >
                 @csrf
                 @method('PUT')
@@ -280,17 +282,25 @@
                         Save Changes
                     </button>
                 </div>
-            </form>
+
+                <x-action-confirmation-modal
+                    name="signing-station-qr-change"
+                    title="Create a new signing-station QR code?"
+                    message="Saving these changes will immediately invalidate the current public kiosk link, QR code and every printed poster. Current kiosk-device leases will be released, and a new QR code with a fresh 24-hour window will be created. Existing completed consent records will not be deleted."
+                    confirm-text="Save changes and create new QR"
+                    variant="warning"
+                    confirm-event="signing-station-qr-change-confirmed"
+                />
+
+</form>
         </div>
     </div>
 
 <script data-qr-change-confirmation>
     document.addEventListener('DOMContentLoaded', () => {
-        const methodInput = document.querySelector(
-            'form input[name="_method"][value="PUT"]'
+        const form = document.querySelector(
+            '[data-signing-station-edit-form]'
         );
-
-        const form = methodInput?.form;
 
         if (! form) {
             return;
@@ -328,32 +338,50 @@
         };
 
         const original = snapshot();
+        let confirmationGranted = false;
 
         form.addEventListener('submit', (event) => {
+            if (confirmationGranted) {
+                return;
+            }
+
             /*
-             * No warning is needed when no stored value was
-             * changed because the QR code will remain valid.
+             * Unchanged values preserve the existing QR code
+             * and therefore require no warning.
              */
             if (snapshot() === original) {
                 return;
             }
 
-            const confirmed = window.confirm(
-                'Saving these changes will immediately invalidate ' +
-                'the current public kiosk link, QR code and every ' +
-                'printed poster.\n\n' +
-                'Current kiosk-device leases will be released, ' +
-                'and a new QR code with a fresh 24-hour window ' +
-                'will be created.\n\n' +
-                'Existing completed consent records will not be ' +
-                'deleted.\n\n' +
-                'Continue and create the new QR code?'
-            );
+            event.preventDefault();
 
-            if (! confirmed) {
-                event.preventDefault();
-            }
+            window.dispatchEvent(
+                new CustomEvent(
+                    'open-modal',
+                    {
+                        detail:
+                            'signing-station-qr-change',
+                    }
+                )
+            );
         });
+
+        window.addEventListener(
+            'signing-station-qr-change-confirmed',
+            () => {
+                confirmationGranted = true;
+
+                form.requestSubmit();
+
+                /*
+                 * Restore protection when native validation
+                 * prevents the request from being submitted.
+                 */
+                window.setTimeout(() => {
+                    confirmationGranted = false;
+                }, 0);
+            }
+        );
     });
 </script>
 
