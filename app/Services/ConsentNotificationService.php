@@ -96,6 +96,22 @@ class ConsentNotificationService
         ConsentSession $consentSession,
         int $daysBeforeDeadline
     ): ?ConsentNotification {
+        /*
+         * Evaluation emails are intentionally user-driven.
+         * Scheduled reminders must never silently consume one
+         * of the five lifetime signing-email credits.
+         */
+        if (
+            app(
+                EvaluationEmailCreditService::class
+            )->isEvaluationOrganization(
+                (int) $consentSession
+                    ->organization_id
+            )
+        ) {
+            return null;
+        }
+
         if (
             $this->automaticReminderAlreadySent(
                 $consentSession,
@@ -273,6 +289,12 @@ class ConsentNotificationService
                 'failed_at' => null,
                 'error_message' => null,
             ])->save();
+
+            app(
+                EvaluationEmailCreditService::class
+            )->consumeForNotification(
+                (int) $notification->id
+            );
         } catch (Throwable $exception) {
             $notification->forceFill([
                 'status' =>
@@ -342,12 +364,32 @@ class ConsentNotificationService
                 $introMessage,
                 $daysBeforeDeadline
             ): ConsentNotification {
-                ConsentSession::query()
-                    ->whereKey($consentSession->id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
+                $lockedConsentSession =
+                    ConsentSession::query()
+                        ->whereKey(
+                            $consentSession->id
+                        )
+                        ->lockForUpdate()
+                        ->firstOrFail();
 
-                return ConsentNotification::query()->create([
+                $evaluationCredit =
+                    app(
+                        EvaluationEmailCreditService::class
+                    )->reserveLocked(
+                        organizationId:
+                            (int) $lockedConsentSession
+                                ->organization_id,
+
+                        consentSessionId:
+                            (int) $lockedConsentSession
+                                ->id,
+
+                        notificationType:
+                            $type
+                    );
+
+                $notification =
+                    ConsentNotification::query()->create([
                     'organization_id' =>
                         $consentSession->organization_id,
                     'consent_session_id' =>
@@ -373,6 +415,23 @@ class ConsentNotificationService
                             $consentSession->expires_at?->toIso8601String(),
                     ],
                 ]);
+
+                if ($evaluationCredit !== null) {
+                    app(
+                        EvaluationEmailCreditService::class
+                    )->attachNotificationLocked(
+                        usageId:
+                            (int) $evaluationCredit->id,
+
+                        notificationId:
+                            (int) $notification->id,
+
+                        notificationType:
+                            $type
+                    );
+                }
+
+                return $notification;
             },
             3
         );
@@ -413,6 +472,12 @@ class ConsentNotificationService
                 'failed_at' => null,
                 'error_message' => null,
             ])->save();
+
+            app(
+                EvaluationEmailCreditService::class
+            )->consumeForNotification(
+                (int) $notification->id
+            );
         } catch (Throwable $exception) {
             report($exception);
 
@@ -426,6 +491,13 @@ class ConsentNotificationService
                     2000
                 ),
             ])->save();
+
+            app(
+                EvaluationEmailCreditService::class
+            )->releaseForNotification(
+                (int) $notification->id,
+                'synchronous_delivery_failed'
+            );
         }
 
         return $notification->refresh();

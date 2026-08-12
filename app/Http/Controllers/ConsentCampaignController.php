@@ -6,6 +6,7 @@ use App\Models\ConsentCampaign;
 use App\Models\ConsentNotification;
 use App\Models\ConsentSession;
 use App\Models\ConsentTemplate;
+use App\Models\OrganizationSubscription;
 use App\Services\ConsentAuditService;
 use App\Services\ConsentNotificationService;
 use App\Services\SubscriptionUsageLimitService;
@@ -98,6 +99,16 @@ class ConsentCampaignController extends Controller
     public function selectTemplate(
         Request $request
     ): View {
+        if (
+            $this->isEvaluationOrganization(
+                $request
+            )
+        ) {
+            return view(
+                'consent-campaigns.evaluation-paywall'
+            );
+        }
+
         $organizationId =
             (int) $request
                 ->user()
@@ -146,6 +157,17 @@ class ConsentCampaignController extends Controller
         ConsentTemplate $consentTemplate,
         SubscriptionUsageLimitService $usageLimitService
     ): View|RedirectResponse {
+        if (
+            $this->isEvaluationOrganization(
+                $request
+            )
+        ) {
+            return redirect()
+                ->route(
+                    'consent-campaigns.select-template'
+                );
+        }
+
         $this->ensureTemplateBelongsToOrganization(
             $request,
             $consentTemplate
@@ -215,6 +237,17 @@ class ConsentCampaignController extends Controller
         ConsentNotificationService $notificationService,
         SubscriptionUsageLimitService $usageLimitService
     ): RedirectResponse {
+        if (
+            $this->isEvaluationOrganization(
+                $request
+            )
+        ) {
+            return redirect()
+                ->route(
+                    'consent-campaigns.select-template'
+                );
+        }
+
         $this->ensureTemplateBelongsToOrganization(
             $request,
             $consentTemplate
@@ -1038,4 +1071,20 @@ class ConsentCampaignController extends Controller
             403
         );
     }
+    private function isEvaluationOrganization(
+        Request $request
+    ): bool {
+        return OrganizationSubscription::query()
+            ->where(
+                'organization_id',
+                (int) $request
+                    ->user()
+                    ->organization_id
+            )
+            ->first()
+            ?->isEvaluation()
+            ?? false;
+    }
+
+
 }

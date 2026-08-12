@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Jobs\Middleware\EnforceEmailQuota;
 use App\Models\ConsentNotification;
 use App\Services\ConsentNotificationService;
+use App\Services\EvaluationEmailCreditService;
 use DateTimeInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -89,5 +90,17 @@ class SendConsentNotificationJob implements ShouldQueue
                     2000
                 ),
             ]);
+
+        /*
+         * failed() is Laravel's terminal queue-failure hook.
+         * Intermediate delivery failures are intentionally kept
+         * reserved because the job can still be retried.
+         */
+        app(
+            EvaluationEmailCreditService::class
+        )->releaseForNotification(
+            $this->notificationId,
+            'queue_terminal_failure'
+        );
     }
 }
