@@ -6,7 +6,7 @@ test('registration screen can be rendered', function () {
     $response->assertStatus(200);
 });
 
-test('new organizations can register', function () {
+test('new organizations register into the free evaluation', function () {
     $this->seed(
         \Database\Seeders\SubscriptionPlanSeeder::class
     );
@@ -29,7 +29,8 @@ test('new organizations can register', function () {
         ->where('email', 'test@example.com')
         ->firstOrFail();
 
-    expect($user->organization_id)->toBe($organization->id);
+    expect($user->organization_id)
+        ->toBe($organization->id);
 
     app(
         \Spatie\Permission\PermissionRegistrar::class
@@ -44,16 +45,23 @@ test('new organizations can register', function () {
         ->firstOrFail();
 
     /*
-     * Basic remains an internal relational placeholder only.
-     * It has not been selected by the customer.
+     * Basic remains the relational plan placeholder while
+     * the organization uses its free evaluation workspace.
      */
-    expect($subscription->plan->slug)->toBe('basic');
-    expect($subscription->requires_plan_selection)->toBeTrue();
-    expect($subscription->requiresPlanSelection())->toBeTrue();
-    expect($subscription->plan_selected_at)->toBeNull();
+    expect($subscription->plan->slug)
+        ->toBe('basic');
+
+    expect($subscription->requires_plan_selection)
+        ->toBeTrue();
+
+    expect($subscription->requiresPlanSelection())
+        ->toBeTrue();
+
+    expect($subscription->plan_selected_at)
+        ->toBeNull();
 
     expect($subscription->status)->toBe(
-        \App\Enums\OrganizationSubscriptionStatus::TRIALING
+        \App\Enums\OrganizationSubscriptionStatus::EVALUATION
     );
 
     expect($subscription->payment_status)->toBe(
@@ -63,15 +71,21 @@ test('new organizations can register', function () {
     expect($subscription->billing_owner_user_id)
         ->toBe($user->id);
 
-    expect($subscription->bypass_approved_at)->toBeNull();
-    expect($subscription->bypass_approved_by_user_id)->toBeNull();
+    expect($subscription->bypass_approved_at)
+        ->toBeNull();
+
+    expect($subscription->bypass_approved_by_user_id)
+        ->toBeNull();
+
+    expect($subscription->isEvaluation())
+        ->toBeTrue();
 
     expect($subscription->allowsOrganizationAccess())
-        ->toBeFalse();
+        ->toBeTrue();
 
     $response->assertRedirect(
         route(
-            'organization-subscription-plans.index',
+            'dashboard',
             absolute: false
         )
     );

@@ -43,6 +43,10 @@
 
         $plan = $subscription?->plan;
 
+        $isEvaluation =
+            $subscription?->isEvaluation()
+            ?? false;
+
         $displayPlan =
             $requiresPlanSelection
                 ? null
@@ -107,8 +111,10 @@
                             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
                                 Current plan:
                                 <span class="font-semibold text-gray-900 dark:text-white">
-                                    {{ $displayPlan?->name
-                                        ?? 'No plan selected' }}
+                                    {{ $isEvaluation
+                                        ? 'Free evaluation'
+                                        : ($displayPlan?->name
+                                            ?? 'No plan selected') }}
                                 </span>
                             </p>
                         </div>
@@ -119,7 +125,9 @@
                                     ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
                                     : 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200' }}"
                         >
-                            @if ($hasAccess)
+                            @if ($isEvaluation)
+                                Free evaluation access
+                            @elseif ($hasAccess)
                                 Access approved
                             @elseif ($requiresPlanSelection)
                                 Plan selection required
@@ -151,10 +159,14 @@
                                 </p>
 
                                 <p class="mt-2 text-lg font-bold text-gray-900 dark:text-white">
-                                    {{ $requiresPlanSelection
-                                        ? 'Plan not selected'
-                                        : $formatStatus(
-                                            $lifecycleStatus
+                                    {{ $isEvaluation
+                                        ? 'Evaluation'
+                                        : (
+                                            $requiresPlanSelection
+                                                ? 'Plan not selected'
+                                                : $formatStatus(
+                                                    $lifecycleStatus
+                                                )
                                         ) }}
                                 </p>
                             </div>

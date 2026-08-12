@@ -33,6 +33,24 @@ class OrganizationSubscriptionTest extends TestCase
         );
     }
 
+    public function test_evaluation_subscription_allows_access_without_payment(): void
+    {
+        $subscription = new OrganizationSubscription([
+            'status' =>
+                OrganizationSubscriptionStatus::EVALUATION,
+            'payment_status' =>
+                SubscriptionPaymentStatus::UNPAID,
+        ]);
+
+        $this->assertTrue(
+            $subscription->isEvaluation()
+        );
+
+        $this->assertTrue(
+            $subscription->allowsOrganizationAccess()
+        );
+    }
+
     public function test_unpaid_subscription_without_bypass_blocks_access(): void
     {
         $subscription = new OrganizationSubscription([

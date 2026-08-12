@@ -28,10 +28,11 @@ test('organization users can view their subscription status', function () {
     $response->assertOk();
 
     $response->assertSee('Subscription Status');
-    $response->assertSee('No plan selected');
+    $response->assertSee('Free evaluation');
     $response->assertSee('Unpaid');
-    $response->assertSee('Plan selection required');
-    $response->assertSee('Choose a subscription plan');
+    $response->assertSee('Free evaluation access');
+    $response->assertSee('Evaluation');
+    $response->assertDontSee('Payment required');
 });
 
 test(

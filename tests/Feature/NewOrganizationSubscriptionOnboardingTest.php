@@ -44,9 +44,7 @@ class NewOrganizationSubscriptionOnboardingTest extends TestCase
         ]);
 
         $response->assertRedirect(
-            route(
-                'organization-subscription-plans.index'
-            )
+            route('dashboard')
         );
 
         $organization =

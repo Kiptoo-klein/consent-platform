@@ -136,7 +136,7 @@ class RegisteredUserController extends Controller
                     'requires_plan_selection' => true,
                     'plan_selected_at' => null,
                     'status' =>
-                        OrganizationSubscriptionStatus::TRIALING,
+                        OrganizationSubscriptionStatus::EVALUATION,
                     'payment_status' =>
                         SubscriptionPaymentStatus::UNPAID,
                     'starts_at' => now(),
@@ -156,13 +156,11 @@ class RegisteredUserController extends Controller
         Auth::login($user);
 
         return redirect()
-            ->route(
-                'organization-subscription-plans.index'
-            )
+            ->route('dashboard')
             ->with(
                 'success',
-                'Welcome to eConsent. Choose the subscription plan '
-                .'and billing cycle that fit your organization.'
+                'Welcome to eConsent. Your free evaluation '
+                .'workspace is ready.'
             );
     }
 }

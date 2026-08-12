@@ -4,6 +4,7 @@ namespace App\Enums;
 
 enum OrganizationSubscriptionStatus: string
 {
+    case EVALUATION = 'evaluation';
     case TRIALING = 'trialing';
     case ACTIVE = 'active';
     case PAST_DUE = 'past_due';

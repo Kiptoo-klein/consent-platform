@@ -11,6 +11,7 @@ class OrganizationSubscriptionStatusTest extends TestCase
     {
         $this->assertSame(
             [
+                'evaluation',
                 'trialing',
                 'active',
                 'past_due',

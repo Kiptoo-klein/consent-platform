@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\OrganizationSubscriptionStatus;
+use App\Enums\SubscriptionPaymentStatus;
 use App\Models\Organization;
 use App\Models\PlatformRole;
 use App\Models\User;
@@ -104,6 +106,10 @@ test('platform admin can approve an organization payment bypass', function () {
 
 test('platform admin can revoke a bypass without changing plan limits', function () {
     $this->subscription->update([
+        'status' =>
+            OrganizationSubscriptionStatus::ACTIVE,
+        'payment_status' =>
+            SubscriptionPaymentStatus::UNPAID,
         'bypass_approved_at' => now(),
         'bypass_approved_by_user_id' =>
             $this->platformAdmin->id,

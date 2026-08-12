@@ -5,7 +5,35 @@ use App\Enums\SubscriptionPaymentStatus;
 use App\Models\Organization;
 use Database\Seeders\SubscriptionPlanSeeder;
 
-test('unpaid organizations are redirected away from workflows', function () {
+test('evaluation organizations may access workflows', function () {
+    $this->seed(SubscriptionPlanSeeder::class);
+
+    $this->post('/register', [
+        'organization_name' => 'Evaluation Clinic',
+        'name' => 'Evaluation Administrator',
+        'email' => 'evaluation-admin@example.com',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+    ]);
+
+    $this->assertAuthenticated();
+
+    $organization = Organization::query()
+        ->where('name', 'Evaluation Clinic')
+        ->firstOrFail();
+
+    expect($organization->subscription->status)->toBe(
+        OrganizationSubscriptionStatus::EVALUATION
+    );
+
+    expect($organization->subscription->payment_status)->toBe(
+        SubscriptionPaymentStatus::UNPAID
+    );
+
+    $this->get('/dashboard')->assertOk();
+});
+
+test('unpaid non-evaluation organizations are redirected away from workflows', function () {
     $this->seed(SubscriptionPlanSeeder::class);
 
     $this->post('/register', [
@@ -17,6 +45,17 @@ test('unpaid organizations are redirected away from workflows', function () {
     ]);
 
     $this->assertAuthenticated();
+
+    $organization = Organization::query()
+        ->where('name', 'Unpaid Clinic')
+        ->firstOrFail();
+
+    $organization->subscription()->update([
+        'status' =>
+            OrganizationSubscriptionStatus::ACTIVE,
+        'payment_status' =>
+            SubscriptionPaymentStatus::UNPAID,
+    ]);
 
     $response = $this->get('/dashboard');
 
@@ -41,7 +80,12 @@ test('paid organizations may access workflows', function () {
         ->firstOrFail();
 
     $organization->subscription()->update([
-        'payment_status' => SubscriptionPaymentStatus::PAID,
+        'status' =>
+            OrganizationSubscriptionStatus::ACTIVE,
+        'payment_status' =>
+            SubscriptionPaymentStatus::PAID,
+        'current_period_starts_at' => now(),
+        'current_period_ends_at' => now()->addMonth(),
     ]);
 
     $response = $this->get('/dashboard');

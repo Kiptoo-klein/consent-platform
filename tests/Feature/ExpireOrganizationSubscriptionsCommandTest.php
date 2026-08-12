@@ -243,6 +243,49 @@ class ExpireOrganizationSubscriptionsCommandTest extends TestCase
         );
     }
 
+    public function test_evaluation_subscription_is_not_expired(): void
+    {
+        $subscription = $this->createSubscription([
+            'status' =>
+                OrganizationSubscriptionStatus::EVALUATION,
+            'payment_status' =>
+                SubscriptionPaymentStatus::UNPAID,
+            /*
+             * Even a stale legacy trial date must not turn
+             * Evaluation into a time-limited subscription.
+             */
+            'trial_ends_at' => now()->subDay(),
+            'current_period_starts_at' => null,
+            'current_period_ends_at' => null,
+            'ends_at' => null,
+        ]);
+
+        $this->artisan('subscriptions:expire')
+            ->expectsOutput(
+                'Expired 0 organization subscriptions.'
+            )
+            ->assertExitCode(0);
+
+        $subscription = $subscription->fresh();
+
+        $this->assertSame(
+            OrganizationSubscriptionStatus::EVALUATION,
+            $subscription->status
+        );
+
+        $this->assertSame(
+            SubscriptionPaymentStatus::UNPAID,
+            $subscription->payment_status
+        );
+
+        $this->assertDatabaseMissing('activity_logs', [
+            'organization_id' =>
+                $subscription->organization_id,
+            'action' =>
+                'organization.subscription_expired',
+        ]);
+    }
+
     public function test_future_subscriptions_are_not_changed(): void
     {
         $subscription = $this->createSubscription([

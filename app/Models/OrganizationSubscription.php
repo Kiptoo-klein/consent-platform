@@ -66,8 +66,14 @@ class OrganizationSubscription extends Model
     public function requiresPlanSelection(): bool
     {
         return $this->requires_plan_selection === true
-            && $this->status
-                === OrganizationSubscriptionStatus::TRIALING
+            && in_array(
+                $this->status,
+                [
+                    OrganizationSubscriptionStatus::EVALUATION,
+                    OrganizationSubscriptionStatus::TRIALING,
+                ],
+                true
+            )
             && $this->payment_status
                 !== SubscriptionPaymentStatus::PAID;
     }
@@ -166,15 +172,30 @@ class OrganizationSubscription extends Model
     }
 
     /**
+     * Determine whether this organization is using the
+     * permanent free evaluation workspace.
+     */
+    public function isEvaluation(): bool
+    {
+        return $this->status
+            === OrganizationSubscriptionStatus::EVALUATION;
+    }
+
+    /**
      * Determine whether users in the organization may access the system.
      *
      * A valid Platform Admin bypass overrides payment and lifecycle
-     * restrictions. Otherwise, an organization must have either an
-     * unexpired trial or a paid subscription with a valid lifecycle.
+     * restrictions. Otherwise, an organization must have an evaluation
+     * workspace, an unexpired trial, or a paid subscription with a
+     * valid lifecycle.
      */
     public function allowsOrganizationAccess(): bool
     {
         if ($this->hasPlatformBypass()) {
+            return true;
+        }
+
+        if ($this->isEvaluation()) {
             return true;
         }
 
