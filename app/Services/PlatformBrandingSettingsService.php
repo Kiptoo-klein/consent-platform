@@ -185,13 +185,6 @@ class PlatformBrandingSettingsService
         }
 
         try {
-            $disk =
-                Storage::disk($this->brandingDisk());
-
-            if (! $disk->exists($path)) {
-                return null;
-            }
-
             $diskName =
                 $this->brandingDisk();
 
@@ -201,34 +194,28 @@ class PlatformBrandingSettingsService
                     ''
                 );
 
-            $url =
-                $driver === 'local'
-                    ? '/storage/'
-                        .ltrim(
-                            $path,
-                            '/'
-                        )
-                    : $disk->url(
-                        $path
+            if ($driver === 'local') {
+                return '/storage/'
+                    .ltrim(
+                        $path,
+                        '/'
                     );
-
-            try {
-                $version =
-                    $disk->lastModified($path);
-
-                return $url
-                    .(
-                        str_contains(
-                            $url,
-                            '?'
-                        )
-                            ? '&v='
-                            : '?v='
-                    )
-                    .$version;
-            } catch (Throwable) {
-                return $url;
             }
+
+            /*
+             * Storage::url() can construct the public object URL
+             * without probing the object first. Avoid exists() and
+             * lastModified() here because those become billable
+             * remote metadata operations on object storage.
+             */
+            $disk =
+                Storage::disk(
+                    $diskName
+                );
+
+            return $disk->url(
+                $path
+            );
         } catch (Throwable) {
             return null;
         }

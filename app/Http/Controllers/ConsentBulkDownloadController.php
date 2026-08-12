@@ -658,13 +658,14 @@ class ConsentBulkDownloadController extends Controller
             array_unique($candidatePaths)
             as $candidate
         ) {
-            if (! $disk->exists($candidate)) {
+            try {
+                $source =
+                    $disk->readStream(
+                        $candidate
+                    );
+            } catch (\Throwable) {
                 continue;
             }
-
-            $source = $disk->readStream(
-                $candidate
-            );
 
             if (! is_resource($source)) {
                 continue;

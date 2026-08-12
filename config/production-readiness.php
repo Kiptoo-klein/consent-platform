@@ -15,12 +15,12 @@ return [
 
         'scheduler_max_age_seconds' => (int) env(
             'PRODUCTION_SCHEDULER_MAX_AGE_SECONDS',
-            180
+            7200
         ),
 
         'queue_max_age_seconds' => (int) env(
             'PRODUCTION_QUEUE_MAX_AGE_SECONDS',
-            180
+            7200
         ),
 
         'queue_name' => env(
@@ -36,6 +36,16 @@ return [
     */
 
     'backups' => [
+        /*
+         * When true, database recovery is provided by the hosting
+         * platform rather than by the application's ephemeral
+         * local production-backup directory.
+         */
+        'managed_database' => (bool) env(
+            'PRODUCTION_MANAGED_DATABASE_BACKUPS',
+            false
+        ),
+
         'directory' => env(
             'PRODUCTION_BACKUP_DIRECTORY',
             'production-backups'

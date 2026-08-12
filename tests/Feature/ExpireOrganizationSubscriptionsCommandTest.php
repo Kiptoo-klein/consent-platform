@@ -529,7 +529,7 @@ class ExpireOrganizationSubscriptionsCommandTest extends TestCase
         );
 
         $this->assertSame(
-            '* * * * *',
+            '0 * * * *',
             $event->expression
         );
     }

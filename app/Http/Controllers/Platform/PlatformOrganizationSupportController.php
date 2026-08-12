@@ -209,12 +209,18 @@ class PlatformOrganizationSupportController extends Controller
         $diskName =
             $consentPdfService->diskName();
 
-        if (
-            ! Storage::disk($diskName)
-                ->exists(
+        try {
+            $pdfStream =
+                Storage::disk(
+                    $diskName
+                )->readStream(
                     $consentSession->pdf_path
-                )
-        ) {
+                );
+        } catch (\Throwable) {
+            $pdfStream = false;
+        }
+
+        if (! is_resource($pdfStream)) {
             return back()->withErrors([
                 'support_download' =>
                     'The PDF record could not be found in storage.',
@@ -267,15 +273,20 @@ class PlatformOrganizationSupportController extends Controller
             ],
         );
 
-        return Storage::disk($diskName)
-            ->download(
-                $consentSession->pdf_path,
-                $filename,
-                [
-                    'Content-Type' =>
-                        'application/pdf',
-                ]
-            );
+        return response()->streamDownload(
+            static function () use ($pdfStream): void {
+                try {
+                    fpassthru($pdfStream);
+                } finally {
+                    fclose($pdfStream);
+                }
+            },
+            $filename,
+            [
+                'Content-Type' =>
+                    'application/pdf',
+            ]
+        );
     }
 
     public function sendPasswordResetLink(

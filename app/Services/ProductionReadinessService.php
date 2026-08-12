@@ -234,49 +234,66 @@ class ProductionReadinessService
             )
         );
 
-        $latestBackup =
-            $this->latestBackup();
+        $managedDatabaseBackups =
+            (bool) config(
+                'production-readiness.backups.managed_database',
+                false
+            );
 
-        if ($latestBackup === null) {
+        if ($managedDatabaseBackups) {
             $checks->push(
                 $this->check(
                     'Backups',
-                    'Latest backup',
-                    'warning',
-                    'No production backup has been created yet.'
+                    'Database backup',
+                    'pass',
+                    'Managed database backups are enabled by the hosting platform.'
                 )
             );
         } else {
-            $warningAge = max(
-                1,
-                (int) config(
-                    'production-readiness.backups.warning_age_hours',
-                    36
-                )
-            );
+            $latestBackup =
+                $this->latestBackup();
 
-            $checks->push(
-                $this->check(
-                    'Backups',
-                    'Latest backup',
-                    $latestBackup['verified']
-                    && $latestBackup['age_hours']
-                        <= $warningAge
-                        ? 'pass'
-                        : 'warning',
-                    $latestBackup['created_at']
-                    .' — '
-                    .$this->formatBytes(
-                        $latestBackup['total_size']
+            if ($latestBackup === null) {
+                $checks->push(
+                    $this->check(
+                        'Backups',
+                        'Latest backup',
+                        'warning',
+                        'No production backup has been created yet.'
                     )
-                    .' — '
-                    .(
+                );
+            } else {
+                $warningAge = max(
+                    1,
+                    (int) config(
+                        'production-readiness.backups.warning_age_hours',
+                        36
+                    )
+                );
+
+                $checks->push(
+                    $this->check(
+                        'Backups',
+                        'Latest backup',
                         $latestBackup['verified']
-                            ? 'checksums verified'
-                            : 'verification failed'
+                        && $latestBackup['age_hours']
+                            <= $warningAge
+                            ? 'pass'
+                            : 'warning',
+                        $latestBackup['created_at']
+                        .' — '
+                        .$this->formatBytes(
+                            $latestBackup['total_size']
+                        )
+                        .' — '
+                        .(
+                            $latestBackup['verified']
+                                ? 'checksums verified'
+                                : 'verification failed'
+                        )
                     )
-                )
-            );
+                );
+            }
         }
 
         $writablePaths = [

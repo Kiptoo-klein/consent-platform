@@ -54,11 +54,31 @@ class ConsentPdfCloudStorageWiringTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            'Storage::disk($pdfDisk)->exists(',
+            'Storage::disk(',
             $controller
         );
 
         $this->assertStringContainsString(
+            '$pdfDisk',
+            $controller
+        );
+
+        $this->assertStringContainsString(
+            '->readStream(',
+            $controller
+        );
+
+        $this->assertStringContainsString(
+            'response()->streamDownload(',
+            $controller
+        );
+
+        $this->assertStringNotContainsString(
+            'Storage::disk($pdfDisk)->exists(',
+            $controller
+        );
+
+        $this->assertStringNotContainsString(
             'Storage::disk($pdfDisk)->download(',
             $controller
         );

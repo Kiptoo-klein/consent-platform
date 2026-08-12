@@ -722,7 +722,7 @@ class SendSubscriptionInvoiceRemindersCommandTest extends TestCase
         );
     }
 
-    public function test_invoice_reminder_command_is_scheduled_every_ten_minutes(): void
+    public function test_invoice_reminder_command_is_scheduled_hourly(): void
     {
         $event = collect(
             app(Schedule::class)->events()
@@ -740,7 +740,7 @@ class SendSubscriptionInvoiceRemindersCommandTest extends TestCase
         );
 
         $this->assertSame(
-            '*/10 * * * *',
+            '0 * * * *',
             $event->expression
         );
     }

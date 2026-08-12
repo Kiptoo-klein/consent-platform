@@ -30,6 +30,12 @@ class ProductionReadinessController extends Controller
                 'metrics' =>
                     $service->runtimeMetrics(),
 
+                'managedDatabaseBackups' =>
+                    (bool) config(
+                        'production-readiness.backups.managed_database',
+                        false
+                    ),
+
                 'latestBackup' =>
                     $service->latestBackup(),
 
@@ -43,6 +49,19 @@ class ProductionReadinessController extends Controller
 
     public function createBackup(): RedirectResponse
     {
+        if (
+            (bool) config(
+                'production-readiness.backups.managed_database',
+                false
+            )
+        ) {
+            return back()->withErrors([
+                'production_action' =>
+                    'Database backups are managed by the hosting platform. '
+                    .'Use Laravel Cloud to review or restore backups.',
+            ]);
+        }
+
         try {
             $exitCode = Artisan::call(
                 'production:backup',

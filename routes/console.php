@@ -4,31 +4,40 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
+/*
+ * Keep scheduler mutexes off the database so Laravel Cloud's
+ * schedule runner does not keep Serverless Postgres awake
+ * solely for scheduler locks.
+ *
+ * Production currently runs a single App replica.
+ */
+Schedule::useCache('file');
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
 Schedule::command('consents:expire')
-    ->everyMinute()
+    ->hourly()
     ->withoutOverlapping();
 
 Schedule::command('subscriptions:expire')
-    ->everyMinute()
+    ->hourly()
     ->withoutOverlapping();
 
 Schedule::command('subscription-invoices:mark-overdue')
-    ->everyMinute()
+    ->hourly()
     ->withoutOverlapping();
 
 Schedule::command('subscription-invoices:send-reminders')
-    ->everyTenMinutes()
+    ->hourly()
     ->withoutOverlapping();
 
 /* BEGIN CONSENT EMAIL REMINDERS */
 \Illuminate\Support\Facades\Schedule::command(
     'consent:send-reminders'
 )
-    ->everyTenMinutes()
+    ->hourly()
     ->withoutOverlapping();
 /* END CONSENT EMAIL REMINDERS */
 
@@ -43,12 +52,8 @@ Schedule::command(
 
 // PRODUCTION_READINESS_SCHEDULE
 Schedule::command('production:heartbeat')
-    ->everyMinute()
+    ->hourly()
     ->withoutOverlapping();
-
-Schedule::command('production:backup --prune')
-    ->dailyAt('01:30')
-    ->withoutOverlapping(180);
 
 Schedule::command('production:prune')
     ->dailyAt('02:15')

@@ -117,7 +117,7 @@
                             The public domain, HTTPS certificate, forced HTTPS,
                             secure cookies, branded sender address, SPF, DKIM
                             and DMARC will be completed later. They do not prevent
-                            local backup, queue, scheduler and deployment testing.
+                            backup, queue, scheduler and deployment testing.
                         </p>
                     </section>
 
@@ -154,10 +154,25 @@
                     <div class="grid gap-6 lg:grid-cols-2">
                         <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                             <h3 class="text-lg font-bold text-gray-900 dark:text-white">
-                                Latest verified backup
+                                {{ $managedDatabaseBackups
+                                    ? 'Managed database backup'
+                                    : 'Latest verified backup' }}
                             </h3>
 
-                            @if ($latestBackup)
+                            @if ($managedDatabaseBackups)
+                                <div class="mt-5 space-y-3 text-sm">
+                                    <p class="font-semibold text-emerald-600">
+                                        Managed backups enabled
+                                    </p>
+
+                                    <p class="leading-6 text-gray-500 dark:text-gray-400">
+                                        Database backup and point-in-time recovery
+                                        are managed by the hosting platform.
+                                        Review retention and restore points in
+                                        Laravel Cloud.
+                                    </p>
+                                </div>
+                            @elseif ($latestBackup)
                                 <dl class="mt-5 space-y-4 text-sm">
                                     <div class="flex justify-between gap-4 border-b border-gray-100 pb-3">
                                         <dt class="text-gray-500">
@@ -205,20 +220,22 @@
                                 </p>
                             @endif
 
-                            <form
-                                method="POST"
-                                action="{{ route('platform.production-readiness.backup') }}"
-                                class="mt-6"
-                            >
-                                @csrf
-
-                                <button
-                                    type="submit"
-                                    class="inline-flex rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500"
+                            @unless ($managedDatabaseBackups)
+                                <form
+                                    method="POST"
+                                    action="{{ route('platform.production-readiness.backup') }}"
+                                    class="mt-6"
                                 >
-                                    Create backup now
-                                </button>
-                            </form>
+                                    @csrf
+
+                                    <button
+                                        type="submit"
+                                        class="inline-flex rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500"
+                                    >
+                                        Create backup now
+                                    </button>
+                                </form>
+                            @endunless
                         </section>
 
                         <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">

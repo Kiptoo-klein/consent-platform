@@ -60,7 +60,22 @@ class PlatformOrganizationSupportWiringTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            'Storage::disk($diskName)',
+            'Storage::disk(',
+            $controller
+        );
+
+        $this->assertStringContainsString(
+            '$diskName',
+            $controller
+        );
+
+        $this->assertStringContainsString(
+            '->readStream(',
+            $controller
+        );
+
+        $this->assertStringContainsString(
+            'response()->streamDownload(',
             $controller
         );
     }

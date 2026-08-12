@@ -162,6 +162,27 @@ class SignedConsentPdfDeliveryService
      */
     private function resolveAttachment(ConsentSession $session): array
     {
+        /*
+         * Current consent records store the canonical PDF path directly on
+         * consent_sessions.pdf_path. Read that path from the configured PDF
+         * disk first instead of probing every configured filesystem disk.
+         *
+         * The legacy resolver below remains available only if the canonical
+         * location cannot be read.
+         */
+        $canonical =
+            $this->readConfiguredPdfPath(
+                $session
+            );
+
+        if ($canonical) {
+            return [
+                'data' => $canonical['data'],
+                'name' => $this->attachmentName($session),
+                'source' => $canonical['source'],
+            ];
+        }
+
         foreach ($this->candidateValues($session) as $candidate) {
             $resolved = $this->resolveCandidate($candidate);
 
@@ -187,6 +208,61 @@ class SignedConsentPdfDeliveryService
         throw new RuntimeException(
             'The signed PDF was generated, but its stored file could not be located for email delivery.'
         );
+    }
+
+    /**
+     * Read the canonical stored PDF without issuing a separate
+     * object-storage metadata / exists request.
+     *
+     * @return array{data:string,source:string}|null
+     */
+    private function readConfiguredPdfPath(
+        ConsentSession $session
+    ): ?array {
+        $path =
+            trim(
+                (string) $session->pdf_path
+            );
+
+        if ($path === '') {
+            return null;
+        }
+
+        $disk =
+            (string) config(
+                'consent-pdf.disk',
+                'local'
+            );
+
+        try {
+            $data =
+                Storage::disk(
+                    $disk
+                )->get(
+                    $path
+                );
+
+            if (
+                is_string($data)
+                && str_starts_with(
+                    $data,
+                    '%PDF'
+                )
+            ) {
+                return [
+                    'data' => $data,
+                    'source' =>
+                        $disk.':'.$path,
+                ];
+            }
+        } catch (Throwable) {
+            /*
+             * Preserve compatibility with older records by allowing
+             * the legacy resolver to continue below.
+             */
+        }
+
+        return null;
     }
 
     /**

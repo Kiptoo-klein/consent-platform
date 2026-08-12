@@ -35,10 +35,19 @@ class ConsentPdfController extends Controller
             'The consent PDF has not been generated yet.'
         );
 
+        try {
+            $pdfStream =
+                Storage::disk(
+                    $pdfDisk
+                )->readStream(
+                    $consentSession->pdf_path
+                );
+        } catch (\Throwable) {
+            $pdfStream = false;
+        }
+
         abort_unless(
-            Storage::disk($pdfDisk)->exists(
-                $consentSession->pdf_path
-            ),
+            is_resource($pdfStream),
             404,
             'The consent PDF could not be found.'
         );
@@ -70,8 +79,14 @@ class ConsentPdfController extends Controller
             request: $request
         );
 
-        return Storage::disk($pdfDisk)->download(
-            $consentSession->pdf_path,
+        return response()->streamDownload(
+            static function () use ($pdfStream): void {
+                try {
+                    fpassthru($pdfStream);
+                } finally {
+                    fclose($pdfStream);
+                }
+            },
             $downloadFilename,
             [
                 'Content-Type' =>
