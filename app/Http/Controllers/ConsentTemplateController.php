@@ -148,6 +148,9 @@ class ConsentTemplateController extends Controller
                 Auth::user()->organization_id
             )
             ->where('status', 'archived')
+            ->whereNull(
+                'evaluation_retired_at'
+            )
             ->when(
                 $search !== '',
                 function ($query) use ($search): void {
@@ -1019,6 +1022,12 @@ class ConsentTemplateController extends Controller
             (int) $consentTemplate->organization_id ===
                 (int) Auth::user()->organization_id,
             403
+        );
+
+        abort_if(
+            $consentTemplate
+                ->isRetiredEvaluationStarter(),
+            404
         );
     }
 }

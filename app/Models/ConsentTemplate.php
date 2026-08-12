@@ -25,11 +25,14 @@ class ConsentTemplate extends Model
         'active_version_id',
         'has_unpublished_changes',
         'status',
+        'evaluation_starter_key',
+        'evaluation_retired_at',
     ];
 
     protected $casts = [
         'template_schema' => 'array',
         'has_unpublished_changes' => 'boolean',
+        'evaluation_retired_at' => 'datetime',
     ];
 
     public function organization(): BelongsTo
@@ -138,6 +141,17 @@ class ConsentTemplate extends Model
             default =>
                 'Individual & station',
         };
+    }
+
+    public function isEvaluationStarter(): bool
+    {
+        return $this->evaluation_starter_key !== null;
+    }
+
+    public function isRetiredEvaluationStarter(): bool
+    {
+        return $this->evaluation_starter_key !== null
+            && $this->evaluation_retired_at !== null;
     }
 
     public function isLive(): bool

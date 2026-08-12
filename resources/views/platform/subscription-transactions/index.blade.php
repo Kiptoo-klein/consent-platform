@@ -35,6 +35,14 @@
                     subscription after confirming payment.
                 </p>
 
+                @if ($subscription?->isEvaluation())
+                    <div
+                        data-evaluation-transaction-guard
+                        class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900"
+                    >
+                        Successful payments and renewals cannot activate a Free evaluation from this form. Use the plan request and invoice payment workflow.
+                    </div>
+                @else
                 <form
                     method="POST"
                     action="{{ route(
@@ -353,6 +361,7 @@
                         </button>
                     </div>
                 </form>
+                @endif
             </section>
 
             <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">

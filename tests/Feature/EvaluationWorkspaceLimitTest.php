@@ -121,12 +121,16 @@ test('evaluation allows five non archived templates and blocks the sixth', funct
         $administrator,
     ] = evaluationOrganizationContext();
 
-    for ($i = 1; $i <= 5; $i++) {
+    /*
+     * Registration already provides three Evaluation starter
+     * templates, leaving room for two custom templates.
+     */
+    for ($i = 1; $i <= 2; $i++) {
         ConsentTemplate::query()->create([
             'organization_id' =>
                 $organization->id,
             'title' =>
-                "Evaluation Template {$i}",
+                "Evaluation Custom Template {$i}",
             'usage_type' =>
                 ConsentTemplate::USAGE_INDIVIDUAL,
             'template_schema' => [],

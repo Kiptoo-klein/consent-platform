@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Enums\OrganizationSubscriptionStatus;
+use App\Enums\SubscriptionPaymentStatus;
 use App\Models\ActivityLog;
 use App\Models\ConsentTemplate;
 use App\Models\Organization;
@@ -11,6 +13,7 @@ use App\Models\SigningStation;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\EvaluationStarterTemplateService;
 use Database\Seeders\PlatformRoleSeeder;
 use Database\Seeders\SubscriptionPlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -76,12 +79,59 @@ class PlatformOrganizationPlanDowngradeTest extends TestCase
             ->firstOrFail();
 
         /*
-         * Usage is first created under Growth capacity. The tests then
-         * downgrade the organization to Basic.
+         * Usage is first created under paid Growth capacity. The tests
+         * then downgrade the organization to Basic.
+         *
+         * Public registration now starts in Free Evaluation, so this
+         * fixture must explicitly enter the paid lifecycle that this
+         * downgrade suite is intended to exercise.
          */
         $this->subscription->update([
-            'subscription_plan_id' => $this->growthPlan->id,
+            'subscription_plan_id' =>
+                $this->growthPlan->id,
+
+            'status' =>
+                OrganizationSubscriptionStatus::ACTIVE,
+
+            'payment_status' =>
+                SubscriptionPaymentStatus::PAID,
+
+            'requires_plan_selection' =>
+                false,
+
+            'plan_selected_at' =>
+                now(),
+
+            'starts_at' =>
+                now()->subMonth(),
+
+            'trial_ends_at' =>
+                null,
+
+            'current_period_starts_at' =>
+                now()->subDay(),
+
+            'current_period_ends_at' =>
+                now()->addMonth(),
+
+            'cancelled_at' =>
+                null,
+
+            'ends_at' =>
+                null,
         ]);
+
+        /*
+         * A real successful Evaluation -> paid transition retires the
+         * three Evaluation starter templates. Mirror that production
+         * transition here so starter rows do not contaminate paid-plan
+         * usage assertions.
+         */
+        app(
+            EvaluationStarterTemplateService::class
+        )->retireForOrganization(
+            $this->organization->id
+        );
 
         $superAdminRole = PlatformRole::query()
             ->where('slug', 'super-admin')

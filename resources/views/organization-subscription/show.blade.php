@@ -234,48 +234,52 @@
                             [
                                 'label' => 'Total users',
                                 'used' => $usage['users'],
-                                'limit' => $plan->max_users,
+                                'limit' => $subscription?->effectiveUserLimit(),
                                 'description' => null,
                             ],
                             [
                                 'label' => 'Consent Managers',
                                 'used' => $usage['consent_managers'],
-                                'limit' => $plan->max_consent_managers,
+                                'limit' => $subscription?->effectiveRoleLimit('Consent Manager'),
                                 'description' => null,
                             ],
                             [
                                 'label' => 'Staff',
                                 'used' => $usage['staff'],
-                                'limit' => $plan->max_staff,
+                                'limit' => $subscription?->effectiveRoleLimit('Staff'),
                                 'description' => null,
                             ],
                             [
                                 'label' => 'Auditors',
                                 'used' => $usage['auditors'],
-                                'limit' => $plan->max_auditors,
+                                'limit' => $subscription?->effectiveRoleLimit('Auditor'),
                                 'description' => null,
                             ],
                             [
                                 'label' => 'Active kiosks',
                                 'used' => $usage['active_kiosks'],
-                                'limit' => $plan->max_active_kiosks,
+                                'limit' => $subscription?->effectiveActiveKioskLimit(),
                                 'description' => null,
                             ],
                             [
                                 'label' => 'Consent templates',
                                 'used' => $usage['consent_templates'],
-                                'limit' => $plan->max_consent_templates,
+                                'limit' => $subscription?->effectiveConsentTemplateLimit(),
                                 'description' =>
                                     'Archived templates do not use capacity.',
                             ],
                             [
-                                'label' => 'Signed consents this period',
+                                'label' =>
+                                    $subscription?->isEvaluation()
+                                        ? 'Signed consents'
+                                        : 'Signed consents this period',
                                 'used' => $usage['signed_consents'],
                                 'limit' =>
-                                    $plan
-                                        ->max_signed_consents_per_period,
+                                    $subscription?->effectiveSignedConsentLimit(),
                                 'description' =>
-                                    $signedConsentPeriodLabel,
+                                    $subscription?->isEvaluation()
+                                        ? 'Lifetime during free evaluation.'
+                                        : $signedConsentPeriodLabel,
                             ],
                         ] as $capacity)
                             @php

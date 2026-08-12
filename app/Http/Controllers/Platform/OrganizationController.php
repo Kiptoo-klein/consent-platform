@@ -544,6 +544,13 @@ class OrganizationController extends Controller
             ->with('plan')
             ->firstOrFail();
 
+        abort_if(
+            $subscription->isEvaluation(),
+            409,
+            'Free evaluation subscriptions must use the '
+            .'plan request and invoice payment workflow.'
+        );
+
         $previousPlan = $subscription->plan;
 
         abort_if(
@@ -674,6 +681,13 @@ class OrganizationController extends Controller
         $subscription = $organization
             ->subscription()
             ->firstOrFail();
+
+        abort_if(
+            $subscription->isEvaluation(),
+            409,
+            'Free evaluation subscriptions must use the '
+            .'plan request and invoice payment workflow.'
+        );
 
         /*
          * The browser form uses dd/mm/yyyy. Existing ISO datetime

@@ -461,6 +461,14 @@
                             until the organization returns within its limits.
                         </p>
 
+                        @if ($subscription?->isEvaluation())
+                            <div
+                                data-evaluation-plan-update-guard
+                                class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900"
+                            >
+                                Free evaluation plan changes are completed through the subscription plan request and invoice workflow.
+                            </div>
+                        @else
                         <form
                             method="POST"
                             action="{{ route(
@@ -515,17 +523,26 @@
                                 Update Plan
                             </button>
                         </form>
+                        @endif
                     </div>
 
                     <div class="border-t border-gray-200 p-6">
                         <h3 class="text-base font-semibold text-gray-900">
-                            {{ $isInitialBillingActivation
-                                ? 'Activate Paid Subscription'
-                                : 'Renew Subscription' }}
+                            {{ $subscription?->isEvaluation()
+                                ? 'Free Evaluation Upgrade'
+                                : (
+                                    $isInitialBillingActivation
+                                        ? 'Activate Paid Subscription'
+                                        : 'Renew Subscription'
+                                ) }}
                         </h3>
 
                         <p class="mt-1 text-sm text-gray-500">
-                            @if ($isInitialBillingActivation)
+                            @if ($subscription?->isEvaluation())
+                                Choose the paid plan through the plan request
+                                workflow, then activate it through the issued
+                                invoice payment.
+                            @elseif ($isInitialBillingActivation)
                                 Confirm payment and set the first active billing
                                 period. Activation changes the subscription to
                                 Active and Paid while preserving its plan and
@@ -562,6 +579,14 @@
                             );
                         @endphp
 
+@if ($subscription?->isEvaluation())
+    <div
+        data-evaluation-renewal-guard
+        class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900"
+    >
+        Free evaluation cannot be activated or renewed here. Complete the selected plan request and its issued invoice payment instead.
+    </div>
+@else
 <form
                             method="POST"
                             action="{{ route(
@@ -910,6 +935,7 @@
                                 </button>
                             </div>
                         </form>
+@endif
                     </div>
 
                     <div class="border-t border-gray-200 p-6">

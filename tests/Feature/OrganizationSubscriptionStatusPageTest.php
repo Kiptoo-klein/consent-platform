@@ -36,7 +36,7 @@ test('organization users can view their subscription status', function () {
 });
 
 test(
-    'subscription page shows current organization usage against plan limits',
+    'subscription page shows current organization usage against effective limits',
     function () {
         $this->seed(SubscriptionPlanSeeder::class);
 
@@ -166,25 +166,25 @@ test(
             'staff' => 1,
             'auditors' => 1,
             'active_kiosks' => 1,
-            'consent_templates' => 1,
+            'consent_templates' => 4,
             'signed_consents' => 0,
         ]);
 
         $response->assertSeeTextInOrder([
             'Total users',
-            '4 of 10',
+            '4 of 2',
             'Consent Managers',
-            '1 of 2',
+            '1 of 1',
             'Staff',
-            '1 of 5',
+            '1 of 1',
             'Auditors',
-            '1 of 3',
+            '1 of 1',
             'Active kiosks',
-            '1 of 5',
+            '1 of 1',
             'Consent templates',
-            '1 of 3',
-            'Signed consents this period',
-            '0 of 10',
+            '4 of 5',
+            'Signed consents',
+            '0 of 5',
         ]);
     }
 );
@@ -252,7 +252,7 @@ test(
                 'Consent templates'
             )
             ->assertSeeText(
-                'Signed consents this period'
+                'Signed consents'
             )
             ->assertSee(
                 route(

@@ -255,6 +255,23 @@ class SubscriptionTransactionController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            abort_if(
+                $subscription->isEvaluation()
+                    && $status
+                        === SubscriptionTransactionStatus::SUCCESSFUL
+                    && in_array(
+                        $type,
+                        [
+                            SubscriptionTransactionType::PAYMENT,
+                            SubscriptionTransactionType::RENEWAL,
+                        ],
+                        true
+                    ),
+                409,
+                'Free evaluation subscriptions must use the '
+                .'plan request and invoice payment workflow.'
+            );
+
             $invoice = null;
 
             if ($invoiceId !== null) {
@@ -909,6 +926,12 @@ class SubscriptionTransactionController extends Controller
                     'ends_at' =>
                         null,
                 ]);
+
+                app(
+                    \App\Services\EvaluationStarterTemplateService::class
+                )->retireForOrganization(
+                    (int) $organization->id
+                );
 
                 $invoice->update([
                     'status' =>

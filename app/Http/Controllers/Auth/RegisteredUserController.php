@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Organization;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
+use App\Services\EvaluationStarterTemplateService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -141,6 +142,12 @@ class RegisteredUserController extends Controller
                         SubscriptionPaymentStatus::UNPAID,
                     'starts_at' => now(),
                 ]);
+
+                app(
+                    EvaluationStarterTemplateService::class
+                )->provision(
+                    $organization
+                );
 
                 $permissionRegistrar->forgetCachedPermissions();
 
