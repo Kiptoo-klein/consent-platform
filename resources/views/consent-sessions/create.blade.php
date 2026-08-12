@@ -1,9 +1,14 @@
 <x-app-layout>
+    @php
+        $isSelfTest = $selfTest ?? false;
+    @endphp
     <x-slot name="header">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 class="text-xl font-semibold leading-tight text-gray-800">
-                    Create Individual Consent
+                    {{ $isSelfTest
+                        ? 'Send Test Consent to Myself'
+                        : 'Create Individual Consent' }}
                 </h2>
 
                 <p class="mt-1 text-sm text-gray-500">
@@ -74,6 +79,39 @@
                 >
                     @csrf
 
+                    @if ($isSelfTest)
+                        <input
+                            type="hidden"
+                            name="self_test"
+                            value="1"
+                        >
+
+                        <div
+                            data-evaluation-self-test
+                            class="rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm leading-6 text-indigo-900"
+                        >
+                            <p class="font-semibold">
+                                Test the real signing experience
+                            </p>
+
+                            <p class="mt-1">
+                                Creating this record will immediately send the
+                                secure signing link to your account email and
+                                use 1 of your 5 Free Evaluation invitation
+                                emails.
+                            </p>
+
+                            @if ($selfTestEmailCapacity !== null)
+                                <p class="mt-2 font-medium">
+                                    {{ $selfTestEmailCapacity['remaining'] }}
+                                    invitation
+                                    {{ $selfTestEmailCapacity['remaining'] === 1 ? 'email' : 'emails' }}
+                                    remaining.
+                                </p>
+                            @endif
+                        </div>
+                    @endif
+
                     <div class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
                         This record will remain permanently linked to
                         Version {{ $publishedVersion->version_number }},
@@ -93,7 +131,13 @@
                             id="signer_name"
                             name="signer_name"
                             type="text"
-                            value="{{ old('signer_name') }}"
+                            value="{{ old(
+                                'signer_name',
+                                $isSelfTest
+                                    ? auth()->user()->name
+                                    : ''
+                            ) }}"
+                            @readonly($isSelfTest)
                             required
                             autofocus
                             autocomplete="name"
@@ -120,14 +164,25 @@
                             id="signer_email"
                             name="signer_email"
                             type="email"
-                            value="{{ old('signer_email') }}"
+                            value="{{ old(
+                                'signer_email',
+                                $isSelfTest
+                                    ? auth()->user()->email
+                                    : ''
+                            ) }}"
+                            @readonly($isSelfTest)
                             autocomplete="email"
                             class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                             placeholder="name@example.com"
                         >
 
                         <p class="mt-2 text-xs text-gray-500">
-                            Optional. This can later be used to send a secure signing link.
+                            @if ($isSelfTest)
+                                This is your account email. The secure signing
+                                link will be sent here automatically.
+                            @else
+                                Optional. This can later be used to send a secure signing link.
+                            @endif
                         </p>
 
                         @error('signer_email')
@@ -275,10 +330,19 @@
 
                         <button
                             type="submit"
-                            @disabled($signedConsentCapacity['reached'])
+                            @disabled(
+                                $signedConsentCapacity['reached']
+                                || (
+                                    $isSelfTest
+                                    && $selfTestEmailCapacity !== null
+                                    && $selfTestEmailCapacity['reached']
+                                )
+                            )
                             class="inline-flex cursor-pointer justify-center rounded-lg bg-green-600 px-5 py-3 font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
                         >
-                            Create Individual Consent
+                            {{ $isSelfTest
+                                ? 'Send Test Consent to Myself'
+                                : 'Create Individual Consent' }}
                         </button>
                     </div>
                 </form>

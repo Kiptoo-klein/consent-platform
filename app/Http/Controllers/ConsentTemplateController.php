@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ConsentTemplate;
+use App\Services\EvaluationOnboardingService;
 use App\Services\SubscriptionUsageLimitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -310,8 +311,7 @@ class ConsentTemplateController extends Controller
                                         ),
 
                                 'template_schema' => [
-                                    'builder_version' =>
-                                        2,
+                                    'builder_version' => 2,
 
                                     'consent_html' =>
                                         $preparedContent['html'],
@@ -545,20 +545,54 @@ class ConsentTemplateController extends Controller
             ]);
         }
 
-        $consentTemplate->update([
-            'title' => $validated['title'],
-            'description' => $validated['description'] ?? null,
-            'usage_type' => $usageType,
+        DB::transaction(
+            function () use (
+                $request,
+                $consentTemplate,
+                $validated,
+                $usageType,
+                $preparedContent,
+                $additionalFields
+            ): void {
+                $consentTemplate->update([
+                    'title' =>
+                        $validated['title'],
 
-            'template_schema' => [
-                'builder_version' => 2,
-                'consent_html' => $preparedContent['html'],
-                'consent_text' => $preparedContent['text'],
-                'additional_fields' => $additionalFields,
-            ],
+                    'description' =>
+                        $validated['description']
+                            ?? null,
 
-            'has_unpublished_changes' => true,
-        ]);
+                    'usage_type' =>
+                        $usageType,
+
+                    'template_schema' => [
+                        'builder_version' =>
+                            2,
+
+                        'consent_html' =>
+                            $preparedContent['html'],
+
+                        'consent_text' =>
+                            $preparedContent['text'],
+
+                        'additional_fields' =>
+                            $additionalFields,
+                    ],
+
+                    'has_unpublished_changes' =>
+                        true,
+                ]);
+
+                app(
+                    EvaluationOnboardingService::class
+                )->recordStarterReviewed(
+                    $consentTemplate,
+                    Auth::id(),
+                    $request
+                );
+            },
+            3
+        );
 
         $message = $consentTemplate->active_version_id === null
             ? 'Working draft updated successfully.'

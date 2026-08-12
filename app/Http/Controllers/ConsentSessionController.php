@@ -10,6 +10,7 @@ use App\Models\SigningStation;
 use App\Services\ConsentAuditService;
 use App\Services\ConsentExpiryService;
 use App\Services\ConsentNotificationService;
+use App\Services\EvaluationEmailCreditService;
 use App\Services\SubscriptionUsageLimitService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -465,12 +466,24 @@ class ConsentSessionController extends Controller
     /**
      * Let an organization user choose an individual-consent template.
      */
-    public function selectTemplate(): View
-    {
+    public function selectTemplate(
+        Request $request,
+        EvaluationEmailCreditService $evaluationEmailCreditService
+    ): View {
+        $organizationId =
+            (int) Auth::user()->organization_id;
+
+        $selfTest =
+            $request->boolean('self_test')
+            && $evaluationEmailCreditService
+                ->isEvaluationOrganization(
+                    $organizationId
+                );
+
         $consentTemplates = ConsentTemplate::query()
             ->where(
                 'organization_id',
-                Auth::user()->organization_id
+                $organizationId
             )
             ->where('status', 'published')
             ->whereNotNull('active_version_id')
@@ -485,7 +498,11 @@ class ConsentSessionController extends Controller
             ->get();
 
         return view('consent-sessions.select-template', [
-            'consentTemplates' => $consentTemplates,
+            'consentTemplates' =>
+                $consentTemplates,
+
+            'selfTest' =>
+                $selfTest,
         ]);
     }
 
@@ -493,12 +510,32 @@ class ConsentSessionController extends Controller
      * Show the form for creating a consent record.
      */
     public function create(
+        Request $request,
         ConsentTemplate $consentTemplate,
-        SubscriptionUsageLimitService $usageLimitService
+        SubscriptionUsageLimitService $usageLimitService,
+        EvaluationEmailCreditService $evaluationEmailCreditService
     ): View|RedirectResponse {
         $this->ensureTemplateBelongsToOrganization(
             $consentTemplate
         );
+
+        $organizationId =
+            (int) Auth::user()->organization_id;
+
+        $selfTest =
+            $request->boolean('self_test')
+            && $evaluationEmailCreditService
+                ->isEvaluationOrganization(
+                    $organizationId
+                );
+
+        $selfTestEmailCapacity =
+            $selfTest
+                ? $evaluationEmailCreditService
+                    ->capacity(
+                        $organizationId
+                    )
+                : null;
 
         $usageLimitService
             ->assertSignedConsentCreationAvailable(
@@ -544,9 +581,14 @@ class ConsentSessionController extends Controller
             'signedConsentCapacity' =>
                 $usageLimitService
                     ->signedConsentCapacity(
-                        (int) Auth::user()
-                            ->organization_id
+                        $organizationId
                     ),
+
+            'selfTest' =>
+                $selfTest,
+
+            'selfTestEmailCapacity' =>
+                $selfTestEmailCapacity,
         ]);
     }
 
@@ -558,11 +600,51 @@ class ConsentSessionController extends Controller
         ConsentTemplate $consentTemplate,
         ConsentAuditService $consentAuditService,
         ConsentNotificationService $consentNotificationService,
-        SubscriptionUsageLimitService $usageLimitService
+        SubscriptionUsageLimitService $usageLimitService,
+        EvaluationEmailCreditService $evaluationEmailCreditService
     ): RedirectResponse {
         $this->ensureTemplateBelongsToOrganization(
             $consentTemplate
         );
+
+        $organizationId =
+            (int) Auth::user()->organization_id;
+
+        $selfTest =
+            $request->boolean('self_test')
+            && $evaluationEmailCreditService
+                ->isEvaluationOrganization(
+                    $organizationId
+                );
+
+        if ($selfTest) {
+            $emailCapacity =
+                $evaluationEmailCreditService
+                    ->capacity(
+                        $organizationId
+                    );
+
+            if ($emailCapacity['reached']) {
+                throw ValidationException::withMessages([
+                    'email' =>
+                        'All 5 Free Evaluation invitation emails '
+                        .'have been used. Choose a paid plan to '
+                        .'send more signing emails.',
+                ]);
+            }
+
+            /*
+             * Never trust browser-submitted identity fields for
+             * "Send test consent to myself".
+             */
+            $request->merge([
+                'signer_name' =>
+                    Auth::user()->name,
+
+                'signer_email' =>
+                    Auth::user()->email,
+            ]);
+        }
 
         if (! $consentTemplate->supportsIndividualConsent()) {
             throw ValidationException::withMessages([
@@ -572,6 +654,11 @@ class ConsentSessionController extends Controller
         }
 
         $validated = $request->validate([
+            'self_test' => [
+                'nullable',
+                'boolean',
+            ],
+
             'signer_name' => [
                 'required',
                 'string',
@@ -641,7 +728,8 @@ class ConsentSessionController extends Controller
                 $validated,
                 $expiresAt,
                 $request,
-                $consentAuditService
+                $consentAuditService,
+                $selfTest
             ): ConsentSession {
                 /*
                 |--------------------------------------------------------------------------
@@ -731,7 +819,9 @@ class ConsentSessionController extends Controller
                         'The consent record was created by an organization user.',
                     metadata: [
                         'creation_source' =>
-                            'organization_user',
+                            $selfTest
+                                ? 'evaluation_self_test'
+                                : 'organization_user',
 
                         'consent_template_id' =>
                             $lockedTemplate->id,

@@ -1,18 +1,27 @@
 <x-app-layout>
+    @php
+        $isSelfTest = $selfTest ?? false;
+    @endphp
     <x-slot name="header">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 class="text-xl font-semibold leading-tight text-gray-800">
-                    New Consent
+                    {{ $isSelfTest
+                        ? 'Send Test Consent to Myself'
+                        : 'New Consent' }}
                 </h2>
 
                 <p class="mt-1 text-sm text-gray-500">
-                    Choose a published template, then send it to one person or a group.
+                    {{ $isSelfTest
+                        ? 'Choose a published template. Your name and account email will be filled in automatically on the next screen.'
+                        : 'Choose a published template, then send it to one person or a group.' }}
                 </p>
             </div>
 
             <a
-                href="{{ route('consent-sessions.index') }}"
+                href="{{ $isSelfTest
+                    ? route('dashboard')
+                    : route('consent-sessions.index') }}"
                 class="inline-flex justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
                 Back to Consent Records
@@ -39,7 +48,9 @@
                     </h1>
 
                     <p class="mt-1 text-sm text-gray-500">
-                        Only live templates marked for individual consent are shown.
+                        {{ $isSelfTest
+                            ? 'Choose the published template you want to experience as the signer.'
+                            : 'Only live templates marked for individual consent are shown.' }}
                     </p>
                 </div>
 
@@ -95,18 +106,36 @@
 
                                 <div class="flex shrink-0 flex-col gap-2 sm:min-w-44">
                                     <a
-                                        href="{{ route('consent-sessions.create', $consentTemplate) }}"
+                                        href="{{ $isSelfTest
+                                            ? route(
+                                                'consent-sessions.create',
+                                                [
+                                                    'consentTemplate' =>
+                                                        $consentTemplate,
+
+                                                    'self_test' =>
+                                                        1,
+                                                ]
+                                            )
+                                            : route(
+                                                'consent-sessions.create',
+                                                $consentTemplate
+                                            ) }}"
                                         class="inline-flex items-center justify-center rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
                                     >
-                                        One Person
+                                        {{ $isSelfTest
+                                            ? 'Use This Template'
+                                            : 'One Person' }}
                                     </a>
 
+                                    @unless ($isSelfTest)
                                     <a
                                         href="{{ route('consent-campaigns.create', $consentTemplate) }}"
                                         class="inline-flex items-center justify-center rounded-lg border border-indigo-300 bg-indigo-50 px-5 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
                                     >
                                         Up to 20 People
                                     </a>
+                                    @endunless
                                 </div>
                             </article>
                         @endforeach

@@ -32,6 +32,12 @@
     <div class="py-8">
         <div class="mx-auto max-w-7xl space-y-8 sm:px-6 lg:px-8">
 
+            @if ($evaluationOnboarding !== null)
+                @include(
+                    'dashboard.partials.evaluation-onboarding'
+                )
+            @endif
+
             {{-- Primary Statistics --}}
             <section>
                 <div class="mb-4">

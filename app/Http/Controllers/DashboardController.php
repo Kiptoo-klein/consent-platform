@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ConsentSession;
 use App\Models\ConsentTemplate;
+use App\Services\EvaluationOnboardingService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 
@@ -65,10 +66,12 @@ class DashboardController extends Controller
 
         $totalTemplates = ConsentTemplate::query()
             ->where('organization_id', $organizationId)
+            ->whereNull('evaluation_retired_at')
             ->count();
 
         $publishedTemplates = ConsentTemplate::query()
             ->where('organization_id', $organizationId)
+            ->whereNull('evaluation_retired_at')
             ->whereHas('versions')
             ->count();
 
@@ -96,6 +99,7 @@ class DashboardController extends Controller
 
         $recentTemplates = ConsentTemplate::query()
             ->where('organization_id', $organizationId)
+            ->whereNull('evaluation_retired_at')
             ->withCount([
                 'versions',
                 'consentSessions',
@@ -103,6 +107,13 @@ class DashboardController extends Controller
             ->latest()
             ->limit(5)
             ->get();
+
+        $evaluationOnboarding =
+            app(
+                EvaluationOnboardingService::class
+            )->dashboardState(
+                (int) $organizationId
+            );
 
         return view('dashboard', [
             'totalRecords' =>
@@ -134,6 +145,9 @@ class DashboardController extends Controller
 
             'recentTemplates' =>
                 $recentTemplates,
+
+            'evaluationOnboarding' =>
+                $evaluationOnboarding,
         ]);
     }
 }
