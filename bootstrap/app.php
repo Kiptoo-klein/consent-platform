@@ -17,6 +17,14 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
 
+        /*
+         * Laravel Cloud terminates requests behind its managed proxy.
+         * Trust forwarded host/protocol information so absolute URLs
+         * use the visitor-facing custom domain instead of the internal
+         * laravel.cloud deployment hostname.
+         */
+        $middleware->trustProxies(at: '*');
+
         // SECURITY_HARDENING_WEB_MIDDLEWARE
         $middleware->web(append: [
             \App\Http\Middleware\SecurityHardeningMiddleware::class,
