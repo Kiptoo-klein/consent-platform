@@ -182,6 +182,95 @@ class OrganizationSubscription extends Model
     }
 
     /**
+     * Return the effective total-user limit for this organization.
+     */
+    public function effectiveUserLimit(): ?int
+    {
+        if ($this->isEvaluation()) {
+            return (int) config(
+                'evaluation.limits.users',
+                2
+            );
+        }
+
+        return $this->plan?->max_users;
+    }
+
+    /**
+     * Return the effective limit for an organization role.
+     */
+    public function effectiveRoleLimit(
+        string $roleName
+    ): ?int {
+        if (! $this->isEvaluation()) {
+            return match ($roleName) {
+                'Consent Manager' =>
+                    $this->plan?->max_consent_managers,
+                'Staff' =>
+                    $this->plan?->max_staff,
+                'Auditor' =>
+                    $this->plan?->max_auditors,
+                default => null,
+            };
+        }
+
+        return match ($roleName) {
+            'Consent Manager' =>
+                (int) config(
+                    'evaluation.limits.consent_managers',
+                    1
+                ),
+            'Staff' =>
+                (int) config(
+                    'evaluation.limits.staff',
+                    1
+                ),
+            'Auditor' =>
+                (int) config(
+                    'evaluation.limits.auditors',
+                    1
+                ),
+            default => null,
+        };
+    }
+
+    public function effectiveActiveKioskLimit(): ?int
+    {
+        if ($this->isEvaluation()) {
+            return (int) config(
+                'evaluation.limits.active_kiosks',
+                1
+            );
+        }
+
+        return $this->plan?->max_active_kiosks;
+    }
+
+    public function effectiveConsentTemplateLimit(): ?int
+    {
+        if ($this->isEvaluation()) {
+            return (int) config(
+                'evaluation.limits.consent_templates',
+                5
+            );
+        }
+
+        return $this->plan?->max_consent_templates;
+    }
+
+    public function effectiveSignedConsentLimit(): ?int
+    {
+        if ($this->isEvaluation()) {
+            return (int) config(
+                'evaluation.limits.signed_consents',
+                5
+            );
+        }
+
+        return $this->plan?->max_signed_consents_per_period;
+    }
+
+    /**
      * Determine whether users in the organization may access the system.
      *
      * A valid Platform Admin bypass overrides payment and lifecycle

@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\OrganizationSubscriptionStatus;
+use App\Enums\SubscriptionPaymentStatus;
 use App\Models\Organization;
 use App\Models\PlatformRole;
 use App\Models\User;
@@ -28,6 +30,23 @@ beforeEach(function () {
     $this->organization = Organization::query()
         ->where('name', 'Seat Limit Clinic')
         ->firstOrFail();
+
+    /*
+     * This suite primarily verifies paid-plan seat enforcement.
+     * Registration now creates an Evaluation organization, so switch
+     * it explicitly to normal paid access before changing plan limits.
+     */
+    $organizationAdmin = User::query()
+        ->where(
+            'organization_id',
+            $this->organization->id
+        )
+        ->firstOrFail();
+
+    $this->enablePaidOrganizationAccess(
+        $this->organization,
+        $organizationAdmin
+    );
 
     $this->subscription = $this->organization
         ->subscription()
@@ -58,6 +77,136 @@ beforeEach(function () {
     ]);
 
     $this->actingAs($this->platformAdmin);
+});
+
+test('evaluation total user limit stays two when basic plan is larger', function () {
+    $this->subscription->update([
+        'status' =>
+            OrganizationSubscriptionStatus::EVALUATION,
+        'payment_status' =>
+            SubscriptionPaymentStatus::UNPAID,
+    ]);
+
+    $this->subscription->plan->update([
+        'max_users' => 99,
+        'max_staff' => 99,
+    ]);
+
+    app(PermissionRegistrar::class)
+        ->setPermissionsTeamId(
+            $this->organization->id
+        );
+
+    $existingStaff = User::factory()->create([
+        'organization_id' =>
+            $this->organization->id,
+        'is_active' => true,
+    ]);
+
+    $existingStaff->assignRole(
+        $this->staffRole
+    );
+
+    /*
+     * Organization Admin + existing Staff = both Evaluation seats.
+     */
+    expect(
+        $this->organization->users()->count()
+    )->toBe(2);
+
+    $response = $this->post(
+        route(
+            'platform.organizations.users.store',
+            $this->organization
+        ),
+        [
+            'name' =>
+                'Evaluation Third User',
+            'email' =>
+                'evaluation-third@example.com',
+            'password' =>
+                'StrongPass1!',
+            'password_confirmation' =>
+                'StrongPass1!',
+            'role_id' =>
+                $this->staffRole->id,
+        ]
+    );
+
+    $response->assertSessionHasErrors(
+        'subscription'
+    );
+
+    $this->assertDatabaseMissing('users', [
+        'email' =>
+            'evaluation-third@example.com',
+    ]);
+});
+
+test('evaluation role limits remain independent from basic plan role limits', function () {
+    /*
+     * Raise the total Evaluation seat limit only for this test so that
+     * the Staff-specific limit is the constraint being exercised.
+     */
+    config([
+        'evaluation.limits.users' => 5,
+        'evaluation.limits.staff' => 1,
+    ]);
+
+    $this->subscription->update([
+        'status' =>
+            OrganizationSubscriptionStatus::EVALUATION,
+        'payment_status' =>
+            SubscriptionPaymentStatus::UNPAID,
+    ]);
+
+    $this->subscription->plan->update([
+        'max_users' => 99,
+        'max_staff' => 99,
+    ]);
+
+    app(PermissionRegistrar::class)
+        ->setPermissionsTeamId(
+            $this->organization->id
+        );
+
+    $existingStaff = User::factory()->create([
+        'organization_id' =>
+            $this->organization->id,
+        'is_active' => true,
+    ]);
+
+    $existingStaff->assignRole(
+        $this->staffRole
+    );
+
+    $response = $this->post(
+        route(
+            'platform.organizations.users.store',
+            $this->organization
+        ),
+        [
+            'name' =>
+                'Second Evaluation Staff',
+            'email' =>
+                'second-evaluation-staff@example.com',
+            'password' =>
+                'StrongPass1!',
+            'password_confirmation' =>
+                'StrongPass1!',
+            'role_id' =>
+                $this->staffRole->id,
+        ]
+    );
+
+    $response->assertSessionHasErrors(
+        'subscription'
+    );
+
+    $this->assertDatabaseMissing('users', [
+        'email' =>
+            'second-evaluation-staff@example.com',
+    ]);
 });
 
 test('disabled users count toward the total user seat limit', function () {

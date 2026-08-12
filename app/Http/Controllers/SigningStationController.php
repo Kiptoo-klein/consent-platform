@@ -782,8 +782,7 @@ class SigningStationController extends Controller
             ->where('organization_id', $organizationId)
             ->with('plan')
             ->first()
-            ?->plan
-            ?->max_active_kiosks;
+            ?->effectiveActiveKioskLimit();
 
         /*
          * A missing subscription or plan limit is handled by the

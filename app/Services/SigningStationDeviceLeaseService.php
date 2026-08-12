@@ -109,8 +109,7 @@ class SigningStationDeviceLeaseService
 
                 $limit =
                     $subscription
-                        ?->plan
-                        ?->max_active_kiosks;
+                        ?->effectiveActiveKioskLimit();
 
                 if ($limit !== null) {
                     $activeLeaseCount =

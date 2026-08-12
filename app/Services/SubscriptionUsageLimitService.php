@@ -26,7 +26,7 @@ final class SubscriptionUsageLimitService
             $this->lockedSubscription($organizationId);
 
         $limit =
-            $subscription?->plan?->max_consent_templates;
+            $subscription?->effectiveConsentTemplateLimit();
 
         /*
          * Missing subscriptions and null limits remain the responsibility
@@ -41,11 +41,17 @@ final class SubscriptionUsageLimitService
         );
 
         if ($used >= (int) $limit) {
-            throw ValidationException::withMessages([
-                'subscription' =>
-                    'The consent template limit for this subscription '
+            $message = $subscription?->isEvaluation()
+                ? "The free evaluation includes {$limit} active consent "
+                    ."templates and all {$used} slots are in use. "
+                    .'Archive an unused template or choose a plan to '
+                    .'continue creating templates.'
+                : 'The consent template limit for this subscription '
                     ."plan has been reached ({$used} of {$limit}). "
-                    .'Archive an unused template or upgrade the plan.',
+                    .'Archive an unused template or upgrade the plan.';
+
+            throw ValidationException::withMessages([
+                'subscription' => $message,
             ]);
         }
     }
@@ -66,8 +72,7 @@ final class SubscriptionUsageLimitService
 
         $limit =
             $subscription
-                ?->plan
-                ?->max_signed_consents_per_period;
+                ?->effectiveSignedConsentLimit();
 
         if ($limit === null) {
             return;
@@ -79,12 +84,18 @@ final class SubscriptionUsageLimitService
         );
 
         if ($used >= (int) $limit) {
-            throw ValidationException::withMessages([
-                'subscription' =>
-                    'The signed consent limit for the current '
+            $message = $subscription?->isEvaluation()
+                ? 'The free evaluation includes '
+                    ."{$limit} completed consents and all {$used} "
+                    .'have been used. Choose a plan to continue '
+                    .'collecting new signatures.'
+                : 'The signed consent limit for the current '
                     ."subscription period has been reached ({$used} "
                     ."of {$limit}). Try again in the next billing "
-                    .'period or upgrade the plan.',
+                    .'period or upgrade the plan.';
+
+            throw ValidationException::withMessages([
+                'subscription' => $message,
             ]);
         }
     }
@@ -118,8 +129,7 @@ final class SubscriptionUsageLimitService
 
         $rawLimit =
             $subscription
-                ?->plan
-                ?->max_signed_consents_per_period;
+                ?->effectiveSignedConsentLimit();
 
         $limit =
             $rawLimit === null
@@ -153,9 +163,11 @@ final class SubscriptionUsageLimitService
 
         return [
             'plan_name' =>
-                $subscription
-                    ?->plan
-                    ?->name,
+                $subscription?->isEvaluation()
+                    ? 'Free evaluation'
+                    : $subscription
+                        ?->plan
+                        ?->name,
 
             'limit' =>
                 $limit,
@@ -210,8 +222,7 @@ final class SubscriptionUsageLimitService
 
         $rawLimit =
             $subscription
-                ?->plan
-                ?->max_active_kiosks;
+                ?->effectiveActiveKioskLimit();
 
         $limit =
             $rawLimit === null
@@ -232,9 +243,11 @@ final class SubscriptionUsageLimitService
 
         return [
             'plan_name' =>
-                $subscription
-                    ?->plan
-                    ?->name,
+                $subscription?->isEvaluation()
+                    ? 'Free evaluation'
+                    : $subscription
+                        ?->plan
+                        ?->name,
 
             'limit' =>
                 $limit,
@@ -273,12 +286,26 @@ final class SubscriptionUsageLimitService
             return;
         }
 
-        throw ValidationException::withMessages([
-            'subscription' =>
-                'The signed consent limit for the current '
+        $subscription =
+            OrganizationSubscription::query()
+                ->where(
+                    'organization_id',
+                    $organizationId
+                )
+                ->first();
+
+        $message = $subscription?->isEvaluation()
+            ? 'The free evaluation includes '
+                ."{$capacity['limit']} completed consents and all "
+                ."{$capacity['used']} have been used. Choose a plan "
+                .'to continue collecting new signatures.'
+            : 'The signed consent limit for the current '
                 .'subscription period has been reached '
                 ."({$capacity['used']} of {$capacity['limit']}). "
-                .'Wait for the next billing period or upgrade the plan.',
+                .'Wait for the next billing period or upgrade the plan.';
+
+        throw ValidationException::withMessages([
+            'subscription' => $message,
         ]);
     }
 
@@ -335,6 +362,13 @@ final class SubscriptionUsageLimitService
     public function periodBounds(
         OrganizationSubscription $subscription
     ): array {
+        if ($subscription->isEvaluation()) {
+            return [
+                'start' => null,
+                'end' => null,
+            ];
+        }
+
         return [
             'start' =>
                 $subscription->current_period_starts_at
@@ -380,11 +414,17 @@ final class SubscriptionUsageLimitService
             )
             ->whereNotNull('completed_at');
 
-        $this->applyPeriodBounds(
-            $query,
-            $bounds['start'],
-            $bounds['end']
-        );
+        /*
+         * Evaluation capacity is lifetime. Paid plans and timed trials
+         * continue to use their normal subscription-period window.
+         */
+        if (! $subscription->isEvaluation()) {
+            $this->applyPeriodBounds(
+                $query,
+                $bounds['start'],
+                $bounds['end']
+            );
+        }
 
         if ($excludeConsentSessionId !== null) {
             $query->where(

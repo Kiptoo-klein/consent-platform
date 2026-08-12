@@ -154,7 +154,7 @@ class PlatformOrganizationUserController extends Controller
                 ->with('plan')
                 ->first();
 
-            $maximumUsers = $subscription?->plan?->max_users;
+            $maximumUsers = $subscription?->effectiveUserLimit();
             $currentUsers = $organization->users()->count();
 
             /*
@@ -182,7 +182,7 @@ class PlatformOrganizationUserController extends Controller
                 ->where('guard_name', 'web')
                 ->findOrFail($validated['role_id']);
 
-            $maximumStaff = $subscription?->plan?->max_staff;
+            $maximumStaff = $subscription?->effectiveRoleLimit('Staff');
 
             if (
                 $role->name === 'Staff'
@@ -229,7 +229,7 @@ class PlatformOrganizationUserController extends Controller
             }
 
             $maximumConsentManagers =
-                $subscription?->plan?->max_consent_managers;
+                $subscription?->effectiveRoleLimit('Consent Manager');
 
             if (
                 $role->name === 'Consent Manager'
@@ -280,7 +280,7 @@ class PlatformOrganizationUserController extends Controller
             }
 
             $maximumAuditors =
-                $subscription?->plan?->max_auditors;
+                $subscription?->effectiveRoleLimit('Auditor');
 
             if (
                 $role->name === 'Auditor'
@@ -530,7 +530,7 @@ class PlatformOrganizationUserController extends Controller
                     ->first();
 
                 $maximumStaff =
-                    $subscription?->plan?->max_staff;
+                    $subscription?->effectiveRoleLimit('Staff');
 
                 if ($maximumStaff !== null) {
                     $currentStaff = User::query()
@@ -585,7 +585,7 @@ class PlatformOrganizationUserController extends Controller
                     ->first();
 
                 $maximumConsentManagers =
-                    $subscription?->plan?->max_consent_managers;
+                    $subscription?->effectiveRoleLimit('Consent Manager');
 
                 if ($maximumConsentManagers !== null) {
                     /*
@@ -648,7 +648,7 @@ class PlatformOrganizationUserController extends Controller
                     ->first();
 
                 $maximumAuditors =
-                    $subscription?->plan?->max_auditors;
+                    $subscription?->effectiveRoleLimit('Auditor');
 
                 if ($maximumAuditors !== null) {
                     /*
@@ -971,7 +971,7 @@ class PlatformOrganizationUserController extends Controller
                 ->with('plan')
                 ->first();
 
-            $maximumUsers = $subscription?->plan?->max_users;
+            $maximumUsers = $subscription?->effectiveUserLimit();
             $currentUsers = $organization->users()->count();
 
             /*
@@ -1002,7 +1002,7 @@ class PlatformOrganizationUserController extends Controller
                 ->where('roles.guard_name', 'web')
                 ->first();
 
-            $maximumStaff = $subscription?->plan?->max_staff;
+            $maximumStaff = $subscription?->effectiveRoleLimit('Staff');
 
             if (
                 $restoredRole?->name === 'Staff'
@@ -1049,7 +1049,7 @@ class PlatformOrganizationUserController extends Controller
             }
 
             $maximumConsentManagers =
-                $subscription?->plan?->max_consent_managers;
+                $subscription?->effectiveRoleLimit('Consent Manager');
 
             if (
                 $restoredRole?->name === 'Consent Manager'
@@ -1100,7 +1100,7 @@ class PlatformOrganizationUserController extends Controller
             }
 
             $maximumAuditors =
-                $subscription?->plan?->max_auditors;
+                $subscription?->effectiveRoleLimit('Auditor');
 
             if (
                 $restoredRole?->name === 'Auditor'
