@@ -7,7 +7,7 @@ use Tests\TestCase;
 
 class CloudCostScheduleTest extends TestCase
 {
-    public function test_high_frequency_background_tasks_are_cost_optimized(): void
+    public function test_secondary_background_tasks_share_one_daily_window(): void
     {
         $events = collect(
             app(Schedule::class)->events()
@@ -16,37 +16,37 @@ class CloudCostScheduleTest extends TestCase
         $this->assertCommandExpression(
             $events,
             'consents:expire',
-            '0 * * * *'
+            '15 2 * * *'
         );
 
         $this->assertCommandExpression(
             $events,
             'subscriptions:expire',
-            '0 * * * *'
+            '15 2 * * *'
         );
 
         $this->assertCommandExpression(
             $events,
             'subscription-invoices:mark-overdue',
-            '0 * * * *'
+            '15 2 * * *'
         );
 
         $this->assertCommandExpression(
             $events,
             'subscription-invoices:send-reminders',
-            '0 * * * *'
+            '15 2 * * *'
         );
 
         $this->assertCommandExpression(
             $events,
             'consent:send-reminders',
-            '0 * * * *'
+            '15 2 * * *'
         );
 
         $this->assertCommandExpression(
             $events,
             'production:heartbeat',
-            '0 * * * *'
+            '15 2 * * *'
         );
     }
 
@@ -70,17 +70,17 @@ class CloudCostScheduleTest extends TestCase
         );
     }
 
-    public function test_hourly_heartbeat_has_cost_appropriate_health_window(): void
+    public function test_daily_heartbeat_has_cost_appropriate_health_window(): void
     {
         $this->assertSame(
-            7200,
+            90000,
             config(
                 'production-readiness.heartbeat.scheduler_max_age_seconds'
             )
         );
 
         $this->assertSame(
-            7200,
+            90000,
             config(
                 'production-readiness.heartbeat.queue_max_age_seconds'
             )

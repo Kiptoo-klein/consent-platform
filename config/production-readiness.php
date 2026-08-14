@@ -15,12 +15,12 @@ return [
 
         'scheduler_max_age_seconds' => (int) env(
             'PRODUCTION_SCHEDULER_MAX_AGE_SECONDS',
-            7200
+            90000
         ),
 
         'queue_max_age_seconds' => (int) env(
             'PRODUCTION_QUEUE_MAX_AGE_SECONDS',
-            7200
+            90000
         ),
 
         'queue_name' => env(

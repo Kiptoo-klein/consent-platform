@@ -18,26 +18,26 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('consents:expire')
-    ->hourly()
+    ->dailyAt('02:15')
     ->withoutOverlapping();
 
 Schedule::command('subscriptions:expire')
-    ->hourly()
+    ->dailyAt('02:15')
     ->withoutOverlapping();
 
 Schedule::command('subscription-invoices:mark-overdue')
-    ->hourly()
+    ->dailyAt('02:15')
     ->withoutOverlapping();
 
 Schedule::command('subscription-invoices:send-reminders')
-    ->hourly()
+    ->dailyAt('02:15')
     ->withoutOverlapping();
 
 /* BEGIN CONSENT EMAIL REMINDERS */
 \Illuminate\Support\Facades\Schedule::command(
     'consent:send-reminders'
 )
-    ->hourly()
+    ->dailyAt('02:15')
     ->withoutOverlapping();
 /* END CONSENT EMAIL REMINDERS */
 
@@ -52,7 +52,7 @@ Schedule::command(
 
 // PRODUCTION_READINESS_SCHEDULE
 Schedule::command('production:heartbeat')
-    ->hourly()
+    ->dailyAt('02:15')
     ->withoutOverlapping();
 
 Schedule::command('production:prune')

@@ -26,6 +26,8 @@ class EmailConfigurationTestMail extends Mailable
 
     public int $tries = 1000;
 
+    public int $maxExceptions = 3;
+
     public function middleware(): array
     {
         return [

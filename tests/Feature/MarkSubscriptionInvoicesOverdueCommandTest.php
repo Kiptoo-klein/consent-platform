@@ -548,7 +548,7 @@ class MarkSubscriptionInvoicesOverdueCommandTest extends TestCase
         );
 
         $this->assertSame(
-            '0 * * * *',
+            '15 2 * * *',
             $event->expression
         );
     }

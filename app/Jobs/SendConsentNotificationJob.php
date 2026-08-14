@@ -23,6 +23,8 @@ class SendConsentNotificationJob implements ShouldQueue
 
     public int $tries = 1000;
 
+    public int $maxExceptions = 3;
+
     public int $timeout = 120;
 
     public function __construct(

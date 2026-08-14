@@ -81,6 +81,20 @@ class EnforceEmailQuota
                 $exception
             );
 
+            if (
+                method_exists(
+                    $job,
+                    'failImmediatelyOnEmailDeliveryError'
+                )
+                && $job
+                    ->failImmediatelyOnEmailDeliveryError()
+                && method_exists($job, 'fail')
+            ) {
+                $job->fail($exception);
+
+                return;
+            }
+
             throw $exception;
         }
     }

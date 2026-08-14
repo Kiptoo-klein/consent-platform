@@ -15,6 +15,8 @@ class QuotaVerifyEmail extends VerifyEmail implements ShouldQueue
 
     public int $tries = 1000;
 
+    public int $maxExceptions = 3;
+
     public function middleware(
         mixed $notifiable = null,
         ?string $channel = null

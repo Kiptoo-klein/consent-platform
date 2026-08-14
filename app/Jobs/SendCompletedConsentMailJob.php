@@ -27,6 +27,8 @@ class SendCompletedConsentMailJob implements
 
     public int $tries = 1000;
 
+    public int $maxExceptions = 3;
+
     public int $timeout = 120;
 
     public int $uniqueFor = 3456000;
@@ -56,6 +58,11 @@ class SendCompletedConsentMailJob implements
     public function retryUntil(): DateTimeInterface
     {
         return now()->addDays(40);
+    }
+
+    public function failImmediatelyOnEmailDeliveryError(): bool
+    {
+        return true;
     }
 
     public function shouldConsumeEmailQuota(): bool
