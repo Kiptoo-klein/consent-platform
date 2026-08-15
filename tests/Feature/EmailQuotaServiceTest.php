@@ -133,4 +133,138 @@ class EmailQuotaServiceTest extends TestCase
             )['allowed']
         );
     }
+
+    public function test_stale_reserved_attempt_is_recovered_before_quota_counting(): void
+    {
+        Carbon::setTestNow(
+            '2026-08-15 10:00:00'
+        );
+
+        config([
+            'email-quota.daily_limit' => 1,
+            'email-quota.monthly_limit' => 1,
+            'email-quota.critical_daily_reserve' => 0,
+            'email-quota.critical_monthly_reserve' => 0,
+            'email-quota.stale_reservation_minutes' => 10,
+        ]);
+
+        $service = app(
+            EmailQuotaService::class
+        );
+
+        $stale = $service->reserve(
+            'stale-reservation'
+        );
+
+        $this->assertTrue(
+            $stale['allowed']
+        );
+
+        EmailQuotaAttempt::query()
+            ->whereKey(
+                $stale['attempt_id']
+            )
+            ->update([
+                'reserved_at' =>
+                    now()->subMinutes(11),
+            ]);
+
+        $replacement = $service->reserve(
+            'replacement-reservation'
+        );
+
+        $this->assertTrue(
+            $replacement['allowed']
+        );
+
+        $this->assertDatabaseHas(
+            'email_quota_attempts',
+            [
+                'id' =>
+                    $stale['attempt_id'],
+                'status' =>
+                    EmailQuotaAttempt::
+                        STATUS_FAILED,
+                'error_message' =>
+                    'Stale email quota reservation recovered automatically.',
+            ]
+        );
+
+        $this->assertNotNull(
+            EmailQuotaAttempt::query()
+                ->findOrFail(
+                    $stale['attempt_id']
+                )
+                ->failed_at
+        );
+    }
+
+    public function test_recent_reserved_attempt_is_not_recovered(): void
+    {
+        Carbon::setTestNow(
+            '2026-08-15 10:00:00'
+        );
+
+        config([
+            'email-quota.daily_limit' => 1,
+            'email-quota.monthly_limit' => 1,
+            'email-quota.critical_daily_reserve' => 0,
+            'email-quota.critical_monthly_reserve' => 0,
+            'email-quota.stale_reservation_minutes' => 10,
+        ]);
+
+        $service = app(
+            EmailQuotaService::class
+        );
+
+        $recent = $service->reserve(
+            'recent-reservation'
+        );
+
+        $this->assertTrue(
+            $recent['allowed']
+        );
+
+        EmailQuotaAttempt::query()
+            ->whereKey(
+                $recent['attempt_id']
+            )
+            ->update([
+                'reserved_at' =>
+                    now()->subMinutes(5),
+            ]);
+
+        $blocked = $service->reserve(
+            'replacement-reservation'
+        );
+
+        $this->assertFalse(
+            $blocked['allowed']
+        );
+
+        $this->assertStringContainsString(
+            'daily',
+            (string) $blocked['reason']
+        );
+
+        $this->assertDatabaseHas(
+            'email_quota_attempts',
+            [
+                'id' =>
+                    $recent['attempt_id'],
+                'status' =>
+                    EmailQuotaAttempt::
+                        STATUS_RESERVED,
+            ]
+        );
+
+        $this->assertNull(
+            EmailQuotaAttempt::query()
+                ->findOrFail(
+                    $recent['attempt_id']
+                )
+                ->failed_at
+        );
+    }
+
 }

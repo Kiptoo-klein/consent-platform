@@ -69,6 +69,10 @@ class EmailQuotaService
 
                 $now = CarbonImmutable::now();
 
+                $this->recoverStaleReservations(
+                    $now
+                );
+
                 $dailyHours = max(
                     1,
                     (int) config(
@@ -362,6 +366,38 @@ class EmailQuotaService
                     4000
                 ),
                 'updated_at' => now(),
+            ]);
+    }
+
+    private function recoverStaleReservations(
+        CarbonImmutable $now
+    ): void {
+        $minutes = max(
+            1,
+            (int) config(
+                'email-quota.stale_reservation_minutes',
+                10
+            )
+        );
+
+        EmailQuotaAttempt::query()
+            ->where(
+                'status',
+                EmailQuotaAttempt::STATUS_RESERVED
+            )
+            ->where(
+                'reserved_at',
+                '<',
+                $now->subMinutes($minutes)
+            )
+            ->update([
+                'status' =>
+                    EmailQuotaAttempt::STATUS_FAILED,
+                'sent_at' => null,
+                'failed_at' => $now,
+                'error_message' =>
+                    'Stale email quota reservation recovered automatically.',
+                'updated_at' => $now,
             ]);
     }
 

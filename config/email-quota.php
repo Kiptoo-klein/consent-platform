@@ -71,4 +71,12 @@ return [
             5
         )
     ),
+
+    'stale_reservation_minutes' => max(
+        1,
+        (int) env(
+            'EMAIL_QUOTA_STALE_RESERVATION_MINUTES',
+            10
+        )
+    ),
 ];
