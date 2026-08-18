@@ -57,6 +57,14 @@ class OrganizationSettingsController extends Controller
                 ->billing_owner_user_id
                 === (int) $user->id;
 
+        $hasOrganizationAccess =
+            $subscription
+                ?->allowsOrganizationAccess()
+            ?? false;
+
+        $requiresSubscriptionRecovery =
+            ! $hasOrganizationAccess;
+
         return view(
             'organization-settings.index',
             [
@@ -71,6 +79,12 @@ class OrganizationSettingsController extends Controller
 
                 'isBillingOwner' =>
                     $isBillingOwner,
+
+                'hasOrganizationAccess' =>
+                    $hasOrganizationAccess,
+
+                'requiresSubscriptionRecovery' =>
+                    $requiresSubscriptionRecovery,
             ]
         );
     }

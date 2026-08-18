@@ -732,4 +732,130 @@ class OrganizationAdminManagementAccessTest extends TestCase
                 false
             );
     }
+
+
+    public function test_new_evaluation_settings_do_not_show_subscription_recovery_warning(): void
+    {
+        $subscription = $this
+            ->organization
+            ->subscription()
+            ->firstOrFail();
+
+        $this->assertTrue(
+            $subscription->isEvaluation()
+        );
+
+        $this->assertTrue(
+            $subscription->allowsOrganizationAccess()
+        );
+
+        $this
+            ->actingAs(
+                $this->organizationAdmin
+            )
+            ->get(
+                route(
+                    'organization-settings.index'
+                )
+            )
+            ->assertOk()
+            ->assertDontSeeText(
+                'Subscription access needs attention'
+            )
+            ->assertDontSeeText(
+                'Requires an active subscription'
+            )
+            ->assertSee(
+                route(
+                    'organization-branding.edit'
+                ),
+                false
+            );
+    }
+
+    public function test_expired_subscription_settings_show_recovery_and_lock_branding(): void
+    {
+        $subscription = $this
+            ->organization
+            ->subscription()
+            ->firstOrFail();
+
+        $subscription->update([
+            'status' => 'expired',
+            'payment_status' => 'paid',
+            'current_period_ends_at' =>
+                now()->subMinute(),
+            'ends_at' =>
+                now()->subMinute(),
+        ]);
+
+        $this->assertFalse(
+            $subscription
+                ->fresh()
+                ->allowsOrganizationAccess()
+        );
+
+        $response = $this
+            ->actingAs(
+                $this->organizationAdmin->fresh()
+            )
+            ->get(
+                route(
+                    'organization-settings.index'
+                )
+            );
+
+        $response
+            ->assertOk()
+            ->assertSeeText(
+                'Subscription access needs attention'
+            )
+            ->assertSeeText(
+                'Requires an active subscription'
+            )
+            ->assertSee(
+                route(
+                    'organization-subscription.show'
+                ),
+                false
+            )
+            ->assertSee(
+                route(
+                    'organization-subscription-plans.index'
+                ),
+                false
+            )
+            ->assertSee(
+                route(
+                    'organization-billing.index'
+                ),
+                false
+            )
+            ->assertSee(
+                route(
+                    'organization-users.index',
+                    $this->organization
+                ),
+                false
+            )
+            ->assertDontSee(
+                route(
+                    'organization-branding.edit'
+                ),
+                false
+            );
+
+        $this
+            ->get(
+                route(
+                    'organization-branding.edit'
+                )
+            )
+            ->assertRedirect(
+                route(
+                    'organization-subscription.show'
+                )
+            );
+    }
+
 }
