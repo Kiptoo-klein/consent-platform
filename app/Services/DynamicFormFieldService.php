@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use JsonException;
 
@@ -74,6 +75,179 @@ final class DynamicFormFieldService
                 'label' => $label,
                 'required' =>
                     (bool) ($field['required'] ?? false),
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Decode and normalize typed dynamic fields.
+     *
+     * Used by richer form builders such as Data Collection.
+     * Existing Consent normalization intentionally remains unchanged.
+     */
+    public function normalizeTypedJson(string $fieldsJson): array
+    {
+        try {
+            $fields = json_decode(
+                $fieldsJson,
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+        } catch (JsonException) {
+            throw ValidationException::withMessages([
+                'additional_fields_json' =>
+                    'The additional fields could not be processed.',
+            ]);
+        }
+
+        if (! is_array($fields)) {
+            throw ValidationException::withMessages([
+                'additional_fields_json' =>
+                    'The additional fields must be a valid list.',
+            ]);
+        }
+
+        return $this->normalizeTypedDefinitions($fields);
+    }
+
+    /**
+     * Normalize richer dynamic form field definitions.
+     */
+    public function normalizeTypedDefinitions(array $fields): array
+    {
+        $allowedTypes = [
+            'text',
+            'textarea',
+            'email',
+            'number',
+            'date',
+            'checkbox',
+            'select',
+            'radio',
+        ];
+
+        $normalized = [];
+        $seenIds = [];
+
+        foreach ($fields as $field) {
+            if (! is_array($field)) {
+                continue;
+            }
+
+            $label = trim(
+                (string) ($field['label'] ?? '')
+            );
+
+            if ($label === '') {
+                throw ValidationException::withMessages([
+                    'additional_fields_json' =>
+                        'Every additional field must have a label.',
+                ]);
+            }
+
+            if (mb_strlen($label) > 255) {
+                throw ValidationException::withMessages([
+                    'additional_fields_json' =>
+                        'Additional field labels cannot exceed 255 characters.',
+                ]);
+            }
+
+            $fieldId = trim(
+                (string) ($field['id'] ?? '')
+            );
+
+            if ($fieldId === '') {
+                $fieldId = (string) Str::uuid();
+            }
+
+            if (
+                mb_strlen($fieldId) > 100
+                || preg_match(
+                    '/\A[A-Za-z0-9_-]+\z/',
+                    $fieldId
+                ) !== 1
+            ) {
+                throw ValidationException::withMessages([
+                    'additional_fields_json' =>
+                        'Field identifiers may contain only letters, numbers, hyphens, and underscores.',
+                ]);
+            }
+
+            if (isset($seenIds[$fieldId])) {
+                throw ValidationException::withMessages([
+                    'additional_fields_json' =>
+                        'Every additional field must have a unique identifier.',
+                ]);
+            }
+
+            $seenIds[$fieldId] = true;
+
+            $type = strtolower(
+                trim(
+                    (string) ($field['type'] ?? 'text')
+                )
+            );
+
+            if (! in_array($type, $allowedTypes, true)) {
+                throw ValidationException::withMessages([
+                    'additional_fields_json' =>
+                        "The field type '{$type}' is not supported.",
+                ]);
+            }
+
+            $options = [];
+
+            if (in_array($type, ['select', 'radio'], true)) {
+                $rawOptions = $field['options'] ?? [];
+
+                if (! is_array($rawOptions)) {
+                    throw ValidationException::withMessages([
+                        'additional_fields_json' =>
+                            'Select and radio fields must provide a valid options list.',
+                    ]);
+                }
+
+                foreach ($rawOptions as $option) {
+                    if (! is_scalar($option)) {
+                        continue;
+                    }
+
+                    $value = trim((string) $option);
+
+                    if ($value === '') {
+                        continue;
+                    }
+
+                    if (mb_strlen($value) > 255) {
+                        throw ValidationException::withMessages([
+                            'additional_fields_json' =>
+                                'Field options cannot exceed 255 characters.',
+                        ]);
+                    }
+
+                    if (! in_array($value, $options, true)) {
+                        $options[] = $value;
+                    }
+                }
+
+                if (count($options) < 2) {
+                    throw ValidationException::withMessages([
+                        'additional_fields_json' =>
+                            'Select and radio fields require at least two options.',
+                    ]);
+                }
+            }
+
+            $normalized[] = [
+                'id' => $fieldId,
+                'type' => $type,
+                'label' => $label,
+                'required' =>
+                    (bool) ($field['required'] ?? false),
+                'options' => $options,
             ];
         }
 
@@ -154,14 +328,12 @@ final class DynamicFormFieldService
                         is_array($options)
                         && $options !== []
                     ) {
-                        $fieldRules[] =
-                            'in:'.implode(
-                                ',',
-                                array_map(
-                                    'strval',
-                                    $options
-                                )
-                            );
+                        $fieldRules[] = Rule::in(
+                            array_map(
+                                'strval',
+                                $options
+                            )
+                        );
                     }
 
                     break;

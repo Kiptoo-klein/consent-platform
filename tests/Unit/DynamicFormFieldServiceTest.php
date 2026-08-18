@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\DynamicFormFieldService;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -168,12 +169,20 @@ class DynamicFormFieldServiceTest extends TestCase
         );
 
         $this->assertSame(
-            [
-                'required',
-                'string',
-                'in:Finance,IT',
-            ],
-            $rules['responses.department']
+            'required',
+            $rules['responses.department'][0]
+        );
+
+        $this->assertSame(
+            'string',
+            $rules['responses.department'][1]
+        );
+
+        $this->assertStringStartsWith(
+            'in:',
+            (string) $rules[
+                'responses.department'
+            ][2]
         );
 
         $this->assertSame(
@@ -220,4 +229,224 @@ class DynamicFormFieldServiceTest extends TestCase
             $service->fieldKey([], 4)
         );
     }
+    public function test_it_normalizes_typed_data_collection_fields(): void
+    {
+        $service =
+            app(DynamicFormFieldService::class);
+
+        $fields = $service->normalizeTypedJson(
+            json_encode([
+                [
+                    'id' => 'employee-name',
+                    'type' => 'text',
+                    'label' => ' Employee Name ',
+                    'required' => true,
+                ],
+                [
+                    'id' => 'department',
+                    'type' => 'select',
+                    'label' => 'Department',
+                    'required' => false,
+                    'options' => [
+                        ' Finance ',
+                        'IT',
+                        'Finance',
+                        '',
+                    ],
+                ],
+                [
+                    'id' => 'comments',
+                    'type' => 'textarea',
+                    'label' => 'Comments',
+                ],
+            ], JSON_THROW_ON_ERROR)
+        );
+
+        $this->assertSame([
+            [
+                'id' => 'employee-name',
+                'type' => 'text',
+                'label' => 'Employee Name',
+                'required' => true,
+                'options' => [],
+            ],
+            [
+                'id' => 'department',
+                'type' => 'select',
+                'label' => 'Department',
+                'required' => false,
+                'options' => [
+                    'Finance',
+                    'IT',
+                ],
+            ],
+            [
+                'id' => 'comments',
+                'type' => 'textarea',
+                'label' => 'Comments',
+                'required' => false,
+                'options' => [],
+            ],
+        ], $fields);
+    }
+
+    public function test_typed_fields_default_to_text(): void
+    {
+        $service =
+            app(DynamicFormFieldService::class);
+
+        $fields =
+            $service->normalizeTypedDefinitions([
+                [
+                    'id' => 'reference',
+                    'label' => 'Reference',
+                ],
+            ]);
+
+        $this->assertSame(
+            'text',
+            $fields[0]['type']
+        );
+
+        $this->assertSame(
+            [],
+            $fields[0]['options']
+        );
+    }
+
+    public function test_it_rejects_unsupported_typed_fields(): void
+    {
+        $service =
+            app(DynamicFormFieldService::class);
+
+        $this->expectException(
+            ValidationException::class
+        );
+
+        $service->normalizeTypedDefinitions([
+            [
+                'label' => 'Attachment',
+                'type' => 'file',
+            ],
+        ]);
+    }
+
+    public function test_select_fields_require_at_least_two_options(): void
+    {
+        $service =
+            app(DynamicFormFieldService::class);
+
+        $this->expectException(
+            ValidationException::class
+        );
+
+        $service->normalizeTypedDefinitions([
+            [
+                'label' => 'Department',
+                'type' => 'select',
+                'options' => [
+                    'Finance',
+                ],
+            ],
+        ]);
+    }
+
+    public function test_existing_consent_normalization_still_strips_typed_metadata(): void
+    {
+        $service =
+            app(DynamicFormFieldService::class);
+
+        $fields = $service->normalizeDefinitions([
+            [
+                'id' => 'legacy-field',
+                'label' => 'Legacy field',
+                'required' => true,
+                'type' => 'select',
+                'options' => [
+                    'One',
+                    'Two',
+                ],
+            ],
+        ]);
+
+        $this->assertSame([
+            [
+                'id' => 'legacy-field',
+                'label' => 'Legacy field',
+                'required' => true,
+            ],
+        ], $fields);
+    }
+
+    public function test_typed_field_ids_must_be_unique(): void
+    {
+        $service =
+            app(DynamicFormFieldService::class);
+
+        $this->expectException(
+            ValidationException::class
+        );
+
+        $service->normalizeTypedDefinitions([
+            [
+                'id' => 'employee-number',
+                'label' => 'Employee Number',
+            ],
+            [
+                'id' => 'employee-number',
+                'label' => 'Second Employee Number',
+            ],
+        ]);
+    }
+
+    public function test_typed_field_ids_must_be_validation_safe(): void
+    {
+        $service =
+            app(DynamicFormFieldService::class);
+
+        $this->expectException(
+            ValidationException::class
+        );
+
+        $service->normalizeTypedDefinitions([
+            [
+                'id' => 'employee.number',
+                'label' => 'Employee Number',
+            ],
+        ]);
+    }
+
+    public function test_select_options_may_contain_commas(): void
+    {
+        $service =
+            app(DynamicFormFieldService::class);
+
+        $rules = $service->validationRules([
+            [
+                'id' => 'location',
+                'type' => 'select',
+                'required' => true,
+                'options' => [
+                    'Nairobi, Kenya',
+                    'Mombasa, Kenya',
+                ],
+            ],
+        ]);
+
+        $valid = Validator::make([
+            'responses' => [
+                'location' => 'Nairobi, Kenya',
+            ],
+        ], $rules);
+
+        $invalid = Validator::make([
+            'responses' => [
+                'location' => 'Kisumu, Kenya',
+            ],
+        ], $rules);
+
+        $this->assertFalse($valid->fails());
+        $this->assertTrue($invalid->fails());
+    }
+
 }
