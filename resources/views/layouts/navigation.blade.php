@@ -224,61 +224,21 @@
             ],
         ];
 
-        if ($isOrganizationAdministrator) {
-            $navigationItems[] = [
-                'label' => 'Manage Users',
-                'route' => 'organization-users.index',
-                'parameters' => [
-                    'organization' =>
-                        $organizationUser->organization_id,
-                ],
-                'active' => 'organization-users.*',
-                'icon' => 'records',
-            ];
-        }
-
-        if (
-            $isBillingOwner
-            || $isOrganizationAdministrator
-        ) {
-            $navigationItems[] = [
-                'label' => 'Subscription Plans',
-                'route' =>
-                    'organization-subscription-plans.index',
-                'active' =>
-                    'organization-subscription-plans.*',
-                'icon' => 'templates',
-            ];
-        }
-
         $navigationItems[] = [
-            'label' => 'Subscription',
-            'route' => 'organization-subscription.show',
-            'active' => 'organization-subscription.*',
-            'icon' => 'templates',
+            'label' => 'Settings',
+            'route' => 'organization-settings.index',
+            'active' => [
+                'organization-settings.*',
+                'organization-users.*',
+                'organization-subscription.*',
+                'organization-subscription-plans.*',
+                'organization-billing.*',
+                'organization-branding.*',
+            ],
+            'icon' => 'settings',
         ];
-
-        if (
-            $isBillingOwner
-            || $isOrganizationAdministrator
-        ) {
-            $navigationItems[] = [
-                'label' => 'Billing',
-                'route' => 'organization-billing.index',
-                'active' => 'organization-billing.*',
-                'icon' => 'records',
-            ];
-        }
-
-        if ($isOrganizationAdministrator) {
-            $navigationItems[] = [
-                'label' => 'Organization Branding',
-                'route' => 'organization-branding.edit',
-                'active' => 'organization-branding.*',
-                'icon' => 'templates',
-            ];
-        }
     }
+
     $platformDisplayName =
         $platformBrand['platform_name']
         ?? config(
@@ -383,9 +343,9 @@
                     'group flex h-11 items-center rounded-lg px-3 text-sm font-medium transition',
                     'justify-center' => false,
                     'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300' =>
-                        request()->routeIs($item['active']),
+                        request()->routeIs(...(array) $item['active']),
                     'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white' =>
-                        ! request()->routeIs($item['active']),
+                        ! request()->routeIs(...(array) $item['active']),
                 ])
                 data-sidebar-row
             >
@@ -463,6 +423,26 @@
                             stroke-linecap="round"
                             stroke-linejoin="round"
                             d="M9 20.25h6M12 15.75v4.5M8.25 8.25h7.5M8.25 11.25h4.5"
+                        />
+                    </svg>
+                    @elseif ($item['icon'] === 'settings')
+                    <svg
+                        class="h-5 w-5 shrink-0"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z"
+                        />
+
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M19.5 12a7.64 7.64 0 0 0-.08-1.09l2-1.56-2-3.46-2.48 1a7.58 7.58 0 0 0-1.89-1.09L14.7 3h-4l-.35 2.8a7.58 7.58 0 0 0-1.89 1.09l-2.48-1-2 3.46 2 1.56A7.64 7.64 0 0 0 6 12c0 .37.03.73.08 1.09l-2 1.56 2 3.46 2.48-1a7.58 7.58 0 0 0 1.89 1.09L10.8 21h4l.35-2.8a7.58 7.58 0 0 0 1.89-1.09l2.48 1 2-3.46-2-1.56c.05-.36.08-.72.08-1.09Z"
                         />
                     </svg>
                 @endif
@@ -626,9 +606,9 @@
                 @class([
                     'flex h-12 items-center gap-3 rounded-lg px-3 text-sm font-medium transition',
                     'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300' =>
-                        request()->routeIs($item['active']),
+                        request()->routeIs(...(array) $item['active']),
                     'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white' =>
-                        ! request()->routeIs($item['active']),
+                        ! request()->routeIs(...(array) $item['active']),
                 ])
             >
                 @if ($item['icon'] === 'dashboard')
@@ -705,6 +685,26 @@
                             stroke-linecap="round"
                             stroke-linejoin="round"
                             d="M9 20.25h6M12 15.75v4.5M8.25 8.25h7.5M8.25 11.25h4.5"
+                        />
+                    </svg>
+                    @elseif ($item['icon'] === 'settings')
+                    <svg
+                        class="h-5 w-5 shrink-0"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z"
+                        />
+
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M19.5 12a7.64 7.64 0 0 0-.08-1.09l2-1.56-2-3.46-2.48 1a7.58 7.58 0 0 0-1.89-1.09L14.7 3h-4l-.35 2.8a7.58 7.58 0 0 0-1.89 1.09l-2.48-1-2 3.46 2 1.56A7.64 7.64 0 0 0 6 12c0 .37.03.73.08 1.09l-2 1.56 2 3.46 2.48-1a7.58 7.58 0 0 0 1.89 1.09L10.8 21h4l.35-2.8a7.58 7.58 0 0 0 1.89-1.09l2.48 1 2-3.46-2-1.56c.05-.36.08-.72.08-1.09Z"
                         />
                     </svg>
                 @endif

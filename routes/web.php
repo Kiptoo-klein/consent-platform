@@ -12,6 +12,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrganizationBrandingController;
 use App\Http\Controllers\OrganizationBillingController;
 use App\Http\Controllers\OrganizationSubscriptionController;
+use App\Http\Controllers\OrganizationSettingsController;
 use App\Http\Controllers\OrganizationSubscriptionPlanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicConsentSigningController;
@@ -238,6 +239,10 @@ Route::middleware([
         'show',
     ])->name('organization-subscription.show');
 
+    Route::get('/settings', [
+        OrganizationSettingsController::class,
+        'index',
+    ])->name('organization-settings.index');
 
     Route::get('/subscription/plans', [
         OrganizationSubscriptionPlanController::class,

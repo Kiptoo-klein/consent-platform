@@ -63,13 +63,81 @@ class BackNavigationResolverTest extends TestCase
         );
     }
 
-    public function test_organization_invoice_returns_to_subscription_plans(): void
+    public function test_organization_settings_routes_use_settings_hierarchy(): void
     {
-        $fallback =
-            route(
-                'dashboard'
-            );
+        $fallback = route('dashboard');
 
+        /*
+         * Settings itself returns to the normal application parent.
+         */
+        $this->assertSame(
+            $fallback,
+            BackNavigation::forRoute(
+                'organization-settings.index',
+                [],
+                $fallback
+            )
+        );
+
+        /*
+         * Top-level Settings pages return to Settings.
+         */
+        foreach ([
+            'organization-users.index',
+            'organization-branding.edit',
+            'organization-subscription.show',
+            'organization-subscription-plans.index',
+            'organization-billing.index',
+        ] as $routeName) {
+            $parameters =
+                $routeName === 'organization-users.index'
+                    ? ['organization' => 8]
+                    : [];
+
+            $this->assertSame(
+                route('organization-settings.index'),
+                BackNavigation::forRoute(
+                    $routeName,
+                    $parameters,
+                    $fallback
+                ),
+                $routeName
+            );
+        }
+
+        /*
+         * User-management child pages still return to Manage Users.
+         */
+        $this->assertSame(
+            route(
+                'organization-users.index',
+                ['organization' => 8]
+            ),
+            BackNavigation::forRoute(
+                'organization-users.edit',
+                [
+                    'organization' => 8,
+                    'user' => 14,
+                ],
+                $fallback
+            )
+        );
+
+        /*
+         * Billing child pages still return to Billing.
+         */
+        $this->assertSame(
+            route('organization-billing.index'),
+            BackNavigation::forRoute(
+                'organization-billing.reminder-preferences.index',
+                [],
+                $fallback
+            )
+        );
+
+        /*
+         * Preserve the existing invoice hierarchy.
+         */
         $this->assertSame(
             route(
                 'organization-subscription-plans.index'
@@ -77,20 +145,8 @@ class BackNavigationResolverTest extends TestCase
             BackNavigation::forRoute(
                 'organization-billing.invoices.show',
                 [
-                    'subscriptionInvoice' =>
-                        12,
+                    'subscriptionInvoice' => 12,
                 ],
-                $fallback
-            )
-        );
-
-        $this->assertSame(
-            route(
-                'organization-subscription.show'
-            ),
-            BackNavigation::forRoute(
-                'organization-billing.index',
-                [],
                 $fallback
             )
         );

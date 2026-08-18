@@ -256,7 +256,7 @@ test(
             )
             ->assertSee(
                 route(
-                    'organization-subscription.show'
+                    'organization-settings.index'
                 ),
                 false
             )

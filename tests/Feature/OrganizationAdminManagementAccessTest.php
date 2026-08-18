@@ -74,40 +74,48 @@ class OrganizationAdminManagementAccessTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSeeText('Manage Users')
-            ->assertSeeText('Subscription')
-            ->assertSeeText('Billing');
+            ->assertSeeText('Settings');
+
         $response->assertSeeTextInOrder([
             'Dashboard',
             'Consent Templates',
             'Consent Records',
             'Signing Stations',
-            'Manage Users',
-            'Subscription',
-            'Billing',
-            'Organization Branding',
+            'Settings',
         ]);
 
         $response->assertSee(
-            route(
-                'organization-users.index',
-                $this->organization
-            ),
+            route('organization-settings.index'),
             false
         );
 
         $response->assertSee(
-            route('organization-subscription.show'),
+            'data-navigation-route="organization-settings.index"',
             false
         );
 
-        $response->assertSee(
+        $response->assertDontSee(
+            'data-navigation-route="organization-users.index"',
+            false
+        );
+
+        $response->assertDontSee(
             'data-navigation-route="organization-subscription.show"',
             false
         );
 
-        $response->assertSee(
-            route('organization-billing.index'),
+        $response->assertDontSee(
+            'data-navigation-route="organization-subscription-plans.index"',
+            false
+        );
+
+        $response->assertDontSee(
+            'data-navigation-route="organization-billing.index"',
+            false
+        );
+
+        $response->assertDontSee(
+            'data-navigation-route="organization-branding.edit"',
             false
         );
     }
@@ -168,12 +176,23 @@ class OrganizationAdminManagementAccessTest extends TestCase
 
         $navigationResponse
             ->assertOk()
-            ->assertDontSeeText('Manage Users')
+            ->assertSeeText('Settings')
             ->assertSee(
-                'data-navigation-route="organization-subscription.show"',
+                'data-navigation-route="organization-settings.index"',
                 false
             )
-            ->assertDontSeeText('Billing');
+            ->assertDontSee(
+                'data-navigation-route="organization-users.index"',
+                false
+            )
+            ->assertDontSee(
+                'data-navigation-route="organization-billing.index"',
+                false
+            )
+            ->assertDontSee(
+                'data-navigation-route="organization-branding.edit"',
+                false
+            );
 
         $this
             ->actingAs($staff)
@@ -297,9 +316,13 @@ class OrganizationAdminManagementAccessTest extends TestCase
             )
             ->assertOk()
             ->assertSeeText(
-                'Organization Branding'
+                'Settings'
             )
             ->assertSee(
+                'data-navigation-route="organization-settings.index"',
+                false
+            )
+            ->assertDontSee(
                 'data-navigation-route="organization-branding.edit"',
                 false
             );
@@ -477,6 +500,10 @@ class OrganizationAdminManagementAccessTest extends TestCase
                     'Subscription usage'
                 )
                 ->assertSee(
+                    'data-navigation-route="organization-settings.index"',
+                    false
+                )
+                ->assertDontSee(
                     'data-navigation-route="organization-subscription.show"',
                     false
                 );
@@ -501,5 +528,208 @@ class OrganizationAdminManagementAccessTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_settings_page_shows_role_appropriate_management_links(): void
+    {
+        app(
+            PermissionRegistrar::class
+        )->setPermissionsTeamId(
+            $this->organization->id
+        );
 
+        $staffRole =
+            Role::query()
+                ->where(
+                    'organization_id',
+                    $this->organization->id
+                )
+                ->where(
+                    'guard_name',
+                    'web'
+                )
+                ->where(
+                    'name',
+                    OrganizationRole::
+                        WORKFLOW_OPERATOR
+                        ->label()
+                )
+                ->firstOrFail();
+
+        $billingOwner =
+            User::factory()->create([
+                'organization_id' =>
+                    $this->organization->id,
+
+                'platform_role_id' =>
+                    null,
+
+                'is_active' =>
+                    true,
+            ]);
+
+        $billingOwner->assignRole(
+            $staffRole
+        );
+
+        $ordinaryUser =
+            User::factory()->create([
+                'organization_id' =>
+                    $this->organization->id,
+
+                'platform_role_id' =>
+                    null,
+
+                'is_active' =>
+                    true,
+            ]);
+
+        $ordinaryUser->assignRole(
+            $staffRole
+        );
+
+        $this
+            ->organization
+            ->subscription()
+            ->update([
+                'billing_owner_user_id' =>
+                    $billingOwner->id,
+            ]);
+
+        /*
+         * Organization Admin:
+         * Team, Branding, Subscription, Plans and Billing.
+         */
+        $this
+            ->actingAs(
+                $this->organizationAdmin
+            )
+            ->get(
+                route(
+                    'organization-settings.index'
+                )
+            )
+            ->assertOk()
+            ->assertSee(
+                route(
+                    'organization-users.index',
+                    $this->organization
+                ),
+                false
+            )
+            ->assertSee(
+                route(
+                    'organization-branding.edit'
+                ),
+                false
+            )
+            ->assertSee(
+                route(
+                    'organization-subscription.show'
+                ),
+                false
+            )
+            ->assertSee(
+                route(
+                    'organization-subscription-plans.index'
+                ),
+                false
+            )
+            ->assertSee(
+                route(
+                    'organization-billing.index'
+                ),
+                false
+            );
+
+        /*
+         * Billing Owner:
+         * Subscription, Plans and Billing only.
+         */
+        $this
+            ->actingAs(
+                $billingOwner
+            )
+            ->get(
+                route(
+                    'organization-settings.index'
+                )
+            )
+            ->assertOk()
+            ->assertDontSee(
+                route(
+                    'organization-users.index',
+                    $this->organization
+                ),
+                false
+            )
+            ->assertDontSee(
+                route(
+                    'organization-branding.edit'
+                ),
+                false
+            )
+            ->assertSee(
+                route(
+                    'organization-subscription.show'
+                ),
+                false
+            )
+            ->assertSee(
+                route(
+                    'organization-subscription-plans.index'
+                ),
+                false
+            )
+            ->assertSee(
+                route(
+                    'organization-billing.index'
+                ),
+                false
+            );
+
+        /*
+         * Ordinary organization user:
+         * Subscription & Usage only.
+         */
+        $this
+            ->actingAs(
+                $ordinaryUser
+            )
+            ->get(
+                route(
+                    'organization-settings.index'
+                )
+            )
+            ->assertOk()
+            ->assertSee(
+                route(
+                    'organization-subscription.show'
+                ),
+                false
+            )
+            ->assertDontSee(
+                route(
+                    'organization-users.index',
+                    $this->organization
+                ),
+                false
+            )
+            ->assertDontSee(
+                route(
+                    'organization-branding.edit'
+                ),
+                false
+            )
+            ->assertDontSee(
+                route(
+                    'organization-subscription-plans.index'
+                ),
+                false
+            )
+            ->assertDontSee(
+                route(
+                    'organization-billing.index'
+                ),
+                false
+            );
+    }
 }

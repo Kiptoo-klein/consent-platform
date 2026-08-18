@@ -155,7 +155,7 @@ class OrganizationSubscriptionPlanSelectionTest extends TestCase
             )
             ->assertSee(
                 route(
-                    'organization-subscription-plans.index'
+                    'organization-settings.index'
                 ),
                 false
             );

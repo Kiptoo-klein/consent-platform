@@ -184,9 +184,17 @@ final class BackNavigation
                     $fallback
                 ),
 
+            /* Organization settings. */
+            $routeName === 'organization-settings.index' =>
+                $fallback,
+
             /* Organization administration. */
             $routeName === 'organization-users.index' =>
-                $fallback,
+                self::to(
+                    'organization-settings.index',
+                    [],
+                    $fallback
+                ),
 
             str_starts_with($routeName, 'organization-users.') =>
                 self::to(
@@ -213,7 +221,15 @@ final class BackNavigation
 
             $routeName === 'organization-billing.index' =>
                 self::to(
-                    'organization-subscription.show',
+                    'organization-settings.index',
+                    [],
+                    $fallback
+                ),
+
+            $routeName ===
+                'organization-subscription-plans.index' =>
+                self::to(
+                    'organization-settings.index',
                     [],
                     $fallback
                 ),
@@ -223,16 +239,31 @@ final class BackNavigation
                 'organization-subscription-plans.'
             ) =>
                 self::to(
-                    'organization-subscription.show',
+                    'organization-subscription-plans.index',
+                    [],
+                    $fallback
+                ),
+
+            $routeName === 'organization-subscription.show' =>
+                self::to(
+                    'organization-settings.index',
                     [],
                     $fallback
                 ),
 
             str_starts_with($routeName, 'organization-subscription.') =>
-                $fallback,
+                self::to(
+                    'organization-subscription.show',
+                    [],
+                    $fallback
+                ),
 
             str_starts_with($routeName, 'organization-branding.') =>
-                $fallback,
+                self::to(
+                    'organization-settings.index',
+                    [],
+                    $fallback
+                ),
 
             /* Platform organization billing hierarchy. */
             $routeName ===
