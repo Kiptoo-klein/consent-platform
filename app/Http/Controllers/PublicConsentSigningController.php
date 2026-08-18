@@ -9,6 +9,7 @@ use App\Models\ConsentSession;
 use App\Models\ConsentSignature;
 use App\Services\ConsentAuditService;
 use App\Services\ConsentExpiryService;
+use App\Services\DynamicFormFieldService;
 use App\Services\SubscriptionUsageLimitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,7 +25,8 @@ class PublicConsentSigningController extends Controller
     public function show(
         Request $request,
         string $accessToken,
-        ConsentExpiryService $consentExpiryService
+        ConsentExpiryService $consentExpiryService,
+        DynamicFormFieldService $dynamicFormFieldService
     ): View {
         $consentSession = $this->findSession(
             accessToken: $accessToken,
@@ -60,9 +62,12 @@ class PublicConsentSigningController extends Controller
         return view('public-consent.show', [
             'consentSession' => $consentSession,
             'publishedVersion' => $consentSession->consentTemplateVersion,
-            'additionalFields' => $this->additionalFields(
-                $consentSession
-            ),
+            'additionalFields' =>
+                $dynamicFormFieldService->fieldsFromSchema(
+                    $consentSession
+                        ->consentTemplateVersion
+                        ?->template_schema
+                ),
         ]);
     }
 
@@ -72,7 +77,8 @@ class PublicConsentSigningController extends Controller
     public function update(
         Request $request,
         string $accessToken,
-        ConsentExpiryService $consentExpiryService
+        ConsentExpiryService $consentExpiryService,
+        DynamicFormFieldService $dynamicFormFieldService
     ): RedirectResponse {
         $consentSession = $this->findSession(
             accessToken: $accessToken,
@@ -129,13 +135,17 @@ class PublicConsentSigningController extends Controller
             );
         }
 
-        $additionalFields = $this->additionalFields(
-            $consentSession
-        );
+        $additionalFields =
+            $dynamicFormFieldService->fieldsFromSchema(
+                $consentSession
+                    ->consentTemplateVersion
+                    ?->template_schema
+            );
 
-        $validationRules = $this->buildValidationRules(
-            $additionalFields
-        );
+        $validationRules =
+            $dynamicFormFieldService->validationRules(
+                $additionalFields
+            );
 
         $validated = $request->validate($validationRules);
 
@@ -808,131 +818,6 @@ class PublicConsentSigningController extends Controller
         return $consentSession->refresh();
     }
 
-    /**
-     * Read dynamic fields from the published template version.
-     */
-    private function additionalFields(
-        ConsentSession $consentSession
-    ): array {
-        $version = $consentSession->consentTemplateVersion;
 
-        $fields = data_get(
-            $version,
-            'template_schema.additional_fields',
-            []
-        );
-
-        if (! is_array($fields)) {
-            return [];
-        }
-
-        return array_values(
-            array_filter(
-                $fields,
-                fn ($field) => is_array($field)
-            )
-        );
-    }
-
-    /**
-     * Build response validation rules dynamically.
-     */
-    private function buildValidationRules(
-        array $additionalFields
-    ): array {
-        $rules = [
-            'responses' => [
-                'nullable',
-                'array',
-            ],
-        ];
-
-        foreach ($additionalFields as $index => $field) {
-            $key = $this->fieldKey(
-                $field,
-                $index
-            );
-
-            $fieldRules = [];
-
-            if ($field['required'] ?? false) {
-                $fieldRules[] = 'required';
-            } else {
-                $fieldRules[] = 'nullable';
-            }
-
-            $type = $field['type'] ?? 'text';
-
-            switch ($type) {
-                case 'email':
-                    $fieldRules[] = 'email';
-                    $fieldRules[] = 'max:255';
-                    break;
-
-                case 'number':
-                    $fieldRules[] = 'numeric';
-                    break;
-
-                case 'date':
-                    $fieldRules[] = 'date';
-                    break;
-
-                case 'checkbox':
-                    $fieldRules[] = 'boolean';
-                    break;
-
-                case 'select':
-                case 'radio':
-                    $fieldRules[] = 'string';
-
-                    $options = $field['options'] ?? [];
-
-                    if (
-                        is_array($options)
-                        && count($options) > 0
-                    ) {
-                        $fieldRules[] = 'in:'.implode(
-                            ',',
-                            array_map(
-                                'strval',
-                                $options
-                            )
-                        );
-                    }
-
-                    break;
-
-                case 'textarea':
-                    $fieldRules[] = 'string';
-                    $fieldRules[] = 'max:5000';
-                    break;
-
-                default:
-                    $fieldRules[] = 'string';
-                    $fieldRules[] = 'max:1000';
-                    break;
-            }
-
-            $rules["responses.{$key}"] =
-                $fieldRules;
-        }
-
-        return $rules;
-    }
-
-    /**
-     * Determine the storage key for a dynamic field.
-     */
-    private function fieldKey(
-        array $field,
-        int $index
-    ): string {
-        return (string) (
-            $field['name']
-            ?? $field['key']
-            ?? $field['id']
-            ?? 'field_'.$index
-        );
-    }
 }
 

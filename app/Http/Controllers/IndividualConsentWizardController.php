@@ -7,6 +7,7 @@ use App\Models\ConsentSession;
 use App\Models\ConsentTemplate;
 use App\Services\ConsentAuditService;
 use App\Services\ConsentNotificationService;
+use App\Services\DynamicFormFieldService;
 use App\Services\SubscriptionUsageLimitService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -17,7 +18,6 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use JsonException;
 
 class IndividualConsentWizardController extends Controller
 {
@@ -48,7 +48,8 @@ class IndividualConsentWizardController extends Controller
         Request $request,
         ConsentAuditService $consentAuditService,
         ConsentNotificationService $consentNotificationService,
-        SubscriptionUsageLimitService $usageLimitService
+        SubscriptionUsageLimitService $usageLimitService,
+        DynamicFormFieldService $dynamicFormFieldService
     ): RedirectResponse {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -80,7 +81,7 @@ class IndividualConsentWizardController extends Controller
                 'Please enter a valid signing deadline time.',
         ]);
 
-        $additionalFields = $this->prepareAdditionalFields(
+        $additionalFields = $dynamicFormFieldService->normalizeJson(
             $validated['additional_fields_json']
         );
 
@@ -246,68 +247,5 @@ class IndividualConsentWizardController extends Controller
         return $redirect;
     }
 
-    /**
-     * Decode and validate dynamic fields from the template builder.
-     */
-    private function prepareAdditionalFields(string $fieldsJson): array
-    {
-        try {
-            $additionalFields = json_decode(
-                $fieldsJson,
-                true,
-                512,
-                JSON_THROW_ON_ERROR
-            );
-        } catch (JsonException) {
-            throw ValidationException::withMessages([
-                'additional_fields_json' =>
-                    'The additional fields could not be processed.',
-            ]);
-        }
 
-        if (! is_array($additionalFields)) {
-            throw ValidationException::withMessages([
-                'additional_fields_json' =>
-                    'The additional fields must be a valid list.',
-            ]);
-        }
-
-        $cleanFields = [];
-
-        foreach ($additionalFields as $field) {
-            if (! is_array($field)) {
-                continue;
-            }
-
-            $label = trim((string) ($field['label'] ?? ''));
-
-            if ($label === '') {
-                throw ValidationException::withMessages([
-                    'additional_fields_json' =>
-                        'Every additional field must have a label.',
-                ]);
-            }
-
-            if (mb_strlen($label) > 255) {
-                throw ValidationException::withMessages([
-                    'additional_fields_json' =>
-                        'Additional field labels cannot exceed 255 characters.',
-                ]);
-            }
-
-            $fieldId = trim((string) ($field['id'] ?? ''));
-
-            if ($fieldId === '') {
-                $fieldId = (string) Str::uuid();
-            }
-
-            $cleanFields[] = [
-                'id' => $fieldId,
-                'label' => $label,
-                'required' => (bool) ($field['required'] ?? false),
-            ];
-        }
-
-        return $cleanFields;
-    }
 }
