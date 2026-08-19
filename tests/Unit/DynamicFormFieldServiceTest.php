@@ -449,4 +449,118 @@ class DynamicFormFieldServiceTest extends TestCase
         $this->assertTrue($invalid->fails());
     }
 
+    public function test_phone_and_checkbox_group_fields_are_supported(): void
+    {
+        $service =
+            app(DynamicFormFieldService::class);
+
+        $fields =
+            $service->normalizeTypedDefinitions([
+                [
+                    'id' => 'contact-phone',
+                    'type' => 'phone',
+                    'label' => 'Phone Number',
+                    'required' => true,
+                ],
+                [
+                    'id' => 'contact-methods',
+                    'type' => 'checkboxes',
+                    'label' => 'Preferred Contact Methods',
+                    'required' => true,
+                    'options' => [
+                        ' Email ',
+                        'SMS',
+                        'Email',
+                    ],
+                ],
+            ]);
+
+        $this->assertSame(
+            [
+                [
+                    'id' => 'contact-phone',
+                    'type' => 'phone',
+                    'label' => 'Phone Number',
+                    'required' => true,
+                    'options' => [],
+                ],
+                [
+                    'id' => 'contact-methods',
+                    'type' => 'checkboxes',
+                    'label' => 'Preferred Contact Methods',
+                    'required' => true,
+                    'options' => [
+                        'Email',
+                        'SMS',
+                    ],
+                ],
+            ],
+            $fields
+        );
+
+        $rules = $service->validationRules(
+            $fields
+        );
+
+        $this->assertSame(
+            [
+                'required',
+                'string',
+                'max:50',
+            ],
+            $rules['responses.contact-phone']
+        );
+
+        $this->assertSame(
+            [
+                'required',
+                'array',
+                'min:1',
+            ],
+            $rules['responses.contact-methods']
+        );
+
+        $valid = Validator::make([
+            'responses' => [
+                'contact-phone' =>
+                    '+254 712 345 678',
+                'contact-methods' => [
+                    'Email',
+                    'SMS',
+                ],
+            ],
+        ], $rules);
+
+        $unknownOption = Validator::make([
+            'responses' => [
+                'contact-phone' =>
+                    '+254 712 345 678',
+                'contact-methods' => [
+                    'Carrier pigeon',
+                ],
+            ],
+        ], $rules);
+
+        $emptyRequiredGroup = Validator::make([
+            'responses' => [
+                'contact-phone' =>
+                    '+254 712 345 678',
+                'contact-methods' => [],
+            ],
+        ], $rules);
+
+        $this->assertFalse(
+            $valid->fails()
+        );
+
+        $this->assertTrue(
+            $unknownOption->fails()
+        );
+
+        $this->assertTrue(
+            $emptyRequiredGroup->fails()
+        );
+    }
+
+
 }

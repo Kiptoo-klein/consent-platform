@@ -13,7 +13,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class PublicSigningStationController extends Controller
@@ -713,62 +712,16 @@ class PublicSigningStationController extends Controller
             ],
         ];
 
-        foreach ($additionalFields as $index => $field) {
-            $key = $this->fieldKey(
-                $field,
-                $index
-            );
+        $dynamicFieldRules = app(
+            \App\Services\DynamicFormFieldService::class
+        )->validationRules(
+            $additionalFields
+        );
 
-            $type = $field['type'] ?? 'text';
-
-            if ($type === 'checkbox') {
-                $fieldRules = ! empty($field['required'])
-                    ? ['accepted']
-                    : [
-                        'nullable',
-                        'boolean',
-                    ];
-            } else {
-                $fieldRules = [
-                    ! empty($field['required'])
-                        ? 'required'
-                        : 'nullable',
-                ];
-            }
-
-            if ($type === 'email') {
-                $fieldRules[] = 'email';
-                $fieldRules[] = 'max:255';
-            } elseif ($type === 'number') {
-                $fieldRules[] = 'numeric';
-            } elseif ($type === 'checkbox') {
-                // Checkbox rules were assigned above.
-            } elseif (
-                in_array(
-                    $type,
-                    [
-                        'select',
-                        'radio',
-                    ],
-                    true
-                )
-            ) {
-                $options = $field['options'] ?? [];
-
-                if (is_array($options) && $options !== []) {
-                    $fieldRules[] = Rule::in(
-                        array_values($options)
-                    );
-                }
-            } else {
-                $fieldRules[] = 'string';
-                $fieldRules[] = 'max:5000';
-            }
-
-            $rules['responses.'.$key] = $fieldRules;
-        }
-
-        return $rules;
+        return array_merge(
+            $rules,
+            $dynamicFieldRules
+        );
     }
 
     /**

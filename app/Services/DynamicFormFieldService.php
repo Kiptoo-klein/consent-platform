@@ -122,9 +122,11 @@ final class DynamicFormFieldService
             'text',
             'textarea',
             'email',
+            'phone',
             'number',
             'date',
             'checkbox',
+            'checkboxes',
             'select',
             'radio',
         ];
@@ -200,13 +202,23 @@ final class DynamicFormFieldService
 
             $options = [];
 
-            if (in_array($type, ['select', 'radio'], true)) {
+            if (
+                in_array(
+                    $type,
+                    [
+                        'select',
+                        'radio',
+                        'checkboxes',
+                    ],
+                    true
+                )
+            ) {
                 $rawOptions = $field['options'] ?? [];
 
                 if (! is_array($rawOptions)) {
                     throw ValidationException::withMessages([
                         'additional_fields_json' =>
-                            'Select and radio fields must provide a valid options list.',
+                            'Choice fields must provide a valid options list.',
                     ]);
                 }
 
@@ -236,7 +248,7 @@ final class DynamicFormFieldService
                 if (count($options) < 2) {
                     throw ValidationException::withMessages([
                         'additional_fields_json' =>
-                            'Select and radio fields require at least two options.',
+                            'Choice fields require at least two options.',
                     ]);
                 }
             }
@@ -305,6 +317,11 @@ final class DynamicFormFieldService
                     $fieldRules[] = 'max:255';
                     break;
 
+                case 'phone':
+                    $fieldRules[] = 'string';
+                    $fieldRules[] = 'max:50';
+                    break;
+
                 case 'number':
                     $fieldRules[] = 'numeric';
                     break;
@@ -315,6 +332,38 @@ final class DynamicFormFieldService
 
                 case 'checkbox':
                     $fieldRules[] = 'boolean';
+                    break;
+
+                case 'checkboxes':
+                    $fieldRules[] = 'array';
+
+                    if ($field['required'] ?? false) {
+                        $fieldRules[] = 'min:1';
+                    }
+
+                    $options =
+                        $field['options'] ?? [];
+
+                    $itemRules = [
+                        'string',
+                    ];
+
+                    if (
+                        is_array($options)
+                        && $options !== []
+                    ) {
+                        $itemRules[] = Rule::in(
+                            array_map(
+                                'strval',
+                                $options
+                            )
+                        );
+                    }
+
+                    $rules[
+                        "responses.{$key}.*"
+                    ] = $itemRules;
+
                     break;
 
                 case 'select':

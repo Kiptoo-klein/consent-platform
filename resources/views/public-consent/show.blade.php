@@ -217,6 +217,28 @@
                             $fieldOptions =
                                 $field['options']
                                 ?? [];
+
+                            $selectedOptions =
+                                is_array($fieldValue)
+                                    ? array_map('strval', $fieldValue)
+                                    : [];
+
+                            $inputType =
+                                $fieldType === 'phone'
+                                    ? 'tel'
+                                    : (
+                                        in_array(
+                                            $fieldType,
+                                            [
+                                                'email',
+                                                'number',
+                                                'date',
+                                            ],
+                                            true
+                                        )
+                                            ? $fieldType
+                                            : 'text'
+                                    );
                         @endphp
 
                         <div>
@@ -283,6 +305,31 @@
                                     @endforeach
                                 </div>
 
+                            @elseif ($fieldType === 'checkboxes')
+                                <div class="mt-3 space-y-2">
+                                    @foreach ($fieldOptions as $option)
+                                        <label class="flex items-center gap-3">
+                                            <input
+                                                type="checkbox"
+                                                name="responses[{{ $fieldKey }}][]"
+                                                value="{{ $option }}"
+                                                @checked(
+                                                    in_array(
+                                                        (string) $option,
+                                                        $selectedOptions,
+                                                        true
+                                                    )
+                                                )
+                                                class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                            >
+
+                                            <span class="text-gray-700">
+                                                {{ $option }}
+                                            </span>
+                                        </label>
+                                    @endforeach
+                                </div>
+
                             @elseif ($fieldType === 'checkbox')
                                 <input
                                     type="hidden"
@@ -310,7 +357,7 @@
                                 <input
                                     id="response_{{ $fieldKey }}"
                                     name="responses[{{ $fieldKey }}]"
-                                    type="{{ in_array($fieldType, ['email', 'number', 'date'], true) ? $fieldType : 'text' }}"
+                                    type="{{ $inputType }}"
                                     value="{{ $fieldValue }}"
                                     @required($isRequired)
                                     class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"

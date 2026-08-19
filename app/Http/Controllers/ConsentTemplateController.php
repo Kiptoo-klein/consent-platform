@@ -234,7 +234,7 @@ class ConsentTemplateController extends Controller
                 === 'bulk';
 
         $additionalFields =
-            $dynamicFormFieldService->normalizeJson(
+            $dynamicFormFieldService->normalizeTypedJson(
                 $validated[
                     'additional_fields_json'
                 ]
@@ -492,7 +492,7 @@ class ConsentTemplateController extends Controller
 
         $validated = $this->validateTemplateRequest($request);
 
-        $additionalFields = $dynamicFormFieldService->normalizeJson(
+        $additionalFields = $dynamicFormFieldService->normalizeTypedJson(
             $validated['additional_fields_json']
         );
 
