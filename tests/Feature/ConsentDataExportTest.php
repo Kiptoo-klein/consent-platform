@@ -1234,6 +1234,298 @@ class ConsentDataExportTest extends TestCase
         }
     }
 
+    public function test_pdf_register_download_generates_a_real_pdf(): void
+    {
+        [$organization, $user] =
+            $this->createOrganizationUser(
+                'PDF Register Organization',
+                'pdf-register-organization'
+            );
+
+        $template =
+            $this->createPublishedTemplate(
+                organization: $organization,
+                user: $user,
+                title: 'Employee Consent',
+                fields: [
+                    [
+                        'id' =>
+                            'mobile-number',
+
+                        'type' =>
+                            'phone',
+
+                        'label' =>
+                            'Mobile number',
+
+                        'required' =>
+                            false,
+
+                        'options' =>
+                            [],
+                    ],
+                    [
+                        'id' =>
+                            'department',
+
+                        'type' =>
+                            'text',
+
+                        'label' =>
+                            'Department',
+
+                        'required' =>
+                            false,
+
+                        'options' =>
+                            [],
+                    ],
+                ]
+            );
+
+        $this->createConsentSession(
+            organization: $organization,
+            user: $user,
+            template: $template,
+            signerName: 'Jane Example',
+            signerEmail: 'jane@example.com',
+            responses: [
+                'mobile-number' =>
+                    '0712345678',
+
+                'department' =>
+                    'Operations',
+            ]
+        );
+
+        $response =
+            $this
+                ->actingAs($user)
+                ->post(
+                    route(
+                        'consent-sessions.export-data.download'
+                    ),
+                    [
+                        'template_id' =>
+                            $template->id,
+
+                        'format' =>
+                            'pdf',
+
+                        'columns' => [
+                            'signer_name',
+                            'signer_email',
+                            'question:'
+                                .$template->id
+                                .':mobile-number',
+                            'question:'
+                                .$template->id
+                                .':department',
+                        ],
+                    ]
+                );
+
+        $response
+            ->assertOk()
+            ->assertDownload();
+
+        $response->assertHeader(
+            'content-type',
+            'application/pdf'
+        );
+
+        $content =
+            $response->getContent();
+
+        $this->assertIsString(
+            $content
+        );
+
+        $this->assertStringStartsWith(
+            '%PDF-',
+            $content
+        );
+
+        $this->assertGreaterThan(
+            1000,
+            strlen($content)
+        );
+    }
+
+    public function test_pdf_register_rejects_more_than_twelve_selected_columns(): void
+    {
+        [$organization, $user] =
+            $this->createOrganizationUser(
+                'PDF Limit Organization',
+                'pdf-limit-organization'
+            );
+
+        $fields = [];
+
+        for ($index = 1; $index <= 13; $index++) {
+            $fields[] = [
+                'id' =>
+                    'field-'.$index,
+
+                'type' =>
+                    'text',
+
+                'label' =>
+                    'Field '.$index,
+
+                'required' =>
+                    false,
+
+                'options' =>
+                    [],
+            ];
+        }
+
+        $template =
+            $this->createPublishedTemplate(
+                organization: $organization,
+                user: $user,
+                title: 'Wide Consent',
+                fields: $fields
+            );
+
+        $responses = [];
+
+        foreach ($fields as $field) {
+            $responses[
+                $field['id']
+            ] =
+                'Value '.$field['id'];
+        }
+
+        $this->createConsentSession(
+            organization: $organization,
+            user: $user,
+            template: $template,
+            signerName: 'Wide Export Signer',
+            signerEmail: null,
+            responses: $responses
+        );
+
+        $columns =
+            collect($fields)
+                ->map(
+                    fn (array $field): string =>
+                        'question:'
+                        .$template->id
+                        .':'
+                        .$field['id']
+                )
+                ->all();
+
+        $returnUrl =
+            route(
+                'consent-sessions.export-data',
+                [
+                    'template_id' =>
+                        $template->id,
+                ]
+            );
+
+        $this
+            ->actingAs($user)
+            ->from($returnUrl)
+            ->post(
+                route(
+                    'consent-sessions.export-data.download'
+                ),
+                [
+                    'template_id' =>
+                        $template->id,
+
+                    'format' =>
+                        'pdf',
+
+                    'columns' =>
+                        $columns,
+                ]
+            )
+            ->assertRedirect(
+                $returnUrl
+            )
+            ->assertSessionHasErrors(
+                'columns'
+            );
+    }
+
+    public function test_pdf_register_view_renders_selected_register_information(): void
+    {
+        $html =
+            view(
+                'pdfs.consent-register',
+                [
+                    'title' =>
+                        'Employee Consent',
+
+                    'headings' =>
+                        collect([
+                            'Name',
+                            'Mobile number',
+                            'Department',
+                        ]),
+
+                    'rows' =>
+                        collect([
+                            [
+                                'Jane Example',
+                                '0712345678',
+                                'Operations',
+                            ],
+                        ]),
+
+                    'recordCount' =>
+                        1,
+
+                    'generatedAt' =>
+                        now(),
+
+                    'tableFontSize' =>
+                        9,
+                ]
+            )
+                ->render();
+
+        $this->assertStringContainsString(
+            'Employee Consent',
+            $html
+        );
+
+        $this->assertStringContainsString(
+            'Consent Register',
+            $html
+        );
+
+        $this->assertStringContainsString(
+            'Mobile number',
+            $html
+        );
+
+        $this->assertStringContainsString(
+            'Jane Example',
+            $html
+        );
+
+        $this->assertStringContainsString(
+            '0712345678',
+            $html
+        );
+
+        $this->assertStringContainsString(
+            'Operations',
+            $html
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/<strong>\s*1\s*<\/strong>\s*record/',
+            $html
+        );
+    }
+
     private function createOrganizationUser(
         string $organizationName,
         string $organizationSlug

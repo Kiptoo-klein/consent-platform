@@ -245,7 +245,7 @@
                                     Choose the file format you want to download.
                                 </p>
 
-                                <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                <div class="mt-4 grid gap-3 md:grid-cols-3">
                                     <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-4 hover:bg-gray-50">
                                         <input
                                             type="radio"
@@ -285,6 +285,26 @@
                                             </span>
                                         </span>
                                     </label>
+
+                                    <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-4 hover:bg-gray-50">
+                                        <input
+                                            type="radio"
+                                            name="format"
+                                            value="pdf"
+                                            x-model="format"
+                                            class="mt-0.5 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        >
+
+                                        <span>
+                                            <span class="block font-medium text-gray-900">
+                                                PDF Register
+                                            </span>
+
+                                            <span class="mt-1 block text-sm text-gray-500">
+                                                Printable table · up to 12 columns
+                                            </span>
+                                        </span>
+                                    </label>
                                 </div>
 
                                 @error('format')
@@ -310,17 +330,31 @@
                         || $questionColumns->isNotEmpty()
                     )
                         <div class="flex flex-col gap-3 border-t border-gray-200 bg-gray-50 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-                            <p class="text-sm font-medium text-gray-700">
-                                <span x-text="selected.length"></span>
-                                <span x-text="selected.length === 1 ? 'column selected' : 'columns selected'"></span>
-                            </p>
+                            <div>
+                                <p class="text-sm font-medium text-gray-700">
+                                    <span x-text="selected.length"></span>
+                                    <span x-text="selected.length === 1 ? 'column selected' : 'columns selected'"></span>
+                                </p>
+
+                                <p
+                                    x-show="format === 'pdf' && selected.length > 12"
+                                    x-cloak
+                                    class="mt-1 text-sm text-amber-700"
+                                >
+                                    PDF Register supports up to 12 columns. Choose fewer columns or use Excel or CSV.
+                                </p>
+                            </div>
 
                             <button
                                 type="submit"
-                                :disabled="selected.length === 0"
+                                :disabled="
+                                    selected.length === 0
+                                    || (format === 'pdf' && selected.length > 12)
+                                "
                                 class="inline-flex justify-center rounded-lg px-5 py-3 text-sm font-semibold"
                                 :class="
                                     selected.length === 0
+                                    || (format === 'pdf' && selected.length > 12)
                                         ? 'cursor-not-allowed bg-gray-300 text-gray-600'
                                         : 'bg-indigo-600 text-white hover:bg-indigo-700'
                                 "

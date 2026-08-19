@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\ConsentSession;
 use App\Models\ConsentTemplate;
 use App\Models\SigningStation;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -289,7 +291,7 @@ class ConsentDataExportController extends Controller
      */
     public function download(
         Request $request
-    ): BinaryFileResponse|StreamedResponse {
+    ): BinaryFileResponse|StreamedResponse|Response {
         $validated = $request->validate([
             'columns' => [
                 'required',
@@ -307,7 +309,7 @@ class ConsentDataExportController extends Controller
             'format' => [
                 'required',
                 'string',
-                'in:xlsx,csv',
+                'in:xlsx,csv,pdf',
             ],
 
             'search' => [
@@ -585,6 +587,26 @@ class ConsentDataExportController extends Controller
                 sort: $sort,
                 singleTemplate:
                     $singleTemplate
+            );
+        }
+
+        if ($format === 'pdf') {
+            if ($selectedColumns->count() > 12) {
+                throw ValidationException::withMessages([
+                    'columns' =>
+                        'PDF Register supports up to 12 selected columns. Choose fewer columns or use Excel or CSV.',
+                ]);
+            }
+
+            return $this->pdfRegisterDownload(
+                query: $exportQuery,
+                columns: $selectedColumns,
+                filename: $filename,
+                sort: $sort,
+                singleTemplate:
+                    $singleTemplate,
+                template:
+                    $template
             );
         }
 
@@ -951,6 +973,152 @@ class ConsentDataExportController extends Controller
                         $signingStationId
                     )
             );
+    }
+
+    /**
+     * Generate a printable register of selected consent record data.
+     */
+    private function pdfRegisterDownload(
+        Builder $query,
+        Collection $columns,
+        string $filename,
+        string $sort,
+        bool $singleTemplate,
+        ?ConsentTemplate $template
+    ): Response {
+        $headings =
+            $columns
+                ->map(
+                    fn (
+                        array $column
+                    ): string =>
+                        $this->columnHeading(
+                            column:
+                                $column,
+
+                            singleTemplate:
+                                $singleTemplate
+                        )
+                )
+                ->values();
+
+        $rows =
+            collect();
+
+        $this->forEachExportRecord(
+            query:
+                $query,
+
+            sort:
+                $sort,
+
+            callback:
+                function (
+                    ConsentSession $session
+                ) use (
+                    $columns,
+                    $rows
+                ): void {
+                    $rows->push(
+                        $columns
+                            ->map(
+                                fn (
+                                    array $column
+                                ): string =>
+                                    $this->columnValue(
+                                        consentSession:
+                                            $session,
+
+                                        column:
+                                            $column
+                                    )
+                            )
+                            ->values()
+                            ->all()
+                    );
+                }
+        );
+
+        $tableFontSize =
+            match (true) {
+                $columns->count() <= 4 =>
+                    9,
+
+                $columns->count() <= 7 =>
+                    8,
+
+                $columns->count() <= 10 =>
+                    7,
+
+                default =>
+                    6,
+            };
+
+        $title =
+            $template === null
+                ? 'Consent Records'
+                : $template->title;
+
+        $pdf =
+            Pdf::loadView(
+                'pdfs.consent-register',
+                [
+                    'title' =>
+                        $title,
+
+                    'headings' =>
+                        $headings,
+
+                    'rows' =>
+                        $rows,
+
+                    'recordCount' =>
+                        $rows->count(),
+
+                    'generatedAt' =>
+                        now(),
+
+                    'tableFontSize' =>
+                        $tableFontSize,
+                ]
+            )
+                ->setPaper(
+                    'a4',
+                    'landscape'
+                );
+
+        $pdf->render();
+
+        $dompdf =
+            $pdf->getDomPDF();
+
+        $canvas =
+            $dompdf->getCanvas();
+
+        $font =
+            $dompdf
+                ->getFontMetrics()
+                ->getFont(
+                    'DejaVu Sans',
+                    'normal'
+                );
+
+        $canvas->page_text(
+            $canvas->get_width() - 105,
+            $canvas->get_height() - 20,
+            'Page {PAGE_NUM} of {PAGE_COUNT}',
+            $font,
+            7,
+            [
+                0.35,
+                0.35,
+                0.35,
+            ]
+        );
+
+        return $pdf->download(
+            $filename
+        );
     }
 
     /**
