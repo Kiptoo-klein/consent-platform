@@ -174,7 +174,7 @@
                         @endunless
                     </div>
                 @else
-                    <div class="overflow-x-auto md:overflow-visible">
+                    <div class="overflow-x-auto">
                         <table class="min-w-full">
                             <thead class="border-b bg-gray-50">
                                 <tr>
@@ -297,6 +297,7 @@
                                             <div
                                                 x-data="{ open: false }"
                                                 class="flex min-w-[15rem] items-center justify-center gap-2"
+                                                x-bind:class="{ 'pb-64': open }"
                                             >
                                                 @if ($consentTemplate->status === 'archived')
                                                     <form
@@ -380,9 +381,7 @@
                                                     <div
                                                         x-show="open"
                                                         x-cloak
-                                                        class="absolute right-0 z-20 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg {{ $loop->last && ! $loop->first
-    ? 'bottom-full mb-2'
-    : 'top-full mt-2' }}"
+                                                        class="absolute right-0 top-full z-20 mt-2 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
                                                     >
                                                         <a
                                                             href="{{ route('consent-templates.preview', $consentTemplate) }}"

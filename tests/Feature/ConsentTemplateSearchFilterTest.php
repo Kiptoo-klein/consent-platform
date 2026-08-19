@@ -309,15 +309,7 @@ class ConsentTemplateSearchFilterTest extends TestCase
                 false
             )
             ->assertSee(
-                'overflow-x-auto md:overflow-visible',
-                false
-            )
-            ->assertSee(
-                'top-full mt-2',
-                false
-            )
-            ->assertSee(
-                'bottom-full mb-2',
+                'overflow-x-auto',
                 false
             )
             ->assertDontSeeText('Usage')
