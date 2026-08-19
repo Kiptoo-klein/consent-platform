@@ -343,15 +343,24 @@
                                 Paragraph
                             </option>
 
-                            <option value="email">
+                            <option
+                                value="email"
+                                :hidden="field.type !== 'email'"
+                            >
                                 Email
                             </option>
 
-                            <option value="phone">
+                            <option
+                                value="phone"
+                                :hidden="field.type !== 'phone'"
+                            >
                                 Phone number
                             </option>
 
-                            <option value="number">
+                            <option
+                                value="number"
+                                :hidden="field.type !== 'number'"
+                            >
                                 Number
                             </option>
 

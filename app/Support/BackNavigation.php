@@ -28,6 +28,9 @@ final class BackNavigation
                 $request->user()->organization_id;
         }
 
+        $parameters['selfTest'] =
+            $request->boolean('self_test');
+
         return self::forRoute(
             routeName: $routeName,
             parameters: $parameters,
@@ -61,6 +64,14 @@ final class BackNavigation
             'signingStation'
         );
 
+        $consentTemplate = self::parameter(
+            $parameters,
+            'consentTemplate'
+        );
+
+        $selfTest =
+            (bool) ($parameters['selfTest'] ?? false);
+
         return match (true) {
             /* Consent records. */
             $routeName === 'consent-sessions.audit' =>
@@ -77,10 +88,18 @@ final class BackNavigation
                     $fallback
                 ),
 
-            $routeName === 'consent-sessions.create' =>
+            $routeName === 'consent-sessions.create'
+            && $selfTest =>
                 self::to(
                     'consent-sessions.select-template',
-                    [],
+                    ['self_test' => 1],
+                    $fallback
+                ),
+
+            $routeName === 'consent-sessions.create' =>
+                self::to(
+                    'consent-templates.published',
+                    ['consentTemplate' => $consentTemplate],
                     $fallback
                 ),
 
@@ -98,6 +117,13 @@ final class BackNavigation
                 self::to(
                     'consent-sessions.index',
                     [],
+                    $fallback
+                ),
+
+            $routeName === 'consent-campaigns.create' =>
+                self::to(
+                    'consent-templates.published',
+                    ['consentTemplate' => $consentTemplate],
                     $fallback
                 ),
 

@@ -93,6 +93,34 @@ class ConsentTemplateStyledConfirmationTest extends TestCase
         );
     }
 
+    public function test_more_dropdown_owns_outside_click_instead_of_the_action_button(): void
+    {
+        $view = file_get_contents(
+            resource_path(
+                'views/consent-templates/'
+                .'manage.blade.php'
+            )
+        );
+
+        $this->assertIsString($view);
+
+        $this->assertMatchesRegularExpression(
+            '/<div\s+'
+            .'class="relative w-24"\s+'
+            .'x-on:click\.outside="open = false"\s+'
+            .'x-on:keydown\.escape\.window="open = false"\s*>/s',
+            $view
+        );
+
+        $this->assertDoesNotMatchRegularExpression(
+            '/<button\s+'
+            .'type="button"\s+'
+            .'x-on:click="open = ! open"\s+'
+            .'x-on:click\.outside="open = false"/s',
+            $view
+        );
+    }
+
     public function test_preview_publish_uses_the_explicit_styled_modal(): void
     {
         $view = file_get_contents(

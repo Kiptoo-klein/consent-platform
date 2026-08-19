@@ -63,6 +63,50 @@ class BackNavigationResolverTest extends TestCase
         );
     }
 
+    public function test_consent_creation_routes_return_to_the_selected_published_consent(): void
+    {
+        $fallback = route('dashboard');
+
+        $this->assertSame(
+            route(
+                'consent-templates.published',
+                ['consentTemplate' => 22]
+            ),
+            BackNavigation::forRoute(
+                'consent-sessions.create',
+                ['consentTemplate' => 22],
+                $fallback
+            )
+        );
+
+        $this->assertSame(
+            route(
+                'consent-templates.published',
+                ['consentTemplate' => 22]
+            ),
+            BackNavigation::forRoute(
+                'consent-campaigns.create',
+                ['consentTemplate' => 22],
+                $fallback
+            )
+        );
+
+        $this->assertSame(
+            route(
+                'consent-sessions.select-template',
+                ['self_test' => 1]
+            ),
+            BackNavigation::forRoute(
+                'consent-sessions.create',
+                [
+                    'consentTemplate' => 22,
+                    'selfTest' => true,
+                ],
+                $fallback
+            )
+        );
+    }
+
     public function test_organization_settings_routes_use_settings_hierarchy(): void
     {
         $fallback = route('dashboard');

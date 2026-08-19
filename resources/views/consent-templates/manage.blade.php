@@ -347,12 +347,14 @@
                                                     </a>
                                                 @endif
 
-                                                <div class="relative w-24">
+                                                <div
+                                                    class="relative w-24"
+                                                    x-on:click.outside="open = false"
+                                                    x-on:keydown.escape.window="open = false"
+                                                >
                                                     <button
                                                         type="button"
                                                         x-on:click="open = ! open"
-                                                        x-on:click.outside="open = false"
-                                                        x-on:keydown.escape.window="open = false"
                                                         class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                                                         aria-haspopup="true"
                                                         x-bind:aria-expanded="open"

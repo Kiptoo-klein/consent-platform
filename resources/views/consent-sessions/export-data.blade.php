@@ -15,7 +15,7 @@
                 href="{{ route('consent-sessions.index', $scopeParameters) }}"
                 class="inline-flex justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-                Back to Consent Records
+                Change filters
             </a>
         </div>
     </x-slot>
@@ -42,14 +42,21 @@
                         {{ $matchingCount === 1 ? 'matching record' : 'matching records' }}
                     </p>
 
-                    @if ($selectedTemplate)
-                        <p class="mt-3 text-sm text-gray-700">
-                            Consent:
+                    <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                        <p class="text-sm text-gray-700">
+                            <span class="font-medium">
+                                Consent:
+                            </span>
+
                             <span class="font-semibold">
-                                {{ $selectedTemplate->title }}
+                                {{ $selectedTemplate?->title ?? 'All matching consents' }}
                             </span>
                         </p>
-                    @endif
+
+                        <p class="mt-1 text-xs text-gray-500">
+                            Change the consent, status, dates or other filters from Consent Records.
+                        </p>
+                    </div>
                 </div>
             </section>
 
@@ -256,8 +263,18 @@
                                         >
 
                                         <span>
-                                            <span class="block font-medium text-gray-900">
-                                                Excel
+                                            <span class="flex items-center justify-between gap-3">
+                                                <span class="font-semibold text-gray-900">
+                                                    Excel
+                                                </span>
+
+                                                <span
+                                                    x-show="format === 'xlsx'"
+                                                    x-cloak
+                                                    class="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white"
+                                                >
+                                                    Selected
+                                                </span>
                                             </span>
 
                                             <span class="mt-1 block text-sm text-gray-500">
@@ -276,8 +293,18 @@
                                         >
 
                                         <span>
-                                            <span class="block font-medium text-gray-900">
-                                                CSV
+                                            <span class="flex items-center justify-between gap-3">
+                                                <span class="font-semibold text-gray-900">
+                                                    CSV
+                                                </span>
+
+                                                <span
+                                                    x-show="format === 'csv'"
+                                                    x-cloak
+                                                    class="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white"
+                                                >
+                                                    Selected
+                                                </span>
                                             </span>
 
                                             <span class="mt-1 block text-sm text-gray-500">
@@ -296,8 +323,18 @@
                                         >
 
                                         <span>
-                                            <span class="block font-medium text-gray-900">
-                                                PDF Register
+                                            <span class="flex items-center justify-between gap-3">
+                                                <span class="font-semibold text-gray-900">
+                                                    PDF Register
+                                                </span>
+
+                                                <span
+                                                    x-show="format === 'pdf'"
+                                                    x-cloak
+                                                    class="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white"
+                                                >
+                                                    Selected
+                                                </span>
                                             </span>
 
                                             <span class="mt-1 block text-sm text-gray-500">
