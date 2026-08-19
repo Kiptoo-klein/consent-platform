@@ -14,6 +14,11 @@
         content="{{ csrf_token() }}"
     >
 
+    <meta
+        name="robots"
+        content="noindex, nofollow"
+    >
+
     <title>
         Reset Password | {{ config('app.name', 'Consent Platform') }}
     </title>

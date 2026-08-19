@@ -12,6 +12,11 @@
         content="{{ csrf_token() }}"
     >
 
+    <meta
+        name="robots"
+        content="noindex, nofollow"
+    >
+
     <title>Sign In | {{ config('app.name', 'Consent Platform') }}</title>
 
     <link

@@ -1,2 +1,4 @@
 User-agent: *
 Disallow:
+
+Sitemap: https://econsent.site/sitemap.xml

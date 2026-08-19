@@ -4,12 +4,100 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>{{ $platformBrand['platform_name'] ?? config('ui-brand.name', 'eConsent') }}</title>
+    @php
+        $seoName =
+            $platformBrand['platform_name']
+            ?? config('ui-brand.name', 'eConsent');
+
+        $seoTitle =
+            $seoName
+            .' | Digital Consent Management Software';
+
+        $seoDescription =
+            'Create, send, sign and securely manage digital consent forms, '
+            .'electronic signatures, signing stations and consent records '
+            .'with '.$seoName.'.';
+
+        $seoCanonicalUrl = 'https://econsent.site/';
+
+        $seoStructuredData = [
+            '@context' => 'https://schema.org',
+            '@graph' => [
+                [
+                    '@type' => 'Organization',
+                    '@id' => $seoCanonicalUrl.'#organization',
+                    'name' => $seoName,
+                    'url' => $seoCanonicalUrl,
+                ],
+                [
+                    '@type' => 'WebSite',
+                    '@id' => $seoCanonicalUrl.'#website',
+                    'url' => $seoCanonicalUrl,
+                    'name' => $seoName,
+                    'description' => $seoDescription,
+                    'publisher' => [
+                        '@id' => $seoCanonicalUrl.'#organization',
+                    ],
+                ],
+            ],
+        ];
+    @endphp
+
+    <title>{{ $seoTitle }}</title>
 
     <meta
         name="description"
-        content="{{ $platformBrand['description'] ?? config('ui-brand.description') }}"
+        content="{{ $seoDescription }}"
     >
+
+    <link
+        rel="canonical"
+        href="{{ $seoCanonicalUrl }}"
+    >
+
+    <meta
+        property="og:type"
+        content="website"
+    >
+    <meta
+        property="og:site_name"
+        content="{{ $seoName }}"
+    >
+    <meta
+        property="og:title"
+        content="{{ $seoTitle }}"
+    >
+    <meta
+        property="og:description"
+        content="{{ $seoDescription }}"
+    >
+    <meta
+        property="og:url"
+        content="{{ $seoCanonicalUrl }}"
+    >
+
+    <meta
+        name="twitter:card"
+        content="summary"
+    >
+    <meta
+        name="twitter:title"
+        content="{{ $seoTitle }}"
+    >
+    <meta
+        name="twitter:description"
+        content="{{ $seoDescription }}"
+    >
+
+    <script type="application/ld+json">{!! json_encode(
+        $seoStructuredData,
+        JSON_UNESCAPED_SLASHES
+        | JSON_UNESCAPED_UNICODE
+        | JSON_HEX_TAG
+        | JSON_HEX_AMP
+        | JSON_HEX_APOS
+        | JSON_HEX_QUOT
+    ) !!}</script>
 
     <link rel="icon" type="image/svg+xml" href="{{ $platformBrand['favicon_url'] ?? asset('favicon.svg') }}">
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -75,14 +163,14 @@
                     <span class="ec-kicker">Professional digital consent</span>
 
                     <h1>
-                        Consent management that feels
+                        Digital consent management that feels
                         <span>clear, secure and human.</span>
                     </h1>
 
                     <p>
-                        Create, collect, sign and securely manage consent records
-                        from one professional platform built for organizations
-                        that value trust and accountability.
+                        Create, send, sign and securely manage digital consent
+                        forms and records from one professional platform built
+                        for organizations that value trust and accountability.
                     </p>
 
                     <div class="ec-hero-actions">
