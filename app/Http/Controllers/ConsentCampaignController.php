@@ -127,16 +127,6 @@ class ConsentCampaignController extends Controller
                 ->whereNotNull(
                     'active_version_id'
                 )
-                ->whereIn(
-                    'usage_type',
-                    [
-                        ConsentTemplate::
-                            USAGE_INDIVIDUAL,
-
-                        ConsentTemplate::
-                            USAGE_BOTH,
-                    ]
-                )
                 ->with([
                     'activeVersion',
                 ])

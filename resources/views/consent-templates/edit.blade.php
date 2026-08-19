@@ -21,10 +21,6 @@
             ?? ''
     );
 
-    $savedUsageTypes = old(
-        'usage_types',
-        $consentTemplate->usageSelections()
-    );
 @endphp
 
 <x-app-layout>
@@ -146,85 +142,6 @@
                             </p>
                         @enderror
 
-                    </div>
-
-                    <!-- Template Usage -->
-                    <div class="mb-8 rounded-xl border border-indigo-200 bg-indigo-50 p-5">
-                        <div>
-                            <h2 class="text-lg font-semibold text-indigo-950">
-                                Where will this template be used?
-                            </h2>
-
-                            <p class="mt-1 text-sm text-indigo-800">
-                                Select one or both workflows. Existing templates remain available in both workflows unless changed.
-                            </p>
-                        </div>
-
-                        <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                            <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-indigo-200 bg-white p-4 transition hover:border-indigo-400">
-                                <input
-                                    type="checkbox"
-                                    name="usage_types[]"
-                                    value="{{ \App\Models\ConsentTemplate::USAGE_INDIVIDUAL }}"
-                                    @checked(
-                                        in_array(
-                                            \App\Models\ConsentTemplate::USAGE_INDIVIDUAL,
-                                            $savedUsageTypes,
-                                            true
-                                        )
-                                    )
-                                    class="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                >
-
-                                <span>
-                                    <span class="block font-semibold text-gray-900">
-                                        Individual consent
-                                    </span>
-
-                                    <span class="mt-1 block text-sm leading-5 text-gray-600">
-                                        Organization users create a secure consent link for one named signer.
-                                    </span>
-                                </span>
-                            </label>
-
-                            <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-indigo-200 bg-white p-4 transition hover:border-indigo-400">
-                                <input
-                                    type="checkbox"
-                                    name="usage_types[]"
-                                    value="{{ \App\Models\ConsentTemplate::USAGE_SIGNING_STATION }}"
-                                    @checked(
-                                        in_array(
-                                            \App\Models\ConsentTemplate::USAGE_SIGNING_STATION,
-                                            $savedUsageTypes,
-                                            true
-                                        )
-                                    )
-                                    class="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                >
-
-                                <span>
-                                    <span class="block font-semibold text-gray-900">
-                                        Public signing station
-                                    </span>
-
-                                    <span class="mt-1 block text-sm leading-5 text-gray-600">
-                                        The template can be selected when creating a kiosk or public signing station.
-                                    </span>
-                                </span>
-                            </label>
-                        </div>
-
-                        @error('usage_types')
-                            <p class="mt-3 text-sm font-medium text-red-600">
-                                {{ $message }}
-                            </p>
-                        @enderror
-
-                        @error('usage_types.*')
-                            <p class="mt-3 text-sm font-medium text-red-600">
-                                {{ $message }}
-                            </p>
-                        @enderror
                     </div>
 
                     <x-consent-template-docx-import />

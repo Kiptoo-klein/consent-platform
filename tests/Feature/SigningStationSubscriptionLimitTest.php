@@ -264,6 +264,56 @@ class SigningStationSubscriptionLimitTest extends TestCase
         $this->assertTrue($createdStation->active);
     }
 
+    public function test_legacy_individual_template_can_be_used_for_signing_station(): void
+    {
+        $this->template->update([
+            'usage_type' =>
+                ConsentTemplate::USAGE_INDIVIDUAL,
+        ]);
+
+        $response = $this->post(
+            route(
+                'signing-stations.store'
+            ),
+            [
+                'name' =>
+                    'Universal Consent Kiosk',
+
+                'consent_template_id' =>
+                    $this->template->id,
+
+                'auto_reset_seconds' =>
+                    3,
+            ]
+        );
+
+        $station =
+            SigningStation::query()
+                ->where(
+                    'organization_id',
+                    $this->organization->id
+                )
+                ->where(
+                    'name',
+                    'Universal Consent Kiosk'
+                )
+                ->firstOrFail();
+
+        $response
+            ->assertSessionDoesntHaveErrors()
+            ->assertRedirect(
+                route(
+                    'signing-stations.show',
+                    $station
+                )
+            );
+
+        $this->assertSame(
+            $this->template->id,
+            $station->consent_template_id
+        );
+    }
+
     private function createPublishedTemplate(
         Organization $organization,
         User $publisher,

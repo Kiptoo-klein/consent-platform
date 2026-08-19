@@ -62,24 +62,38 @@ class BulkConsentCampaignTest extends TestCase
         );
     }
 
-    public function test_template_selection_offers_single_and_bulk_consent_options(): void
+    public function test_new_consent_redirects_to_generic_builder_and_bulk_flow_remains_available(): void
     {
-        $chooserResponse = $this->get(
-            route(
-                'consent-templates.new'
+        $this
+            ->get(
+                route(
+                    'consent-templates.new'
+                )
             )
-        );
+            ->assertRedirect(
+                route(
+                    'consent-templates.create'
+                )
+            );
 
-        $chooserResponse
+        $this
+            ->get(
+                route(
+                    'consent-templates.create'
+                )
+            )
             ->assertOk()
             ->assertSeeText(
-                'New Bulk Consent'
+                'New Consent'
             )
-            ->assertSee(
-                route(
-                    'consent-campaigns.select-template'
-                ),
-                false
+            ->assertDontSeeText(
+                'New Individual Consent'
+            )
+            ->assertDontSeeText(
+                'New Public Consent'
+            )
+            ->assertDontSeeText(
+                'Selected workflow'
             );
 
         $this->assertSame(
@@ -315,6 +329,41 @@ class BulkConsentCampaignTest extends TestCase
             'consent_campaigns',
             0
         );
+    }
+
+    public function test_legacy_signing_station_template_can_be_used_for_bulk(): void
+    {
+        $this->template->update([
+            'usage_type' =>
+                ConsentTemplate::USAGE_SIGNING_STATION,
+        ]);
+
+        $this
+            ->get(
+                route(
+                    'consent-campaigns.select-template'
+                )
+            )
+            ->assertOk()
+            ->assertSeeText(
+                'Staff NDA'
+            )
+            ->assertSee(
+                route(
+                    'consent-campaigns.create',
+                    $this->template
+                ),
+                false
+            );
+
+        $this
+            ->get(
+                route(
+                    'consent-campaigns.create',
+                    $this->template
+                )
+            )
+            ->assertOk();
     }
 
     public function test_campaign_creates_and_emails_one_independent_record_per_recipient(): void
@@ -632,10 +681,6 @@ class BulkConsentCampaignTest extends TestCase
                 route(
                     'consent-templates.create',
                     [
-                        'type' =>
-                            ConsentTemplate::
-                                USAGE_INDIVIDUAL,
-
                         'return_to' =>
                             'bulk',
                     ]
@@ -655,11 +700,6 @@ class BulkConsentCampaignTest extends TestCase
 
                 'description' =>
                     'Created directly from the bulk flow.',
-
-                'usage_types' => [
-                    ConsentTemplate::
-                        USAGE_INDIVIDUAL,
-                ],
 
                 'content' =>
                     'I consent to the stated terms.',
@@ -697,7 +737,7 @@ class BulkConsentCampaignTest extends TestCase
             );
 
         $this->assertSame(
-            ConsentTemplate::USAGE_INDIVIDUAL,
+            ConsentTemplate::USAGE_BOTH,
             $createdTemplate->usage_type
         );
 

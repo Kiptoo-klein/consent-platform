@@ -64,13 +64,12 @@
                         </h2>
 
                         <p class="mt-2 text-sm leading-6 text-gray-600">
-                            Select one of the published individual or combined-use templates below.
+                            Select any published consent below.
                         </p>
                     </a>
 
                     <a
                         href="{{ route('consent-templates.create', [
-                            'type' => \App\Models\ConsentTemplate::USAGE_INDIVIDUAL,
                             'return_to' => 'bulk',
                         ]) }}"
                         class="rounded-xl border border-indigo-200 bg-indigo-50 p-5 transition hover:border-indigo-400 hover:bg-indigo-100"
@@ -86,7 +85,6 @@
 
                     <a
                         href="{{ route('consent-templates.create', [
-                            'type' => \App\Models\ConsentTemplate::USAGE_INDIVIDUAL,
                             'return_to' => 'bulk',
                         ]).'#word-import' }}"
                         class="rounded-xl border border-sky-200 bg-sky-50 p-5 transition hover:border-sky-400 hover:bg-sky-100"
@@ -123,16 +121,15 @@
                 @if ($consentTemplates->isEmpty())
                     <div class="px-6 py-12 text-center">
                         <h2 class="text-lg font-bold text-gray-950">
-                            No published individual templates are available
+                            No published consents are available
                         </h2>
 
                         <p class="mx-auto mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-                            Publish an individual or combined-use template before starting a bulk consent campaign.
+                            Publish a consent before sending it to multiple people.
                         </p>
 
                         <a
                             href="{{ route('consent-templates.create', [
-                                'type' => \App\Models\ConsentTemplate::USAGE_INDIVIDUAL,
                                 'return_to' => 'bulk',
                             ]) }}"
                             class="mt-6 inline-flex rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"

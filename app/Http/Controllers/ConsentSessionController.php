@@ -487,10 +487,6 @@ class ConsentSessionController extends Controller
             )
             ->where('status', 'published')
             ->whereNotNull('active_version_id')
-            ->whereIn('usage_type', [
-                ConsentTemplate::USAGE_INDIVIDUAL,
-                ConsentTemplate::USAGE_BOTH,
-            ])
             ->with([
                 'activeVersion',
             ])

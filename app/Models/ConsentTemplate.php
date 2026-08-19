@@ -83,14 +83,7 @@ class ConsentTemplate extends Model
      */
     public function supportsIndividualConsent(): bool
     {
-        return in_array(
-            $this->usage_type ?? self::USAGE_BOTH,
-            [
-                self::USAGE_INDIVIDUAL,
-                self::USAGE_BOTH,
-            ],
-            true
-        );
+        return true;
     }
 
     /**
@@ -98,14 +91,7 @@ class ConsentTemplate extends Model
      */
     public function supportsSigningStation(): bool
     {
-        return in_array(
-            $this->usage_type ?? self::USAGE_BOTH,
-            [
-                self::USAGE_SIGNING_STATION,
-                self::USAGE_BOTH,
-            ],
-            true
-        );
+        return true;
     }
 
     /**

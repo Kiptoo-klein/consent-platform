@@ -108,10 +108,6 @@ class SigningStationController extends Controller
             ->where('organization_id', $organizationId)
             ->where('status', 'published')
             ->whereNotNull('active_version_id')
-            ->whereIn('usage_type', [
-                ConsentTemplate::USAGE_SIGNING_STATION,
-                ConsentTemplate::USAGE_BOTH,
-            ])
             ->orderBy('title')
             ->get();
 
@@ -293,10 +289,6 @@ class SigningStationController extends Controller
             ->where('organization_id', $organizationId)
             ->where('status', 'published')
             ->whereNotNull('active_version_id')
-            ->whereIn('usage_type', [
-                ConsentTemplate::USAGE_SIGNING_STATION,
-                ConsentTemplate::USAGE_BOTH,
-            ])
             ->orderBy('title')
             ->get();
 

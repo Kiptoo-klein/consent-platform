@@ -364,6 +364,36 @@ class EvaluationSelfTestConsentTest extends TestCase
         );
     }
 
+    public function test_legacy_signing_station_template_can_be_used_for_one_person(): void
+    {
+        $this->starter->update([
+            'usage_type' =>
+                'signing_station',
+        ]);
+
+        $this
+            ->actingAs(
+                $this->administrator
+            )
+            ->get(
+                route(
+                    'consent-sessions.create',
+                    [
+                        'consentTemplate' =>
+                            $this->starter,
+
+                        'self_test' =>
+                            1,
+                    ]
+                )
+            )
+            ->assertOk()
+            ->assertSee(
+                'data-evaluation-self-test',
+                false
+            );
+    }
+
     public function test_sixth_self_test_is_blocked_before_record_creation(): void
     {
         Mail::fake();

@@ -8,25 +8,23 @@
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 class="text-xl font-semibold leading-tight text-gray-800">
-                    {{ $selectedUsageType === \App\Models\ConsentTemplate::USAGE_INDIVIDUAL
-                        ? 'New Individual Consent'
-                        : 'New Public Consent' }}
+                    New Consent
                 </h2>
 
                 <p class="mt-1 text-sm text-gray-500">
                     {{ $isBulkCreation
-                        ? 'Create and publish a template, then continue directly to campaign recipients.'
-                        : 'Build the reusable template for this workflow.' }}
+                        ? 'Create and publish a consent, then continue directly to recipients.'
+                        : 'Create one reusable consent and decide how to use it after publishing.' }}
                 </p>
             </div>
 
             <a
                 href="{{ $isBulkCreation
                         ? route('consent-campaigns.select-template')
-                        : route('consent-templates.new') }}"
+                        : route('consent-templates.manage') }}"
                 class="inline-flex justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-                Change Consent Type
+                Back to Templates
             </a>
         </div>
     </x-slot>
@@ -37,12 +35,8 @@
             <div class="bg-white shadow rounded-lg p-8">
 
                 <div class="mb-8">
-                    <p class="text-sm font-bold uppercase tracking-[0.16em] {{ $selectedUsageType === \App\Models\ConsentTemplate::USAGE_INDIVIDUAL
-                        ? 'text-blue-700'
-                        : 'text-purple-700' }}">
-                        {{ $selectedUsageType === \App\Models\ConsentTemplate::USAGE_INDIVIDUAL
-                            ? 'Individual consent template'
-                            : 'Public consent template' }}
+                    <p class="text-sm font-bold uppercase tracking-[0.16em] text-indigo-700">
+                        Consent template
                     </p>
 
                     <h1 class="mt-2 text-3xl font-bold text-gray-950">
@@ -162,62 +156,6 @@
 
                         @error('description')
                             <p class="text-sm text-red-600 mt-2">
-                                {{ $message }}
-                            </p>
-                        @enderror
-                    </div>
-
-                    <!-- Selected Workflow -->
-                    <input
-                        type="hidden"
-                        name="usage_types[]"
-                        value="{{ old('usage_types.0', $selectedUsageType) }}"
-                    >
-
-                    <div class="mb-8 rounded-xl border p-5 {{ $selectedUsageType === \App\Models\ConsentTemplate::USAGE_INDIVIDUAL
-                        ? 'border-blue-200 bg-blue-50'
-                        : 'border-purple-200 bg-purple-50' }}">
-                        <div class="flex items-start justify-between gap-4">
-                            <div>
-                                <p class="text-xs font-bold uppercase tracking-[0.16em] {{ $selectedUsageType === \App\Models\ConsentTemplate::USAGE_INDIVIDUAL
-                                    ? 'text-blue-700'
-                                    : 'text-purple-700' }}">
-                                    Selected workflow
-                                </p>
-
-                                <h2 class="mt-2 text-lg font-bold text-gray-950">
-                                    {{ $selectedUsageType === \App\Models\ConsentTemplate::USAGE_INDIVIDUAL
-                                        ? 'Individual consent'
-                                        : 'Public consent' }}
-                                </h2>
-
-                                <p class="mt-1 text-sm leading-6 text-gray-700">
-                                    @if ($selectedUsageType === \App\Models\ConsentTemplate::USAGE_INDIVIDUAL)
-                                        This template will be available when creating a named signer record. The signer, deadline and sharing options are entered after the template is published.
-                                    @else
-                                        This template will be available when creating a public signing station or shared kiosk.
-                                    @endif
-                                </p>
-                            </div>
-
-                            <a
-                                href="{{ $isBulkCreation
-                        ? route('consent-campaigns.select-template')
-                        : route('consent-templates.new') }}"
-                                class="shrink-0 text-sm font-semibold text-indigo-700 hover:underline"
-                            >
-                                Change
-                            </a>
-                        </div>
-
-                        @error('usage_types')
-                            <p class="mt-3 text-sm font-medium text-red-600">
-                                {{ $message }}
-                            </p>
-                        @enderror
-
-                        @error('usage_types.*')
-                            <p class="mt-3 text-sm font-medium text-red-600">
                                 {{ $message }}
                             </p>
                         @enderror

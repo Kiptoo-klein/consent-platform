@@ -28,9 +28,10 @@ class ConsentTemplateController extends Controller
     /**
      * Display the consent-type chooser before the template builder.
      */
-    public function chooser(): View
+    public function chooser(): RedirectResponse
     {
-        return view('consent-templates.index');
+        return redirect()
+            ->route('consent-templates.create');
     }
 
     /**
@@ -197,33 +198,9 @@ class ConsentTemplateController extends Controller
      */
     public function create(
         Request $request
-    ): View|RedirectResponse {
-        $selectedUsageType =
-            (string) $request->query(
-                'type',
-                ''
-            );
-
-        if (! in_array(
-            $selectedUsageType,
-            [
-                ConsentTemplate::USAGE_INDIVIDUAL,
-                ConsentTemplate::USAGE_SIGNING_STATION,
-            ],
-            true
-        )) {
-            return redirect()
-                ->route('consent-templates.new')
-                ->withErrors([
-                    'template_type' =>
-                        'Choose Individual consent or Public consent before opening the template builder.',
-                ]);
-        }
-
+    ): View {
         $returnTo =
-            $selectedUsageType
-                === ConsentTemplate::USAGE_INDIVIDUAL
-            && $request->query('return_to') === 'bulk'
+            $request->query('return_to') === 'bulk'
                 ? 'bulk'
                 : null;
 
@@ -231,7 +208,7 @@ class ConsentTemplateController extends Controller
             'consent-templates.create',
             [
                 'selectedUsageType' =>
-                    $selectedUsageType,
+                    ConsentTemplate::USAGE_BOTH,
 
                 'returnTo' =>
                     $returnTo,
@@ -303,12 +280,7 @@ class ConsentTemplateController extends Controller
                                     ] ?? null,
 
                                 'usage_type' =>
-                                    $this
-                                        ->templateUsageType(
-                                            $validated[
-                                                'usage_types'
-                                            ]
-                                        ),
+                                    ConsentTemplate::USAGE_BOTH,
 
                                 'template_schema' => [
                                     'builder_version' => 2,
@@ -524,9 +496,8 @@ class ConsentTemplateController extends Controller
             $validated['additional_fields_json']
         );
 
-        $usageType = $this->templateUsageType(
-            $validated['usage_types']
-        );
+        $usageType =
+            ConsentTemplate::USAGE_BOTH;
 
         $preparedContent =
             app(
@@ -886,9 +857,8 @@ class ConsentTemplateController extends Controller
             ],
 
             'usage_types' => [
-                'required',
+                'nullable',
                 'array',
-                'min:1',
             ],
 
             'usage_types.*' => [
@@ -921,14 +891,6 @@ class ConsentTemplateController extends Controller
                 'string',
             ],
         ], [
-            'usage_types.required' =>
-                'Select at least one template workflow.',
-
-            'usage_types.array' =>
-                'Select a valid template workflow.',
-
-            'usage_types.min' =>
-                'Select Individual consent, Public signing station, or both.',
         ]);
     }
 
