@@ -296,11 +296,10 @@
                                         <td class="px-6 py-5">
                                             <div
                                                 x-data="{ open: false }"
-                                                class="min-w-[15rem]"
+                                                class="flex min-w-[15rem] items-center justify-center gap-2"
                                                 x-on:click.outside="open = false"
                                                 x-on:keydown.escape.window="open = false"
                                             >
-                                                <div class="flex items-center justify-center gap-2">
                                                 @if ($consentTemplate->status === 'archived')
                                                     <form
                                                         method="POST"
@@ -353,6 +352,7 @@
                                                 <div class="w-24">
                                                     <button
                                                         type="button"
+                                                        x-ref="button"
                                                         x-on:click="open = ! open"
                                                         class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                                                         aria-haspopup="true"
@@ -375,14 +375,13 @@
                                                             />
                                                         </svg>
                                                     </button>
-                                                </div>
-                                            </div>
 
-                                            <div
-                                                x-show="open"
-                                                x-cloak
-                                                class="ml-auto mt-2 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
-                                            >
+                                                    <div
+                                                        x-show="open"
+                                                        x-cloak
+                                                        x-anchor.fixed.bottom-end="$refs.button"
+                                                        class="z-50 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
+                                                    >
                                                         <a
                                                             href="{{ route('consent-templates.preview', $consentTemplate) }}"
                                                             class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
@@ -514,6 +513,7 @@
                                                             </form>
                                                         @endif
                                                     </div>
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>

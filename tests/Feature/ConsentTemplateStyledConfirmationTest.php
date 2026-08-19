@@ -93,7 +93,7 @@ class ConsentTemplateStyledConfirmationTest extends TestCase
         );
     }
 
-    public function test_more_dropdown_uses_in_flow_menu_without_layout_workarounds(): void
+    public function test_more_dropdown_uses_fixed_anchor_without_table_layout_workarounds(): void
     {
         $view = file_get_contents(
             resource_path(
@@ -102,14 +102,19 @@ class ConsentTemplateStyledConfirmationTest extends TestCase
             )
         );
 
+        $appJs = file_get_contents(
+            resource_path('js/app.js')
+        );
+
         $this->assertIsString($view);
+        $this->assertIsString($appJs);
 
         foreach ([
             'x-data="{ open: false }"',
             'x-on:click.outside="open = false"',
-            'x-on:keydown.escape.window="open = false"',
-            'x-show="open"',
-            'class="ml-auto mt-2 w-64 overflow-hidden',
+            'x-ref="button"',
+            'x-anchor.fixed.bottom-end="$refs.button"',
+            'class="z-50 w-64 overflow-hidden',
         ] as $expected) {
             $this->assertStringContainsString(
                 $expected,
@@ -119,6 +124,7 @@ class ConsentTemplateStyledConfirmationTest extends TestCase
 
         foreach ([
             "'pb-64': open",
+            'ml-auto mt-2 w-64',
             'absolute right-0 top-full',
             '$loop->remaining',
             '$loop->last',
@@ -131,6 +137,22 @@ class ConsentTemplateStyledConfirmationTest extends TestCase
                 $view
             );
         }
+
+        $this->assertStringContainsString(
+            "import anchor from '@alpinejs/anchor';",
+            $appJs
+        );
+
+        $this->assertStringContainsString(
+            'Alpine.plugin(anchor);',
+            $appJs
+        );
+
+        $this->assertDoesNotMatchRegularExpression(
+            '/x-anchor\.fixed\.bottom-end="\$refs\.button"\s+'
+            .'x-on:click\.outside="open = false"/s',
+            $view
+        );
     }
 
     public function test_preview_publish_uses_the_explicit_styled_modal(): void
