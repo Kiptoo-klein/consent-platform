@@ -125,6 +125,7 @@ final class DynamicFormFieldService
             'phone',
             'number',
             'date',
+            'yes_no',
             'checkbox',
             'checkboxes',
             'select',
@@ -330,6 +331,7 @@ final class DynamicFormFieldService
                     $fieldRules[] = 'date';
                     break;
 
+                case 'yes_no':
                 case 'checkbox':
                     $fieldRules[] = 'boolean';
                     break;

@@ -716,7 +716,10 @@
             str_replace('_', ' ', $consentSession->status)
         );
 
-        $formatValue = function ($value) {
+        $formatValue = function (
+            $value,
+            ?string $type = null
+        ) {
             if (is_bool($value)) {
                 return $value ? 'Yes' : 'No';
             }
@@ -735,6 +738,30 @@
 
             if ($value === null || $value === '') {
                 return 'Not provided';
+            }
+
+            if (
+                in_array(
+                    $type,
+                    [
+                        'checkbox',
+                        'yes_no',
+                    ],
+                    true
+                )
+            ) {
+                return in_array(
+                    strtolower((string) $value),
+                    [
+                        '1',
+                        'true',
+                        'yes',
+                        'on',
+                    ],
+                    true
+                )
+                    ? 'Yes'
+                    : 'No';
             }
 
             return (string) $value;
@@ -934,7 +961,10 @@
                     @foreach ($responseEvidence as $evidence)
                         <tr>
                             <td>{{ $evidence['label'] }}</td>
-                            <td>{{ $formatValue($evidence['value']) }}</td>
+                            <td>{{ $formatValue(
+                                $evidence['value'],
+                                $evidence['type'] ?? null
+                            ) }}</td>
                         </tr>
                     @endforeach
                 </tbody>

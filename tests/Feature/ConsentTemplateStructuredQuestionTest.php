@@ -214,6 +214,233 @@ class ConsentTemplateStructuredQuestionTest extends TestCase
         );
     }
 
+    public function test_create_preserves_yes_no_question_type(): void
+    {
+        [$organization, $user] =
+            $this->createOrganizationUser();
+
+        $this
+            ->actingAs($user)
+            ->post(
+                route(
+                    'consent-templates.store'
+                ),
+                [
+                    'title' =>
+                        'Yes No Consent',
+
+                    'description' =>
+                        'Consent with an explicit Yes or No question.',
+
+                    'content' =>
+                        '<p>Please review.</p>',
+
+                    'additional_fields_json' =>
+                        json_encode(
+                            [
+                                [
+                                    'id' =>
+                                        'approved',
+
+                                    'type' =>
+                                        'yes_no',
+
+                                    'label' =>
+                                        'Do you approve?',
+
+                                    'required' =>
+                                        true,
+                                ],
+                            ],
+                            JSON_THROW_ON_ERROR
+                        ),
+                ]
+            )
+            ->assertRedirect(
+                route(
+                    'consent-templates.manage'
+                )
+            );
+
+        $template =
+            ConsentTemplate::query()
+                ->where(
+                    'organization_id',
+                    $organization->id
+                )
+                ->where(
+                    'title',
+                    'Yes No Consent'
+                )
+                ->firstOrFail();
+
+        $this->assertSame(
+            [
+                [
+                    'id' =>
+                        'approved',
+
+                    'type' =>
+                        'yes_no',
+
+                    'label' =>
+                        'Do you approve?',
+
+                    'required' =>
+                        true,
+
+                    'options' =>
+                        [],
+                ],
+            ],
+            $template->template_schema[
+                'additional_fields'
+            ]
+        );
+    }
+
+    public function test_create_and_edit_use_the_structured_question_builder(): void
+    {
+        [$organization, $user] =
+            $this->createOrganizationUser();
+
+        $template =
+            ConsentTemplate::query()->create([
+                'organization_id' =>
+                    $organization->id,
+
+                'title' =>
+                    'Builder Test Consent',
+
+                'description' =>
+                    'Builder test.',
+
+                'usage_type' =>
+                    ConsentTemplate::USAGE_BOTH,
+
+                'template_schema' => [
+                    'builder_version' =>
+                        2,
+
+                    'consent_html' =>
+                        '<p>Builder test.</p>',
+
+                    'consent_text' =>
+                        'Builder test.',
+
+                    'additional_fields' =>
+                        [],
+                ],
+
+                'active_version_id' =>
+                    null,
+
+                'has_unpublished_changes' =>
+                    true,
+
+                'status' =>
+                    'draft',
+            ]);
+
+        foreach ([
+            route(
+                'consent-templates.create'
+            ),
+
+            route(
+                'consent-templates.edit',
+                $template
+            ),
+        ] as $url) {
+            $response =
+                $this
+                    ->actingAs($user)
+                    ->get($url);
+
+            $response
+                ->assertOk()
+                ->assertSeeText(
+                    'Information to collect'
+                )
+                ->assertSeeText(
+                    '+ Add question'
+                )
+                ->assertSeeText(
+                    'Short answer'
+                )
+                ->assertSeeText(
+                    'Paragraph'
+                )
+                ->assertSeeText(
+                    'Email'
+                )
+                ->assertSeeText(
+                    'Phone number'
+                )
+                ->assertSeeText(
+                    'Number'
+                )
+                ->assertSeeText(
+                    'Date'
+                )
+                ->assertSeeText(
+                    'Yes / No'
+                )
+                ->assertSee(
+                    'value="yes_no"',
+                    false
+                )
+                ->assertSeeText(
+                    'Multiple choice'
+                )
+                ->assertSeeText(
+                    'Checkboxes'
+                )
+                ->assertSeeText(
+                    'Dropdown'
+                )
+                ->assertSeeText(
+                    'Move up'
+                )
+                ->assertSeeText(
+                    'Move down'
+                )
+                ->assertSeeText(
+                    'Required'
+                )
+                ->assertSeeText(
+                    'Signing information'
+                )
+                ->assertSeeText(
+                    'Signer name'
+                )
+                ->assertSeeText(
+                    'Signature'
+                )
+                ->assertDontSeeText(
+                    'Additional Fields'
+                )
+                ->assertDontSeeText(
+                    '+ Add Additional Field'
+                )
+                ->assertDontSeeText(
+                    'Standard Signer Information'
+                )
+                ->assertDontSeeText(
+                    'Automatically Added'
+                )
+                ->assertDontSeeText(
+                    'Secure Timestamp'
+                )
+                ->assertDontSeeText(
+                    'Document ID'
+                )
+                ->assertDontSeeText(
+                    'Consent Version'
+                );
+        }
+    }
+
     public function test_public_question_renderers_support_phone_and_checkbox_groups(): void
     {
         foreach ([
@@ -247,7 +474,57 @@ class ConsentTemplateStructuredQuestionTest extends TestCase
                 'name="responses[{{ $fieldKey }}][]"',
                 $view
             );
+
+            $this->assertStringContainsString(
+                "\$fieldType === 'yes_no'",
+                $view
+            );
+
+            $this->assertStringContainsString(
+                "\$fieldType === 'checkbox'",
+                $view
+            );
         }
+    }
+
+    public function test_yes_no_record_and_pdf_display_are_type_aware(): void
+    {
+        $recordView =
+            file_get_contents(
+                resource_path(
+                    'views/consent-sessions/show.blade.php'
+                )
+            );
+
+        $pdfView =
+            file_get_contents(
+                resource_path(
+                    'views/pdfs/consent-record.blade.php'
+                )
+            );
+
+        $this->assertIsString(
+            $recordView
+        );
+
+        $this->assertIsString(
+            $pdfView
+        );
+
+        $this->assertStringContainsString(
+            "'yes_no'",
+            $recordView
+        );
+
+        $this->assertStringContainsString(
+            "'yes_no'",
+            $pdfView
+        );
+
+        $this->assertStringContainsString(
+            "\$evidence['type'] ?? null",
+            $pdfView
+        );
     }
 
     public function test_one_person_submission_preserves_phone_and_checkbox_group_answers(): void
@@ -283,6 +560,9 @@ class ConsentTemplateStructuredQuestionTest extends TestCase
                             'Email',
                             'SMS',
                         ],
+
+                        'confirmed' =>
+                            '1',
                     ],
                 ]
             )
@@ -300,7 +580,7 @@ class ConsentTemplateStructuredQuestionTest extends TestCase
             $consentSession->status
         );
 
-        $this->assertSame(
+        $this->assertEquals(
             [
                 'contact-phone' =>
                     '+254 712 345 678',
@@ -309,6 +589,9 @@ class ConsentTemplateStructuredQuestionTest extends TestCase
                     'Email',
                     'SMS',
                 ],
+
+                'confirmed' =>
+                    '1',
             ],
             $consentSession->responses
         );
@@ -339,6 +622,9 @@ class ConsentTemplateStructuredQuestionTest extends TestCase
             'interests' => [
                 'Email',
             ],
+
+            'confirmed' =>
+                '0',
         ];
 
         $consentSession->update([
@@ -366,6 +652,9 @@ class ConsentTemplateStructuredQuestionTest extends TestCase
                         'interests' => [
                             'Not an option',
                         ],
+
+                        'confirmed' =>
+                            '0',
                     ],
                 ]
             )
@@ -440,6 +729,9 @@ class ConsentTemplateStructuredQuestionTest extends TestCase
                             'interests' => [
                                 'Training',
                             ],
+
+                            'confirmed' =>
+                                '0',
                         ],
                     ]
                 );
@@ -476,6 +768,9 @@ class ConsentTemplateStructuredQuestionTest extends TestCase
                 'interests' => [
                     'Training',
                 ],
+
+                'confirmed' =>
+                    '0',
             ],
             $consentSession->responses
         );
@@ -550,6 +845,22 @@ class ConsentTemplateStructuredQuestionTest extends TestCase
                                 'SMS',
                                 'Training',
                             ],
+                        ],
+                        [
+                            'id' =>
+                                'confirmed',
+
+                            'type' =>
+                                'yes_no',
+
+                            'label' =>
+                                'Do you confirm?',
+
+                            'required' =>
+                                true,
+
+                            'options' =>
+                                [],
                         ],
                     ],
                 ],

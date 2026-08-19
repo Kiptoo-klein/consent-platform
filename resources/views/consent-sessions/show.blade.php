@@ -677,9 +677,20 @@
                                                         : 'No response' }}
                                                 @elseif (is_bool($response['value']))
                                                     {{ $response['value'] ? 'Yes' : 'No' }}
-                                                @elseif ($response['type'] === 'checkbox')
+                                                @elseif (
+                                                    in_array(
+                                                        $response['type'],
+                                                        [
+                                                            'checkbox',
+                                                            'yes_no',
+                                                        ],
+                                                        true
+                                                    )
+                                                )
                                                     {{ in_array(
-                                                        (string) $response['value'],
+                                                        strtolower(
+                                                            (string) $response['value']
+                                                        ),
                                                         ['1', 'true', 'yes', 'on'],
                                                         true
                                                     ) ? 'Yes' : 'No' }}

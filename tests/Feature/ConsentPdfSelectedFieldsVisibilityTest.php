@@ -53,7 +53,12 @@ class ConsentPdfSelectedFieldsVisibilityTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            '{{ $formatValue($evidence[\'value\']) }}',
+            '{{ $formatValue(',
+            $view
+        );
+
+        $this->assertStringContainsString(
+            '$evidence[\'type\'] ?? null',
             $view
         );
     }

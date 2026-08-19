@@ -563,4 +563,95 @@ class DynamicFormFieldServiceTest extends TestCase
     }
 
 
+    public function test_yes_no_fields_are_supported_as_explicit_boolean_answers(): void
+    {
+        $service =
+            app(DynamicFormFieldService::class);
+
+        $fields =
+            $service->normalizeTypedDefinitions([
+                [
+                    'id' =>
+                        'approved',
+
+                    'type' =>
+                        'yes_no',
+
+                    'label' =>
+                        'Do you approve?',
+
+                    'required' =>
+                        true,
+                ],
+            ]);
+
+        $this->assertSame(
+            [
+                [
+                    'id' =>
+                        'approved',
+
+                    'type' =>
+                        'yes_no',
+
+                    'label' =>
+                        'Do you approve?',
+
+                    'required' =>
+                        true,
+
+                    'options' =>
+                        [],
+                ],
+            ],
+            $fields
+        );
+
+        $rules =
+            $service->validationRules(
+                $fields
+            );
+
+        $this->assertSame(
+            [
+                'required',
+                'boolean',
+            ],
+            $rules['responses.approved']
+        );
+
+        $yes = Validator::make([
+            'responses' => [
+                'approved' =>
+                    '1',
+            ],
+        ], $rules);
+
+        $no = Validator::make([
+            'responses' => [
+                'approved' =>
+                    '0',
+            ],
+        ], $rules);
+
+        $invalid = Validator::make([
+            'responses' => [
+                'approved' =>
+                    'maybe',
+            ],
+        ], $rules);
+
+        $this->assertFalse(
+            $yes->fails()
+        );
+
+        $this->assertFalse(
+            $no->fails()
+        );
+
+        $this->assertTrue(
+            $invalid->fails()
+        );
+    }
+
 }

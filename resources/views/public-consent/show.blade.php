@@ -330,6 +330,41 @@
                                     @endforeach
                                 </div>
 
+                            @elseif ($fieldType === 'yes_no')
+                                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                    <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50">
+                                        <input
+                                            id="response_{{ $fieldKey }}"
+                                            type="radio"
+                                            name="responses[{{ $fieldKey }}]"
+                                            value="1"
+                                            @checked((string) $fieldValue === '1')
+                                            @required($isRequired)
+                                            class="border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        >
+
+                                        <span class="font-medium text-gray-700">
+                                            Yes
+                                        </span>
+                                    </label>
+
+                                    <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50">
+                                        <input
+                                            id="response_{{ $fieldKey }}_no"
+                                            type="radio"
+                                            name="responses[{{ $fieldKey }}]"
+                                            value="0"
+                                            @checked((string) $fieldValue === '0')
+                                            @required($isRequired)
+                                            class="border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        >
+
+                                        <span class="font-medium text-gray-700">
+                                            No
+                                        </span>
+                                    </label>
+                                </div>
+
                             @elseif ($fieldType === 'checkbox')
                                 <input
                                     type="hidden"
