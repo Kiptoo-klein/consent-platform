@@ -380,7 +380,9 @@
                                                     <div
                                                         x-show="open"
                                                         x-cloak
-                                                        class="absolute right-0 z-20 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg {{ $loop->remaining < 2 ? 'bottom-full mb-2' : 'mt-2' }}"
+                                                        class="absolute right-0 z-20 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg {{ $loop->last && ! $loop->first
+    ? 'bottom-full mb-2'
+    : 'top-full mt-2' }}"
                                                     >
                                                         <a
                                                             href="{{ route('consent-templates.preview', $consentTemplate) }}"

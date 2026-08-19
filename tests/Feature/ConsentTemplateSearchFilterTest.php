@@ -312,6 +312,14 @@ class ConsentTemplateSearchFilterTest extends TestCase
                 'overflow-x-auto lg:overflow-visible',
                 false
             )
+            ->assertSee(
+                'top-full mt-2',
+                false
+            )
+            ->assertSee(
+                'bottom-full mb-2',
+                false
+            )
             ->assertDontSeeText('Usage')
             ->assertDontSeeText('Live Version')
             ->assertDontSeeText('Working Copy')
