@@ -174,7 +174,7 @@
                         @endunless
                     </div>
                 @else
-                    <div class="overflow-x-auto">
+                    <div class="overflow-x-auto lg:overflow-visible">
                         <table class="min-w-full">
                             <thead class="border-b bg-gray-50">
                                 <tr>
