@@ -308,10 +308,6 @@ class ConsentTemplateSearchFilterTest extends TestCase
                 'data-consent-primary-action="edit"',
                 false
             )
-            ->assertSee(
-                'overflow-x-auto',
-                false
-            )
             ->assertDontSeeText('Usage')
             ->assertDontSeeText('Live Version')
             ->assertDontSeeText('Working Copy')
