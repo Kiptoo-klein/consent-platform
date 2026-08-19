@@ -237,6 +237,111 @@ class ConsentTemplateSearchFilterTest extends TestCase
             ->assertViewHas('search', 'photography');
     }
 
+    public function test_template_library_uses_simplified_consent_status_columns(): void
+    {
+        [$organization, $user] =
+            $this->createOrganizationUser();
+
+        $publishedTemplate =
+            $this->createTemplate(
+                $organization,
+                $user,
+                title: 'Published Consent'
+            );
+
+        $this->publishTemplate(
+            $publishedTemplate,
+            $user
+        );
+
+        $this->createTemplate(
+            $organization,
+            $user,
+            title: 'Draft Consent'
+        );
+
+        $offlineTemplate =
+            $this->createTemplate(
+                $organization,
+                $user,
+                title: 'Offline Consent'
+            );
+
+        $this->publishTemplate(
+            $offlineTemplate,
+            $user
+        );
+
+        $offlineTemplate->update([
+            'active_version_id' => null,
+            'status' => 'draft',
+        ]);
+
+        $this
+            ->actingAs($user)
+            ->get(
+                route('consent-templates.manage')
+            )
+            ->assertOk()
+            ->assertSeeText('Consent')
+            ->assertSeeText('Status')
+            ->assertSeeText('Last Published')
+            ->assertSeeText('Published · Version 1')
+            ->assertSeeText('Draft')
+            ->assertSeeText('Offline · Version 1')
+            ->assertSeeText(
+                'Not available for new signatures'
+            )
+            ->assertSee(
+                route(
+                    'consent-templates.create'
+                ),
+                false
+            )
+            ->assertSeeText('Use Consent')
+            ->assertSeeText('Continue Editing')
+            ->assertSee(
+                'data-consent-primary-action="use"',
+                false
+            )
+            ->assertSee(
+                'data-consent-primary-action="edit"',
+                false
+            )
+            ->assertDontSeeText('Usage')
+            ->assertDontSeeText('Live Version')
+            ->assertDontSeeText('Working Copy')
+            ->assertDontSeeText('Edit Working Copy');
+    }
+
+    public function test_archived_library_offers_restore_without_distribution_actions(): void
+    {
+        [$organization, $user] =
+            $this->createOrganizationUser();
+
+        $this->createTemplate(
+            $organization,
+            $user,
+            title: 'Archived Consent',
+            status: 'archived'
+        );
+
+        $this
+            ->actingAs($user)
+            ->get(
+                route('consent-templates.archived')
+            )
+            ->assertOk()
+            ->assertSeeText('Archived Consent')
+            ->assertSeeText('Restore')
+            ->assertSee(
+                'data-consent-primary-action="restore"',
+                false
+            )
+            ->assertDontSeeText('Use Consent')
+            ->assertDontSeeText('Continue Editing');
+    }
+
     public function test_consent_template_index_opens_with_search_and_filter_defaults(): void
     {
         [$organization, $user] = $this->createOrganizationUser();

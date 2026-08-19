@@ -8,7 +8,7 @@
             <h2 class="text-xl font-semibold leading-tight text-gray-800">
                 {{ $showingArchived
                     ? 'Archived Consent Templates'
-                    : 'Manage Consent Templates' }}
+                    : 'Consent Templates' }}
             </h2>
 
             <div class="flex flex-wrap gap-2">
@@ -68,13 +68,13 @@
                         <p class="mt-2 text-gray-500">
                             {{ $showingArchived
                                 ? 'View consent templates removed from the active template list.'
-                                : 'Prepare changes privately while the current version remains live.' }}
+                                : 'Create, publish, and reuse consents for the way you want to collect signatures.' }}
                         </p>
                     </div>
 
                     @unless ($showingArchived)
                         <a
-                            href="{{ route('consent-templates.new') }}"
+                            href="{{ route('consent-templates.create') }}"
                             class="inline-flex justify-center rounded-lg bg-blue-600 px-5 py-3 text-white hover:bg-blue-700"
                         >
                             + New Consent
@@ -166,7 +166,7 @@
 
                         @unless ($showingArchived)
                             <a
-                                href="{{ route('consent-templates.new') }}"
+                                href="{{ route('consent-templates.create') }}"
                                 class="inline-flex rounded-lg bg-blue-600 px-6 py-3 text-white hover:bg-blue-700"
                             >
                                 Create Your First Consent
@@ -179,19 +179,11 @@
                             <thead class="border-b bg-gray-50">
                                 <tr>
                                     <th class="px-6 py-4 text-left">
-                                        Template
+                                        Consent
                                     </th>
 
                                     <th class="px-6 py-4 text-left">
-                                        Usage
-                                    </th>
-
-                                    <th class="px-6 py-4 text-left">
-                                        Live Version
-                                    </th>
-
-                                    <th class="px-6 py-4 text-left">
-                                        Working Copy
+                                        Status
                                     </th>
 
                                     <th class="px-6 py-4 text-left">
@@ -213,18 +205,22 @@
                                                     $consentTemplate->active_version_id !== null
                                                     && $consentTemplate->status === 'published';
 
+                                                $latestPublishedVersion =
+                                                    $consentTemplate->activeVersion
+                                                    ?? $consentTemplate->latestVersion;
+
                                                 if ($consentTemplate->status === 'archived') {
                                                     $templateStatusLabel = 'Archived';
                                                     $templateStatusColor = '#6B7280';
-                                                } elseif (! $templateIsLive) {
+                                                } elseif ($templateIsLive) {
+                                                    $templateStatusLabel = 'Published';
+                                                    $templateStatusColor = '#16A34A';
+                                                } elseif ($latestPublishedVersion) {
                                                     $templateStatusLabel = 'Offline';
                                                     $templateStatusColor = '#9CA3AF';
-                                                } elseif ($consentTemplate->has_unpublished_changes) {
-                                                    $templateStatusLabel = 'Unpublished changes';
-                                                    $templateStatusColor = '#D97706';
                                                 } else {
-                                                    $templateStatusLabel = 'Live';
-                                                    $templateStatusColor = '#16A34A';
+                                                    $templateStatusLabel = 'Draft';
+                                                    $templateStatusColor = '#D97706';
                                                 }
                                             @endphp
 
@@ -236,11 +232,6 @@
                                                         {{ $consentTemplate->title }}
                                                     </p>
 
-                                                    <span class="text-xs font-semibold text-gray-600">
-                                                        {{ $templateStatusLabel }}
-                                                    </span>
-
-
                                                 </div>
 
                                                 <p class="mt-1 text-sm text-gray-500">
@@ -250,55 +241,53 @@
                                         </td>
 
                                         <td class="px-6 py-5">
-                                            @php
-                                                $usageBadgeClasses = match ($consentTemplate->usage_type ?? \App\Models\ConsentTemplate::USAGE_BOTH) {
-                                                    \App\Models\ConsentTemplate::USAGE_INDIVIDUAL =>
-                                                        'bg-blue-100 text-blue-800',
+                                            <div class="flex flex-col items-start gap-1.5">
+                                                <span
+                                                    class="inline-flex rounded-full px-3 py-1 text-sm font-semibold
+                                                        {{ $templateIsLive
+                                                            ? 'bg-green-100 text-green-800'
+                                                            : ($consentTemplate->status === 'archived'
+                                                                ? 'bg-gray-100 text-gray-700'
+                                                                : ($latestPublishedVersion
+                                                                    ? 'bg-gray-100 text-gray-700'
+                                                                    : 'bg-amber-100 text-amber-800')) }}"
+                                                >
+                                                    {{ $templateStatusLabel }}
 
-                                                    \App\Models\ConsentTemplate::USAGE_SIGNING_STATION =>
-                                                        'bg-purple-100 text-purple-800',
+                                                    @if ($latestPublishedVersion)
+                                                        · Version {{ $latestPublishedVersion->version_number }}
+                                                    @endif
+                                                </span>
 
-                                                    default =>
-                                                        'bg-indigo-100 text-indigo-800',
-                                                };
-                                            @endphp
-
-                                            <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold {{ $usageBadgeClasses }}">
-                                                {{ $consentTemplate->usageLabel() }}
-                                            </span>
-                                        </td>
-
-                                        <td class="px-6 py-5">
-                                            @if ($consentTemplate->activeVersion)
-                                                <span class="inline-flex rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
-                                                    Version {{ $consentTemplate->activeVersion->version_number }} Live
-                                                </span>
-                                            @else
-                                                <span class="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-800">
-                                                    Not Published
-                                                </span>
-                                            @endif
-                                        </td>
-
-                                        <td class="px-6 py-5">
-                                            @if ($consentTemplate->has_unpublished_changes)
-                                                <span class="inline-flex rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
-                                                    Unpublished Changes
-                                                </span>
-                                            @elseif ($consentTemplate->activeVersion)
-                                                <span class="inline-flex rounded-full bg-green-50 px-3 py-1 text-sm font-medium text-green-700">
-                                                    Up to Date
-                                                </span>
-                                            @else
-                                                <span class="text-gray-500">
-                                                    Draft
-                                                </span>
-                                            @endif
+                                                @if (
+                                                    $templateIsLive
+                                                    && $consentTemplate->has_unpublished_changes
+                                                )
+                                                    <span class="text-xs font-semibold text-amber-700">
+                                                        Draft changes not yet published
+                                                    </span>
+                                                @elseif (
+                                                    ! $templateIsLive
+                                                    && $latestPublishedVersion
+                                                    && $consentTemplate->status !== 'archived'
+                                                )
+                                                    <span class="text-xs text-gray-500">
+                                                        Not available for new signatures
+                                                    </span>
+                                                @elseif (
+                                                    ! $latestPublishedVersion
+                                                    && $consentTemplate->status !== 'archived'
+                                                )
+                                                    <span class="text-xs text-gray-500">
+                                                        Not yet published
+                                                    </span>
+                                                @endif
+                                            </div>
                                         </td>
 
                                         <td class="px-6 py-5 text-gray-600">
-                                            @if ($consentTemplate->activeVersion)
-                                                {{ $consentTemplate->activeVersion->published_at?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i') ?? 'Unknown' }}
+                                            @if ($latestPublishedVersion)
+                                                {{ $latestPublishedVersion->published_at?->copy()?->timezone(config('app.display_timezone'))?->format('M d, Y H:i') ?? 'Unknown' }}
                                             @else
                                                 —
                                             @endif
@@ -307,82 +296,58 @@
                                         <td class="px-6 py-5">
                                             <div
                                                 x-data="{ open: false }"
-                                                class="mx-auto grid w-[20rem] grid-cols-3 items-center justify-items-center gap-2"
+                                                class="flex min-w-[15rem] items-center justify-center gap-2"
                                             >
-                                                <a
-                                                    href="{{ route('consent-templates.preview', $consentTemplate) }}"
-                                                    class="col-start-1 inline-flex w-24 items-center justify-center whitespace-nowrap rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
-                                                >
-                                                    Preview
-                                                </a>
-
                                                 @if ($consentTemplate->status === 'archived')
-                                                    <span
-                                                        class="col-start-2 inline-flex w-24 cursor-not-allowed items-center justify-center whitespace-nowrap rounded-lg border border-gray-200 bg-gray-100 px-4 py-2 text-sm font-medium text-gray-400"
-                                                        aria-disabled="true"
-                                                    >
-                                                        Archived
-                                                    </span>
-                                                @elseif (
-                                                    $consentTemplate->has_unpublished_changes
-                                                    || $consentTemplate->active_version_id === null
-                                                )
                                                     <form
                                                         method="POST"
-                                                        action="{{ route('consent-templates.publish', $consentTemplate) }}"
-                                                        class="col-start-2 w-24"
+                                                        action="{{ route('consent-templates.restore', $consentTemplate) }}"
+                                                        class="w-36"
                                                         x-data
-                                                        data-template-publish-confirmation
+                                                        data-template-restore-confirmation
+                                                        data-consent-primary-action="restore"
                                                     >
                                                         @csrf
+                                                        @method('PATCH')
 
                                                         <button
                                                             type="button"
-                                                            class="w-full whitespace-nowrap rounded-lg border border-blue-300 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
-                                                            x-on:click="$dispatch('open-modal', 'publish-template-{{ $consentTemplate->id }}')"
+                                                            class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+                                                            x-on:click="$dispatch(
+                                                                'open-modal',
+                                                                'restore-template-{{ $consentTemplate->id }}'
+                                                            )"
                                                         >
-                                                            Publish
+                                                            Restore
                                                         </button>
 
                                                         <x-action-confirmation-modal
-                                                            name="publish-template-{{ $consentTemplate->id }}"
-                                                            title="Publish consent template?"
-                                                            :message="$consentTemplate->has_unpublished_changes
-                                                                ? 'Publish these changes as a new immutable version?'
-                                                                : 'Make the latest published version live again?'"
-                                                            confirm-text="Publish template"
+                                                            name="restore-template-{{ $consentTemplate->id }}"
+                                                            title="Restore consent template?"
+                                                            message="The template will return to the active templates list. It will remain offline until you publish it again."
+                                                            confirm-text="Restore template"
                                                             variant="success"
                                                         />
                                                     </form>
-                                                @else
-                                                    <form
-                                                        method="POST"
-                                                        action="{{ route('consent-templates.unpublish', $consentTemplate) }}"
-                                                        class="col-start-2 w-24"
-                                                        x-data
-                                                        data-template-unpublish-confirmation
+                                                @elseif ($templateIsLive)
+                                                    <a
+                                                        href="{{ route('consent-templates.published', $consentTemplate) }}"
+                                                        class="inline-flex w-36 items-center justify-center whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                                                        data-consent-primary-action="use"
                                                     >
-                                                        @csrf
-
-                                                        <button
-                                                            type="button"
-                                                            class="w-full whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                                                            x-on:click="$dispatch('open-modal', 'unpublish-template-{{ $consentTemplate->id }}')"
-                                                        >
-                                                            Unpublish
-                                                        </button>
-
-                                                        <x-action-confirmation-modal
-                                                            name="unpublish-template-{{ $consentTemplate->id }}"
-                                                            title="Take this template offline?"
-                                                            message="The template will no longer be available for new consent requests. Its published history will be preserved."
-                                                            confirm-text="Take template offline"
-                                                            variant="warning"
-                                                        />
-                                                    </form>
+                                                        Use Consent
+                                                    </a>
+                                                @else
+                                                    <a
+                                                        href="{{ route('consent-templates.edit', $consentTemplate) }}"
+                                                        class="inline-flex w-36 items-center justify-center whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                                                        data-consent-primary-action="edit"
+                                                    >
+                                                        Continue Editing
+                                                    </a>
                                                 @endif
 
-                                                <div class="relative col-start-3 w-24">
+                                                <div class="relative w-24">
                                                     <button
                                                         type="button"
                                                         x-on:click="open = ! open"
@@ -413,42 +378,103 @@
                                                     <div
                                                         x-show="open"
                                                         x-cloak
-                                                        class="absolute right-0 z-20 w-60 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg {{ $loop->remaining < 2 ? 'bottom-full mb-2' : 'mt-2' }}"
+                                                        class="absolute right-0 z-20 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg {{ $loop->remaining < 2 ? 'bottom-full mb-2' : 'mt-2' }}"
                                                     >
-                                                        @if ($consentTemplate->status !== 'archived')
+                                                        <a
+                                                            href="{{ route('consent-templates.preview', $consentTemplate) }}"
+                                                            class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
+                                                        >
+                                                            Preview
+                                                        </a>
+
+                                                        @if (
+                                                            $consentTemplate->status !== 'archived'
+                                                            && $templateIsLive
+                                                        )
                                                             <a
                                                                 href="{{ route('consent-templates.edit', $consentTemplate) }}"
                                                                 class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
                                                             >
-                                                                {{ $consentTemplate->activeVersion
-                                                                    ? 'Edit Working Copy'
-                                                                    : 'Edit Draft' }}
+                                                                Edit Consent
                                                             </a>
                                                         @endif
 
-                                                        @if ($consentTemplate->activeVersion)
-                                                            <a
-                                                                href="{{ route('consent-templates.published', $consentTemplate) }}"
-                                                                class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
-                                                            >
-                                                                View Published
-                                                            </a>
+                                                        @if ($consentTemplate->status !== 'archived')
+                                                            @if (
+                                                                $consentTemplate->has_unpublished_changes
+                                                                || $consentTemplate->active_version_id === null
+                                                            )
+                                                                <form
+                                                                    method="POST"
+                                                                    action="{{ route('consent-templates.publish', $consentTemplate) }}"
+                                                                    class="border-t border-gray-100"
+                                                                    x-data
+                                                                    data-template-publish-confirmation
+                                                                >
+                                                                    @csrf
 
+                                                                    <button
+                                                                        type="button"
+                                                                        class="block w-full px-4 py-3 text-left text-sm font-medium text-green-700 hover:bg-green-50"
+                                                                        x-on:click="$dispatch(
+                                                                            'open-modal',
+                                                                            'publish-template-{{ $consentTemplate->id }}'
+                                                                        )"
+                                                                    >
+                                                                        {{ $latestPublishedVersion
+                                                                            ? 'Publish'
+                                                                            : 'Publish Consent' }}
+                                                                    </button>
+
+                                                                    <x-action-confirmation-modal
+                                                                        name="publish-template-{{ $consentTemplate->id }}"
+                                                                        title="Publish consent template?"
+                                                                        :message="$consentTemplate->has_unpublished_changes
+                                                                            ? 'Publish these changes as a new immutable version?'
+                                                                            : 'Make the latest published version live again?'"
+                                                                        confirm-text="Publish template"
+                                                                        variant="success"
+                                                                    />
+                                                                </form>
+                                                            @else
+                                                                <form
+                                                                    method="POST"
+                                                                    action="{{ route('consent-templates.unpublish', $consentTemplate) }}"
+                                                                    class="border-t border-gray-100"
+                                                                    x-data
+                                                                    data-template-unpublish-confirmation
+                                                                >
+                                                                    @csrf
+
+                                                                    <button
+                                                                        type="button"
+                                                                        class="block w-full px-4 py-3 text-left text-sm font-medium text-amber-700 hover:bg-amber-50"
+                                                                        x-on:click="$dispatch(
+                                                                            'open-modal',
+                                                                            'unpublish-template-{{ $consentTemplate->id }}'
+                                                                        )"
+                                                                    >
+                                                                        Take Offline
+                                                                    </button>
+
+                                                                    <x-action-confirmation-modal
+                                                                        name="unpublish-template-{{ $consentTemplate->id }}"
+                                                                        title="Take this template offline?"
+                                                                        message="The template will no longer be available for new consent requests. Its published history will be preserved."
+                                                                        confirm-text="Take template offline"
+                                                                        variant="warning"
+                                                                    />
+                                                                </form>
+                                                            @endif
+                                                        @endif
+
+                                                        @if ($latestPublishedVersion)
                                                             <a
                                                                 href="{{ route('consent-templates.history', $consentTemplate) }}"
-                                                                class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
+                                                                class="block border-t border-gray-100 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
                                                             >
                                                                 Version History
                                                             </a>
-                                                        @endif
-
-                                                        @if (
-                                                            $consentTemplate->activeVersion
-                                                            && ! $consentTemplate->has_unpublished_changes
-                                                        )
-                                                            <div class="border-t border-gray-100 px-4 py-3 text-sm text-gray-400">
-                                                                Working copy is up to date
-                                                            </div>
                                                         @endif
 
                                                         @if (
@@ -481,38 +507,6 @@
                                                                     message="The template will be removed from the active templates list. Its versions, history and existing consent records will be preserved."
                                                                     confirm-text="Archive template"
                                                                     variant="danger"
-                                                                />
-                                                            </form>
-                                                        @endif
-
-                                                        @if ($consentTemplate->status === 'archived')
-                                                            <form
-                                                                method="POST"
-                                                                action="{{ route('consent-templates.restore', $consentTemplate) }}"
-                                                                class="border-t border-gray-100"
-                                                                x-data
-                                                                data-template-restore-confirmation
-                                                            >
-                                                                @csrf
-                                                                @method('PATCH')
-
-                                                                <button
-                                                                    type="button"
-                                                                    class="block w-full px-4 py-3 text-left text-sm font-medium text-green-700 hover:bg-green-50"
-                                                                    x-on:click="$dispatch(
-                                                                        'open-modal',
-                                                                        'restore-template-{{ $consentTemplate->id }}'
-                                                                    )"
-                                                                >
-                                                                    Restore
-                                                                </button>
-
-                                                                <x-action-confirmation-modal
-                                                                    name="restore-template-{{ $consentTemplate->id }}"
-                                                                    title="Restore consent template?"
-                                                                    message="The template will return to the active templates list. It will remain offline until you publish it again."
-                                                                    confirm-text="Restore template"
-                                                                    variant="success"
                                                                 />
                                                             </form>
                                                         @endif
