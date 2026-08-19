@@ -491,6 +491,749 @@ class ConsentDataExportTest extends TestCase
             );
     }
 
+    public function test_csv_export_contains_only_selected_columns_and_formats_values(): void
+    {
+        [$organization, $user] =
+            $this->createOrganizationUser(
+                'CSV Export Organization',
+                'csv-export-organization'
+            );
+
+        $template =
+            $this->createPublishedTemplate(
+                organization: $organization,
+                user: $user,
+                title: 'CSV Export Consent',
+                fields: [
+                    [
+                        'id' =>
+                            'mobile-number',
+
+                        'type' =>
+                            'phone',
+
+                        'label' =>
+                            'Mobile number',
+
+                        'required' =>
+                            false,
+
+                        'options' =>
+                            [],
+                    ],
+                    [
+                        'id' =>
+                            'interests',
+
+                        'type' =>
+                            'checkboxes',
+
+                        'label' =>
+                            'Interests',
+
+                        'required' =>
+                            false,
+
+                        'options' => [
+                            'Email',
+                            'Training',
+                            'Events',
+                        ],
+                    ],
+                    [
+                        'id' =>
+                            'confirmed',
+
+                        'type' =>
+                            'yes_no',
+
+                        'label' =>
+                            'Confirmed',
+
+                        'required' =>
+                            false,
+
+                        'options' =>
+                            [],
+                    ],
+                    [
+                        'id' =>
+                            'formula-text',
+
+                        'type' =>
+                            'text',
+
+                        'label' =>
+                            'Formula text',
+
+                        'required' =>
+                            false,
+
+                        'options' =>
+                            [],
+                    ],
+                    [
+                        'id' =>
+                            'department',
+
+                        'type' =>
+                            'text',
+
+                        'label' =>
+                            'Department',
+
+                        'required' =>
+                            false,
+
+                        'options' =>
+                            [],
+                    ],
+                ]
+            );
+
+        $this->createConsentSession(
+            organization: $organization,
+            user: $user,
+            template: $template,
+            signerName: 'Jane Example',
+            signerEmail: 'jane@example.com',
+            responses: [
+                'mobile-number' =>
+                    '0712345678',
+
+                'interests' => [
+                    'Email',
+                    'Training',
+                ],
+
+                'confirmed' =>
+                    true,
+
+                'formula-text' =>
+                    '=1+1',
+
+                'department' =>
+                    'Operations',
+            ]
+        );
+
+        $response =
+            $this
+                ->actingAs($user)
+                ->post(
+                    route(
+                        'consent-sessions.export-data.download'
+                    ),
+                    [
+                        'template_id' =>
+                            $template->id,
+
+                        'format' =>
+                            'csv',
+
+                        'columns' => [
+                            'signer_name',
+                            'signer_email',
+                            'question:'
+                                .$template->id
+                                .':mobile-number',
+                            'question:'
+                                .$template->id
+                                .':interests',
+                            'question:'
+                                .$template->id
+                                .':confirmed',
+                            'question:'
+                                .$template->id
+                                .':formula-text',
+                        ],
+                    ]
+                );
+
+        $response
+            ->assertOk()
+            ->assertDownload();
+
+        $rows =
+            $this->parseCsv(
+                $response->streamedContent()
+            );
+
+        $this->assertCount(
+            2,
+            $rows
+        );
+
+        $this->assertSame(
+            [
+                'Name',
+                'Email',
+                'Mobile number',
+                'Interests',
+                'Confirmed',
+                'Formula text',
+            ],
+            $rows[0]
+        );
+
+        $this->assertSame(
+            [
+                'Jane Example',
+                'jane@example.com',
+                '0712345678',
+                'Email, Training',
+                'Yes',
+                "'=1+1",
+            ],
+            $rows[1]
+        );
+
+        $this->assertNotContains(
+            'Department',
+            $rows[0]
+        );
+
+        $this->assertNotContains(
+            'Operations',
+            $rows[1]
+        );
+    }
+
+    public function test_xlsx_export_preserves_phone_and_formula_like_text_as_literal_strings(): void
+    {
+        [$organization, $user] =
+            $this->createOrganizationUser(
+                'XLSX Export Organization',
+                'xlsx-export-organization'
+            );
+
+        $template =
+            $this->createPublishedTemplate(
+                organization: $organization,
+                user: $user,
+                title: 'XLSX Export Consent',
+                fields: [
+                    [
+                        'id' =>
+                            'mobile-number',
+
+                        'type' =>
+                            'phone',
+
+                        'label' =>
+                            'Mobile number',
+
+                        'required' =>
+                            false,
+
+                        'options' =>
+                            [],
+                    ],
+                    [
+                        'id' =>
+                            'formula-text',
+
+                        'type' =>
+                            'text',
+
+                        'label' =>
+                            'Formula text',
+
+                        'required' =>
+                            false,
+
+                        'options' =>
+                            [],
+                    ],
+                    [
+                        'id' =>
+                            'department',
+
+                        'type' =>
+                            'text',
+
+                        'label' =>
+                            'Department',
+
+                        'required' =>
+                            false,
+
+                        'options' =>
+                            [],
+                    ],
+                ]
+            );
+
+        $this->createConsentSession(
+            organization: $organization,
+            user: $user,
+            template: $template,
+            signerName: 'XLSX Signer',
+            signerEmail: null,
+            responses: [
+                'mobile-number' =>
+                    '0712345678',
+
+                'formula-text' =>
+                    '=1+1',
+
+                'department' =>
+                    'Operations',
+            ]
+        );
+
+        $response =
+            $this
+                ->actingAs($user)
+                ->post(
+                    route(
+                        'consent-sessions.export-data.download'
+                    ),
+                    [
+                        'template_id' =>
+                            $template->id,
+
+                        'format' =>
+                            'xlsx',
+
+                        'columns' => [
+                            'signer_name',
+                            'question:'
+                                .$template->id
+                                .':mobile-number',
+                            'question:'
+                                .$template->id
+                                .':formula-text',
+                        ],
+                    ]
+                );
+
+        $response
+            ->assertOk()
+            ->assertDownload();
+
+        $xlsx =
+            $response->streamedContent();
+
+        $sharedStrings =
+            $this->xlsxArchivePart(
+                content:
+                    $xlsx,
+
+                part:
+                    'xl/sharedStrings.xml'
+            );
+
+        $worksheet =
+            $this->xlsxArchivePart(
+                content:
+                    $xlsx,
+
+                part:
+                    'xl/worksheets/sheet1.xml'
+            );
+
+        $this->assertStringContainsString(
+            'Name',
+            $sharedStrings
+        );
+
+        $this->assertStringContainsString(
+            'Mobile number',
+            $sharedStrings
+        );
+
+        $this->assertStringContainsString(
+            'Formula text',
+            $sharedStrings
+        );
+
+        $this->assertStringContainsString(
+            'XLSX Signer',
+            $sharedStrings
+        );
+
+        $this->assertStringContainsString(
+            '0712345678',
+            $sharedStrings
+        );
+
+        $this->assertStringContainsString(
+            '=1+1',
+            $sharedStrings
+        );
+
+        $this->assertStringNotContainsString(
+            'Department',
+            $sharedStrings
+        );
+
+        $this->assertStringNotContainsString(
+            'Operations',
+            $sharedStrings
+        );
+
+        $this->assertStringNotContainsString(
+            '<f>',
+            $worksheet
+        );
+    }
+
+    public function test_export_rejects_columns_without_data_in_current_scope(): void
+    {
+        [$organization, $user] =
+            $this->createOrganizationUser(
+                'Unavailable Column Organization',
+                'unavailable-column-organization'
+            );
+
+        $template =
+            $this->createPublishedTemplate(
+                organization: $organization,
+                user: $user,
+                title: 'Unavailable Column Consent',
+                fields: [
+                    [
+                        'id' =>
+                            'unused-field',
+
+                        'type' =>
+                            'text',
+
+                        'label' =>
+                            'Unused field',
+
+                        'required' =>
+                            false,
+
+                        'options' =>
+                            [],
+                    ],
+                ]
+            );
+
+        $this->createConsentSession(
+            organization: $organization,
+            user: $user,
+            template: $template,
+            signerName: 'Available Signer',
+            signerEmail: null,
+            responses: [
+                'unused-field' =>
+                    '',
+            ]
+        );
+
+        $returnUrl =
+            route(
+                'consent-sessions.export-data',
+                [
+                    'template_id' =>
+                        $template->id,
+                ]
+            );
+
+        $this
+            ->actingAs($user)
+            ->from($returnUrl)
+            ->post(
+                route(
+                    'consent-sessions.export-data.download'
+                ),
+                [
+                    'template_id' =>
+                        $template->id,
+
+                    'format' =>
+                        'csv',
+
+                    'columns' => [
+                        'question:'
+                            .$template->id
+                            .':unused-field',
+                    ],
+                ]
+            )
+            ->assertRedirect(
+                $returnUrl
+            )
+            ->assertSessionHasErrors(
+                'columns'
+            );
+    }
+
+    public function test_export_uses_the_record_exact_published_version(): void
+    {
+        [$organization, $user] =
+            $this->createOrganizationUser(
+                'Versioned Export Organization',
+                'versioned-export-organization'
+            );
+
+        $template =
+            $this->createPublishedTemplate(
+                organization: $organization,
+                user: $user,
+                title: 'Versioned Consent',
+                fields: [
+                    [
+                        'id' =>
+                            'department',
+
+                        'type' =>
+                            'text',
+
+                        'label' =>
+                            'Department',
+
+                        'required' =>
+                            false,
+
+                        'options' =>
+                            [],
+                    ],
+                ]
+            );
+
+        $this->createConsentSession(
+            organization: $organization,
+            user: $user,
+            template: $template,
+            signerName: 'Historical Signer',
+            signerEmail: null,
+            responses: [
+                'department' =>
+                    'Legacy Operations',
+            ]
+        );
+
+        $newSchema =
+            $template->template_schema;
+
+        $newSchema[
+            'additional_fields'
+        ][0]['label'] =
+            'Division';
+
+        $versionTwo =
+            $template
+                ->versions()
+                ->create([
+                    'version_number' =>
+                        2,
+
+                    'title' =>
+                        $template->title,
+
+                    'description' =>
+                        $template->description,
+
+                    'template_schema' =>
+                        $newSchema,
+
+                    'published_at' =>
+                        now(),
+
+                    'published_by' =>
+                        $user->id,
+                ]);
+
+        $template->update([
+            'template_schema' =>
+                $newSchema,
+
+            'active_version_id' =>
+                $versionTwo->id,
+
+            'status' =>
+                'published',
+
+            'has_unpublished_changes' =>
+                false,
+        ]);
+
+        $response =
+            $this
+                ->actingAs($user)
+                ->post(
+                    route(
+                        'consent-sessions.export-data.download'
+                    ),
+                    [
+                        'template_id' =>
+                            $template->id,
+
+                        'format' =>
+                            'csv',
+
+                        'columns' => [
+                            'question:'
+                                .$template->id
+                                .':department',
+                        ],
+                    ]
+                );
+
+        $response
+            ->assertOk()
+            ->assertDownload();
+
+        $rows =
+            $this->parseCsv(
+                $response->streamedContent()
+            );
+
+        $this->assertSame(
+            [
+                'Department',
+            ],
+            $rows[0]
+        );
+
+        $this->assertSame(
+            [
+                'Legacy Operations',
+            ],
+            $rows[1]
+        );
+
+        $this->assertNotContains(
+            'Division',
+            $rows[0]
+        );
+    }
+
+    /**
+     * Parse a streamed CSV response into rows.
+     */
+    private function parseCsv(
+        string $content
+    ): array {
+        if (
+            str_starts_with(
+                $content,
+                "\xEF\xBB\xBF"
+            )
+        ) {
+            $content =
+                substr(
+                    $content,
+                    3
+                );
+        }
+
+        $handle =
+            fopen(
+                'php://temp',
+                'w+b'
+            );
+
+        if ($handle === false) {
+            $this->fail(
+                'Could not open temporary CSV test stream.'
+            );
+        }
+
+        fwrite(
+            $handle,
+            $content
+        );
+
+        rewind(
+            $handle
+        );
+
+        $rows = [];
+
+        try {
+            while (
+                (
+                    $row =
+                        fgetcsv(
+                            $handle,
+                            null,
+                            ',',
+                            '"',
+                            ''
+                        )
+                ) !== false
+            ) {
+                $rows[] =
+                    $row;
+            }
+        } finally {
+            fclose(
+                $handle
+            );
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Read one XML file from an XLSX archive generated in memory.
+     */
+    private function xlsxArchivePart(
+        string $content,
+        string $part
+    ): string {
+        $temporaryPath =
+            tempnam(
+                sys_get_temp_dir(),
+                'econsent-xlsx-test-'
+            );
+
+        if ($temporaryPath === false) {
+            $this->fail(
+                'Could not create temporary XLSX test file.'
+            );
+        }
+
+        file_put_contents(
+            $temporaryPath,
+            $content
+        );
+
+        $archive =
+            new \ZipArchive();
+
+        try {
+            $opened =
+                $archive->open(
+                    $temporaryPath
+                );
+
+            $this->assertTrue(
+                $opened === true,
+                'Generated XLSX archive could not be opened.'
+            );
+
+            $partContents =
+                $archive->getFromName(
+                    $part
+                );
+
+            $this->assertIsString(
+                $partContents,
+                "Generated XLSX archive is missing {$part}."
+            );
+
+            return $partContents;
+        } finally {
+            $archive->close();
+
+            if (
+                is_file(
+                    $temporaryPath
+                )
+            ) {
+                unlink(
+                    $temporaryPath
+                );
+            }
+        }
+    }
+
     private function createOrganizationUser(
         string $organizationName,
         string $organizationSlug

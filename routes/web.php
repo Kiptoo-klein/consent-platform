@@ -697,6 +697,11 @@ Route::get('/consent-records/export-data', [
     'index',
 ])->name('consent-sessions.export-data');
 
+Route::post('/consent-records/export-data', [
+    ConsentDataExportController::class,
+    'download',
+])->name('consent-sessions.export-data.download');
+
 Route::get(
     '/consent-templates/{consentTemplate}/consent-records/create',
     [

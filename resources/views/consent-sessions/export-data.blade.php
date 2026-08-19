@@ -64,19 +64,26 @@
                     </p>
                 </section>
             @else
-                <section
+                @php
+                    $defaultColumns =
+                        collect($signerColumns)
+                            ->concat($questionColumns)
+                            ->filter(
+                                fn ($column) =>
+                                    $column['selected_by_default']
+                            )
+                            ->pluck('key')
+                            ->values()
+                            ->all();
+                @endphp
+
+                <form
+                    method="POST"
+                    action="{{ route('consent-sessions.export-data.download') }}"
                     class="overflow-hidden rounded-xl bg-white shadow"
                     x-data="{
-                        selected: @js(
-                            collect($signerColumns)
-                                ->concat($questionColumns)
-                                ->filter(
-                                    fn ($column) =>
-                                        $column['selected_by_default']
-                                )
-                                ->pluck('key')
-                                ->values()
-                        ),
+                        selected: @js($defaultColumns),
+                        format: 'xlsx',
 
                         toggleAll(keys) {
                             const allSelected =
@@ -107,6 +114,16 @@
                         }
                     }"
                 >
+                    @csrf
+
+                    @foreach ($scopeParameters as $key => $value)
+                        <input
+                            type="hidden"
+                            name="{{ $key }}"
+                            value="{{ $value }}"
+                        >
+                    @endforeach
+
                     <div class="border-b border-gray-200 px-6 py-5">
                         <h2 class="text-lg font-semibold text-gray-900">
                             Choose columns
@@ -115,6 +132,12 @@
                         <p class="mt-1 text-sm text-gray-500">
                             Only information that exists in these matching records is shown.
                         </p>
+
+                        @error('columns')
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ $message }}
+                            </p>
+                        @enderror
                     </div>
 
                     <div class="space-y-8 px-6 py-6">
@@ -133,6 +156,7 @@
                                         <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-4 hover:bg-gray-50">
                                             <input
                                                 type="checkbox"
+                                                name="columns[]"
                                                 value="{{ $column['key'] }}"
                                                 x-model="selected"
                                                 class="mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
@@ -185,6 +209,7 @@
                                         <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-4 hover:bg-gray-50">
                                             <input
                                                 type="checkbox"
+                                                name="columns[]"
                                                 value="{{ $column['key'] }}"
                                                 x-model="selected"
                                                 class="mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
@@ -204,6 +229,69 @@
                                         </label>
                                     @endforeach
                                 </div>
+                            </div>
+                        @endif
+
+                        @if (
+                            $signerColumns->isNotEmpty()
+                            || $questionColumns->isNotEmpty()
+                        )
+                            <div class="border-t border-gray-200 pt-7">
+                                <h3 class="font-semibold text-gray-900">
+                                    Export as
+                                </h3>
+
+                                <p class="mt-1 text-sm text-gray-500">
+                                    Choose the file format you want to download.
+                                </p>
+
+                                <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                    <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-4 hover:bg-gray-50">
+                                        <input
+                                            type="radio"
+                                            name="format"
+                                            value="xlsx"
+                                            x-model="format"
+                                            class="mt-0.5 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        >
+
+                                        <span>
+                                            <span class="block font-medium text-gray-900">
+                                                Excel
+                                            </span>
+
+                                            <span class="mt-1 block text-sm text-gray-500">
+                                                .xlsx spreadsheet
+                                            </span>
+                                        </span>
+                                    </label>
+
+                                    <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-4 hover:bg-gray-50">
+                                        <input
+                                            type="radio"
+                                            name="format"
+                                            value="csv"
+                                            x-model="format"
+                                            class="mt-0.5 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        >
+
+                                        <span>
+                                            <span class="block font-medium text-gray-900">
+                                                CSV
+                                            </span>
+
+                                            <span class="mt-1 block text-sm text-gray-500">
+                                                .csv spreadsheet
+                                            </span>
+                                        </span>
+                                    </label>
+                                </div>
+
+                                @error('format')
+                                    <p class="mt-2 text-sm text-red-600">
+                                        {{ $message }}
+                                    </p>
+                                @enderror
                             </div>
                         @endif
 
@@ -228,15 +316,20 @@
                             </p>
 
                             <button
-                                type="button"
-                                disabled
-                                class="inline-flex cursor-not-allowed justify-center rounded-lg bg-gray-300 px-5 py-3 text-sm font-semibold text-gray-600"
+                                type="submit"
+                                :disabled="selected.length === 0"
+                                class="inline-flex justify-center rounded-lg px-5 py-3 text-sm font-semibold"
+                                :class="
+                                    selected.length === 0
+                                        ? 'cursor-not-allowed bg-gray-300 text-gray-600'
+                                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                "
                             >
                                 Export data
                             </button>
                         </div>
                     @endif
-                </section>
+                </form>
             @endif
         </div>
     </div>
