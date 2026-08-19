@@ -6,6 +6,7 @@ use App\Http\Controllers\ConsentNotificationController;
 use App\Http\Controllers\ConsentSessionController;
 use App\Http\Controllers\ConsentPdfDeliveryController;
 use App\Http\Controllers\ConsentBulkDownloadController;
+use App\Http\Controllers\ConsentDataExportController;
 use App\Http\Controllers\ConsentTemplateCategoryController;
 use App\Http\Controllers\ConsentTemplateController;
 use App\Http\Controllers\DashboardController;
@@ -690,6 +691,11 @@ Route::get('/consent-records/download-all', [
     ConsentBulkDownloadController::class,
     'download',
 ])->name('consent-sessions.download-all');
+
+Route::get('/consent-records/export-data', [
+    ConsentDataExportController::class,
+    'index',
+])->name('consent-sessions.export-data');
 
 Route::get(
     '/consent-templates/{consentTemplate}/consent-records/create',

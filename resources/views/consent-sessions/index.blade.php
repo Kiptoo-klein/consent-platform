@@ -58,7 +58,7 @@
                     </h2>
 
                     <p class="mt-1 text-sm text-gray-500">
-                        The same active filters are applied to the record list and the Download All ZIP export.
+                        Your active filters also apply when downloading PDFs or exporting data.
                     </p>
                 </div>
 
@@ -316,30 +316,43 @@
                 <div class="flex flex-col gap-4 border-t border-gray-200 bg-gray-50 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <p class="font-semibold text-gray-900">
-                            {{ $downloadableCount }}
-                            {{ $downloadableCount === 1 ? 'PDF is' : 'PDFs are' }} ready for this export
+                            {{ $consentSessions->total() }}
+                            {{ $consentSessions->total() === 1 ? 'matching record' : 'matching records' }}
                         </p>
 
                         <p class="mt-1 text-sm text-gray-500">
-                            Only matching completed records with generated immutable PDFs are included.
+                            {{ $downloadableCount }}
+                            {{ $downloadableCount === 1 ? 'signed PDF is' : 'signed PDFs are' }}
+                            available to download. Export data uses the same matching records.
                         </p>
                     </div>
 
-                    @if ($downloadableCount > 0)
-                        <a
-                            href="{{ route('consent-sessions.download-all', $downloadParameters) }}"
-                            class="inline-flex shrink-0 items-center justify-center rounded-lg bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
-                        >
-                            Download all matching PDFs
-                        </a>
-                    @else
-                        <span
-                            class="inline-flex shrink-0 cursor-not-allowed items-center justify-center rounded-lg bg-gray-300 px-5 py-3 text-sm font-semibold text-gray-600"
-                            aria-disabled="true"
-                        >
-                            No PDFs available
-                        </span>
-                    @endif
+                    <div class="flex flex-wrap gap-2">
+                        @if ($downloadableCount > 0)
+                            <a
+                                href="{{ route('consent-sessions.download-all', $downloadParameters) }}"
+                                class="inline-flex shrink-0 items-center justify-center rounded-lg bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
+                            >
+                                Download PDFs
+                            </a>
+                        @else
+                            <span
+                                class="inline-flex shrink-0 cursor-not-allowed items-center justify-center rounded-lg bg-gray-300 px-5 py-3 text-sm font-semibold text-gray-600"
+                                aria-disabled="true"
+                            >
+                                No PDFs available
+                            </span>
+                        @endif
+
+                        @if ($consentSessions->total() > 0)
+                            <a
+                                href="{{ route('consent-sessions.export-data', $downloadParameters) }}"
+                                class="inline-flex shrink-0 items-center justify-center rounded-lg border border-indigo-300 bg-white px-5 py-3 text-sm font-semibold text-indigo-700 hover:bg-indigo-50"
+                            >
+                                Export data
+                            </a>
+                        @endif
+                    </div>
                 </div>
             </section>
 
