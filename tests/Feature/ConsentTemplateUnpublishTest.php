@@ -192,7 +192,10 @@ class ConsentTemplateUnpublishTest extends TestCase
                 )
             )
             ->assertRedirect(
-                route('consent-templates.manage')
+                route(
+                    'consent-templates.published',
+                    $template
+                )
             );
 
         $template->refresh();
@@ -215,6 +218,86 @@ class ConsentTemplateUnpublishTest extends TestCase
             1,
             $template->versions()->count()
         );
+    }
+
+    public function test_published_consent_is_a_use_consent_control_centre(): void
+    {
+        $organization = Organization::create([
+            'name' => 'Use Consent Organization',
+            'slug' => 'use-consent-organization',
+        ]);
+
+        $user = User::factory()->create([
+            'organization_id' =>
+                $organization->id,
+
+            'is_active' =>
+                true,
+        ]);
+
+        $this->enablePaidOrganizationAccess(
+            $organization,
+            $user
+        );
+
+        [$template] =
+            $this->createPublishedTemplate(
+                $organization,
+                $user
+            );
+
+        $this
+            ->actingAs($user)
+            ->withSession([
+                'success' =>
+                    'Version 1 is now live.',
+            ])
+            ->get(
+                route(
+                    'consent-templates.published',
+                    $template
+                )
+            )
+            ->assertOk()
+            ->assertSeeText(
+                'Version 1 is now live.'
+            )
+            ->assertSeeText(
+                'Use this consent'
+            )
+            ->assertSeeText(
+                'Send to One Person'
+            )
+            ->assertSeeText(
+                'Send to Multiple People'
+            )
+            ->assertSeeText(
+                'Use at Signing Station'
+            )
+            ->assertSee(
+                route(
+                    'consent-sessions.create',
+                    $template
+                ),
+                false
+            )
+            ->assertSee(
+                route(
+                    'consent-campaigns.create',
+                    $template
+                ),
+                false
+            )
+            ->assertSee(
+                route(
+                    'signing-stations.create',
+                    [
+                        'consent_template' =>
+                            $template->id,
+                    ]
+                ),
+                false
+            );
     }
 
     /**

@@ -314,7 +314,8 @@ class EvaluationOnboardingDashboardTest extends TestCase
             )
             ->assertRedirect(
                 route(
-                    'consent-templates.manage'
+                    'consent-templates.published',
+                    $starter
                 )
             );
 

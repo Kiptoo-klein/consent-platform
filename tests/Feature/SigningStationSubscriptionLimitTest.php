@@ -264,6 +264,75 @@ class SigningStationSubscriptionLimitTest extends TestCase
         $this->assertTrue($createdStation->active);
     }
 
+    public function test_create_page_can_preselect_published_consent(): void
+    {
+        $this
+            ->get(
+                route(
+                    'signing-stations.create',
+                    [
+                        'consent_template' =>
+                            $this->template->id,
+                    ]
+                )
+            )
+            ->assertOk()
+            ->assertViewHas(
+                'selectedConsentTemplateId',
+                $this->template->id
+            )
+            ->assertSeeText(
+                $this->template->title
+            );
+    }
+
+    public function test_create_page_does_not_preselect_foreign_consent(): void
+    {
+        $otherOrganization =
+            Organization::create([
+                'name' =>
+                    'Foreign Signing Station Organization',
+
+                'slug' =>
+                    'foreign-signing-station-organization',
+            ]);
+
+        $otherUser =
+            User::factory()->create([
+                'organization_id' =>
+                    $otherOrganization->id,
+
+                'is_active' =>
+                    true,
+            ]);
+
+        $foreignTemplate =
+            $this->createPublishedTemplate(
+                $otherOrganization,
+                $otherUser,
+                'Foreign Consent'
+            );
+
+        $this
+            ->get(
+                route(
+                    'signing-stations.create',
+                    [
+                        'consent_template' =>
+                            $foreignTemplate->id,
+                    ]
+                )
+            )
+            ->assertOk()
+            ->assertViewHas(
+                'selectedConsentTemplateId',
+                null
+            )
+            ->assertDontSeeText(
+                'Foreign Consent'
+            );
+    }
+
     public function test_legacy_individual_template_can_be_used_for_signing_station(): void
     {
         $this->template->update([

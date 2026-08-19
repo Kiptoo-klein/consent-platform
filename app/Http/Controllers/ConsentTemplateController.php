@@ -674,7 +674,10 @@ class ConsentTemplateController extends Controller
         );
 
         return redirect()
-            ->route('consent-templates.manage')
+            ->route(
+                'consent-templates.published',
+                $consentTemplate
+            )
             ->with(
                 'success',
                 "Version {$publishedVersionNumber} is now live."

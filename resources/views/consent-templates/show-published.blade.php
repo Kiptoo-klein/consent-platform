@@ -3,11 +3,11 @@
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 class="text-xl font-semibold leading-tight text-gray-800">
-                    Published Consent Template
+                    Published Consent
                 </h2>
 
                 <p class="mt-1 text-sm text-gray-500">
-                    Read-only immutable version
+                    Ready to collect signatures
                 </p>
             </div>
 
@@ -30,6 +30,15 @@
     <div class="py-8">
         <div class="mx-auto max-w-5xl sm:px-6 lg:px-8">
 
+            @if (session('success'))
+                <div
+                    class="mb-6 rounded-xl border border-green-300 bg-green-50 px-5 py-4 text-green-800"
+                    role="status"
+                >
+                    {{ session('success') }}
+                </div>
+            @endif
+
             <div class="mb-6 rounded-lg border border-green-300 bg-green-50 p-5">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -47,6 +56,98 @@
                     </span>
                 </div>
             </div>
+
+            <section
+                class="mb-6 overflow-hidden rounded-2xl border border-indigo-200 bg-white shadow-sm"
+                data-use-consent
+            >
+                <div class="border-b border-indigo-100 bg-indigo-50 px-6 py-5">
+                    <p class="text-sm font-bold uppercase tracking-[0.16em] text-indigo-700">
+                        Use this consent
+                    </p>
+
+                    <h2 class="mt-2 text-2xl font-bold text-gray-950">
+                        How would you like to collect signatures?
+                    </h2>
+
+                    <p class="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
+                        Use this published consent for one person, several people, or a shared signing station.
+                    </p>
+                </div>
+
+                <div class="grid gap-4 p-6 md:grid-cols-3">
+                    <a
+                        href="{{ route('consent-sessions.create', $consentTemplate) }}"
+                        class="group rounded-xl border border-blue-200 bg-blue-50 p-5 transition hover:border-blue-400 hover:bg-blue-100"
+                    >
+                        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.75 6.75a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a7.5 7.5 0 0 1 15 0" />
+                            </svg>
+                        </div>
+
+                        <h3 class="mt-4 text-lg font-bold text-gray-950">
+                            Send to One Person
+                        </h3>
+
+                        <p class="mt-2 text-sm leading-6 text-gray-600">
+                            Create a secure consent request for one recipient.
+                        </p>
+
+                        <span class="mt-4 inline-flex font-semibold text-blue-700">
+                            Continue
+                        </span>
+                    </a>
+
+                    <a
+                        href="{{ route('consent-campaigns.create', $consentTemplate) }}"
+                        class="group rounded-xl border border-emerald-200 bg-emerald-50 p-5 transition hover:border-emerald-400 hover:bg-emerald-100"
+                    >
+                        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198A11.944 11.944 0 0 1 12 21c-2.17 0-4.205-.576-5.963-1.584M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                            </svg>
+                        </div>
+
+                        <h3 class="mt-4 text-lg font-bold text-gray-950">
+                            Send to Multiple People
+                        </h3>
+
+                        <p class="mt-2 text-sm leading-6 text-gray-600">
+                            Send separate secure consent requests to several recipients.
+                        </p>
+
+                        <span class="mt-4 inline-flex font-semibold text-emerald-700">
+                            Continue
+                        </span>
+                    </a>
+
+                    <a
+                        href="{{ route('signing-stations.create', [
+                            'consent_template' => $consentTemplate->id,
+                        ]) }}"
+                        class="group rounded-xl border border-purple-200 bg-purple-50 p-5 transition hover:border-purple-400 hover:bg-purple-100"
+                    >
+                        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-600 text-white">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4.5 3.75h15A1.5 1.5 0 0 1 21 5.25v9.75a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 15V5.25a1.5 1.5 0 0 1 1.5-1.5Z" />
+                            </svg>
+                        </div>
+
+                        <h3 class="mt-4 text-lg font-bold text-gray-950">
+                            Use at Signing Station
+                        </h3>
+
+                        <p class="mt-2 text-sm leading-6 text-gray-600">
+                            Use this consent on a shared kiosk, tablet, or QR station.
+                        </p>
+
+                        <span class="mt-4 inline-flex font-semibold text-purple-700">
+                            Continue
+                        </span>
+                    </a>
+                </div>
+            </section>
 
             <div class="overflow-hidden rounded-lg bg-white shadow">
 

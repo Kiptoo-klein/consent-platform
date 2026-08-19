@@ -71,14 +71,17 @@
                             class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                         >
                             <option value="">
-                                Select a published signing-station template
+                                Select a published consent
                             </option>
 
                             @foreach ($consentTemplates as $template)
                                 <option
                                     value="{{ $template->id }}"
                                     @selected(
-                                        old('consent_template_id') == $template->id
+                                        (string) old(
+                                            'consent_template_id',
+                                            $selectedConsentTemplateId ?? ''
+                                        ) === (string) $template->id
                                     )
                                 >
                                     {{ $template->title }}
@@ -88,9 +91,8 @@
 
                         @if ($consentTemplates->isEmpty())
                             <p class="mt-2 text-sm text-amber-700 dark:text-amber-300">
-                                No published templates are enabled for public signing stations.
-                                Update a consent template and select
-                                <span class="font-semibold">Public signing station</span>.
+                                No published consents are available.
+                                Publish a consent before creating a signing station.
                             </p>
                         @endif
 

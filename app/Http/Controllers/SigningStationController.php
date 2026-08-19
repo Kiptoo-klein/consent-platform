@@ -111,9 +111,37 @@ class SigningStationController extends Controller
             ->orderBy('title')
             ->get();
 
+        $requestedConsentTemplateId =
+            $request->integer(
+                'consent_template'
+            );
+
+        $selectedConsentTemplateId =
+            $requestedConsentTemplateId > 0
+                ? ConsentTemplate::query()
+                    ->where(
+                        'organization_id',
+                        $organizationId
+                    )
+                    ->where(
+                        'status',
+                        'published'
+                    )
+                    ->whereNotNull(
+                        'active_version_id'
+                    )
+                    ->whereKey(
+                        $requestedConsentTemplateId
+                    )
+                    ->value('id')
+                : null;
+
         return view(
             'signing-stations.create',
-            compact('consentTemplates')
+            compact(
+                'consentTemplates',
+                'selectedConsentTemplateId'
+            )
         );
     }
 
