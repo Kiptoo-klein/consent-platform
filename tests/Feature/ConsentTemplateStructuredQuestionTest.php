@@ -558,7 +558,7 @@ class ConsentTemplateStructuredQuestionTest extends TestCase
 
                         'interests' => [
                             'Email',
-                            'SMS',
+                            'Events',
                         ],
 
                         'confirmed' =>
@@ -587,7 +587,7 @@ class ConsentTemplateStructuredQuestionTest extends TestCase
 
                 'interests' => [
                     'Email',
-                    'SMS',
+                    'Events',
                 ],
 
                 'confirmed' =>
@@ -782,6 +782,279 @@ class ConsentTemplateStructuredQuestionTest extends TestCase
         );
     }
 
+
+    public function test_record_displays_checkbox_groups_and_legacy_text_fields(): void
+    {
+        [$organization, $user] =
+            $this->createOrganizationUser();
+
+        $template =
+            ConsentTemplate::query()->create([
+                'organization_id' =>
+                    $organization->id,
+
+                'title' =>
+                    'Compatibility Consent',
+
+                'description' =>
+                    'Structured compatibility test.',
+
+                'usage_type' =>
+                    ConsentTemplate::USAGE_BOTH,
+
+                'template_schema' => [
+                    'builder_version' =>
+                        2,
+
+                    'consent_html' =>
+                        '<p>Compatibility consent.</p>',
+
+                    'consent_text' =>
+                        'Compatibility consent.',
+
+                    'additional_fields' => [
+                        [
+                            'id' =>
+                                'interests',
+
+                            'type' =>
+                                'checkboxes',
+
+                            'label' =>
+                                'Interests',
+
+                            'required' =>
+                                false,
+
+                            'options' => [
+                                'Email',
+                                'Training',
+                            ],
+                        ],
+                        [
+                            'id' =>
+                                'department',
+
+                            /*
+                             * Deliberately no type:
+                             * legacy fields default to text.
+                             */
+                            'label' =>
+                                'Department',
+
+                            'required' =>
+                                false,
+                        ],
+                    ],
+                ],
+
+                'active_version_id' =>
+                    null,
+
+                'has_unpublished_changes' =>
+                    false,
+
+                'status' =>
+                    'draft',
+            ]);
+
+        $version =
+            $template
+                ->versions()
+                ->create([
+                    'version_number' =>
+                        1,
+
+                    'title' =>
+                        $template->title,
+
+                    'description' =>
+                        $template->description,
+
+                    'template_schema' =>
+                        $template->template_schema,
+
+                    'published_at' =>
+                        now(),
+
+                    'published_by' =>
+                        $user->id,
+                ]);
+
+        $template->update([
+            'active_version_id' =>
+                $version->id,
+
+            'has_unpublished_changes' =>
+                false,
+
+            'status' =>
+                'published',
+        ]);
+
+        $session =
+            $this->createManualConsentSession(
+                $organization,
+                $user,
+                $template->refresh()
+            );
+
+        $session->update([
+            'responses' => [
+                'interests' => [
+                    'Email',
+                    'Training',
+                ],
+
+                'department' =>
+                    'Operations',
+            ],
+        ]);
+
+        $this
+            ->actingAs($user)
+            ->get(
+                route(
+                    'consent-sessions.show',
+                    $session
+                )
+            )
+            ->assertOk()
+            ->assertSeeText(
+                'Interests'
+            )
+            ->assertSeeText(
+                'Email, Training'
+            )
+            ->assertSeeText(
+                'Department'
+            )
+            ->assertSeeText(
+                'Operations'
+            );
+    }
+
+    public function test_record_keeps_fields_from_its_original_published_version(): void
+    {
+        [$organization, $user] =
+            $this->createOrganizationUser();
+
+        $template =
+            $this->createPublishedStructuredTemplate(
+                $organization,
+                $user
+            );
+
+        $versionOneId =
+            $template->active_version_id;
+
+        $session =
+            $this->createManualConsentSession(
+                $organization,
+                $user,
+                $template
+            );
+
+        $session->update([
+            'responses' => [
+                'contact-phone' =>
+                    '+254 711 222 333',
+            ],
+        ]);
+
+        $versionTwo =
+            $template
+                ->versions()
+                ->create([
+                    'version_number' =>
+                        2,
+
+                    'title' =>
+                        $template->title,
+
+                    'description' =>
+                        'Updated version.',
+
+                    'template_schema' => [
+                        'builder_version' =>
+                            2,
+
+                        'consent_html' =>
+                            '<p>Updated consent.</p>',
+
+                        'consent_text' =>
+                            'Updated consent.',
+
+                        'additional_fields' => [
+                            [
+                                'id' =>
+                                    'contact-phone',
+
+                                'type' =>
+                                    'phone',
+
+                                'label' =>
+                                    'Renamed Contact Number',
+
+                                'required' =>
+                                    true,
+
+                                'options' =>
+                                    [],
+                            ],
+                        ],
+                    ],
+
+                    'published_at' =>
+                        now(),
+
+                    'published_by' =>
+                        $user->id,
+                ]);
+
+        $template->update([
+            'active_version_id' =>
+                $versionTwo->id,
+
+            'has_unpublished_changes' =>
+                false,
+
+            'status' =>
+                'published',
+        ]);
+
+        $this->assertNotSame(
+            $versionOneId,
+            $template->fresh()->active_version_id
+        );
+
+        $this->assertSame(
+            $versionOneId,
+            $session
+                ->fresh()
+                ->consent_template_version_id
+        );
+
+        $this
+            ->actingAs($user)
+            ->get(
+                route(
+                    'consent-sessions.show',
+                    $session
+                )
+            )
+            ->assertOk()
+            ->assertSeeText(
+                'Contact Phone'
+            )
+            ->assertSeeText(
+                '+254 711 222 333'
+            )
+            ->assertDontSeeText(
+                'Renamed Contact Number'
+            );
+    }
+
     private function createPublishedStructuredTemplate(
         Organization $organization,
         User $user
@@ -842,7 +1115,7 @@ class ConsentTemplateStructuredQuestionTest extends TestCase
 
                             'options' => [
                                 'Email',
-                                'SMS',
+                                'Events',
                                 'Training',
                             ],
                         ],
