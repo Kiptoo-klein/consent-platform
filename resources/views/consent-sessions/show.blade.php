@@ -19,8 +19,6 @@
                 </div>
 
                 <p class="mt-1 text-sm text-gray-500">
-                    Record #{{ $consentSession->id }}
-                    ·
                     {{ $consentSession->consentTemplate?->title ?? 'Unavailable template' }}
                 </p>
             </div>
@@ -44,16 +42,6 @@
         $signedAt =
             $signature?->signed_at
             ?? $consentSession->completed_at;
-
-        $recordIdentifier =
-            'CONSENT-'
-            .str_pad(
-                (string) $consentSession->id,
-                8,
-                '0',
-                STR_PAD_LEFT
-            );
-
 
         /*
          * A share link belongs only to a direct individual-consent record.
@@ -477,15 +465,6 @@
                             </p>
                         </div>
 
-                        <div class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-left sm:text-right">
-                            <p class="text-xs font-medium uppercase tracking-wide text-gray-500">
-                                Evidence ID
-                            </p>
-
-                            <p class="mt-1 font-mono text-sm font-semibold text-gray-900">
-                                {{ $recordIdentifier }}
-                            </p>
-                        </div>
                     </div>
                 </div>
 
@@ -903,26 +882,6 @@
                         </div>
 
                         <dl class="divide-y divide-gray-200">
-                            <div class="px-6 py-4">
-                                <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">
-                                    Evidence ID
-                                </dt>
-
-                                <dd class="mt-1 break-all font-mono text-sm font-semibold text-gray-900">
-                                    {{ $recordIdentifier }}
-                                </dd>
-                            </div>
-
-                            <div class="px-6 py-4">
-                                <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">
-                                    Database Record
-                                </dt>
-
-                                <dd class="mt-1 text-sm font-semibold text-gray-900">
-                                    #{{ $consentSession->id }}
-                                </dd>
-                            </div>
-
                             <div class="px-6 py-4">
                                 <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">
                                     Organization

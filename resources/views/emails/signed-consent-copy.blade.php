@@ -9,8 +9,7 @@
         ?? 'Consent form';
 
     $recordReference =
-        $consentSession->signer_reference
-        ?: 'Consent record #'.$consentSession->id;
+        $consentSession->signer_reference;
 
     $completedLabel = 'Completed';
 
@@ -83,8 +82,10 @@
                                         <strong>Signer:</strong>
                                         {{ $consentSession->signer_name }}<br>
 
-                                        <strong>Reference:</strong>
-                                        {{ $recordReference }}<br>
+                                        @if ($recordReference)
+                                            <strong>Reference:</strong>
+                                            {{ $recordReference }}<br>
+                                        @endif
 
                                         <strong>Completed:</strong>
                                         {{ $completedLabel }}

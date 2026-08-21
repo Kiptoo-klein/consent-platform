@@ -7,8 +7,7 @@
                 </h2>
 
                 <p class="mt-1 text-sm text-gray-600">
-                    Permanent history for consent session
-                    #{{ $consentSession->id }}
+                    Permanent history for this consent record
                 </p>
             </div>
 

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
 
     <title>
-        Consent Record {{ $consentSession->id }}
+        Consent Record
     </title>
 
     @php
@@ -139,13 +139,6 @@
             font-size: 8.5px;
             letter-spacing: 0.7px;
             text-transform: uppercase;
-        }
-
-        .record-number {
-            margin-top: 2px;
-            color: {{ $pdfPrimaryColor }};
-            font-size: 15px;
-            font-weight: bold;
         }
 
         .status-badge {
@@ -477,7 +470,7 @@
         }
 
         .verification-table td {
-            width: 33.33%;
+            width: 50%;
             padding-right: 12px;
         }
 
@@ -777,7 +770,7 @@
                     Electronic consent record | {{ $organizationName }}
                 </td>
                 <td>
-                    Record #{{ $consentSession->id }} | Page
+                    Page
                     <span class="page-number"></span>
                 </td>
             </tr>
@@ -815,10 +808,6 @@
             <td class="record-cell">
                 <div class="record-label">
                     Consent record
-                </div>
-
-                <div class="record-number">
-                    #{{ $consentSession->id }}
                 </div>
 
                 <span class="status-badge">
@@ -1055,13 +1044,6 @@
 
         <table class="verification-table">
             <tr>
-                <td>
-                    <div class="meta-label">Record identifier</div>
-                    <div class="meta-value">
-                        #{{ $consentSession->id }}
-                    </div>
-                </td>
-
                 <td>
                     <div class="meta-label">Template</div>
                     <div class="meta-value">

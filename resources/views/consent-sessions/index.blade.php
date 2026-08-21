@@ -532,10 +532,6 @@
                                                 {{ $consentSession->signer_name }}
                                             </p>
 
-                                            <p class="mt-1 text-xs font-medium text-indigo-600">
-                                                Record #{{ $consentSession->id }}
-                                            </p>
-
                                             @if ($consentSession->signer_email)
                                                 <p class="mt-1 text-sm text-gray-500">
                                                     {{ $consentSession->signer_email }}
