@@ -58,6 +58,10 @@ Route::get('/digital-consent-management', function () {
     return view('digital-consent-management');
 })->name('digital-consent-management');
 
+Route::get('/electronic-consent-forms', function () {
+    return view('electronic-consent-forms');
+})->name('electronic-consent-forms');
+
 /*
 |--------------------------------------------------------------------------
 | Public Signing Station Routes

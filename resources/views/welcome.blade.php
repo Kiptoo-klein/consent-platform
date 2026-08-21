@@ -125,6 +125,9 @@
                 <a href="{{ route('digital-consent-management') }}">
                     Digital consent
                 </a>
+                <a href="{{ route('electronic-consent-forms') }}">
+                    Consent forms
+                </a>
                 <a href="#features">Features</a>
                 <a href="#process">How it works</a>
                 <a href="#security">Security</a>
