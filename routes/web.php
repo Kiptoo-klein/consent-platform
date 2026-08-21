@@ -62,6 +62,10 @@ Route::get('/electronic-consent-forms', function () {
     return view('electronic-consent-forms');
 })->name('electronic-consent-forms');
 
+Route::get('/online-consent-forms', function () {
+    return view('online-consent-forms');
+})->name('online-consent-forms');
+
 /*
 |--------------------------------------------------------------------------
 | Public Signing Station Routes

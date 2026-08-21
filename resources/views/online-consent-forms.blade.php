@@ -10,19 +10,19 @@
             ?? config('ui-brand.name', 'eConsent');
 
         $seoTitle =
-            'Electronic Consent Forms | Create & Sign Online | '
+            'Online Consent Forms | Collect Consent Online | '
             .$seoName;
 
         $seoDescription =
-            'Create, present, sign and organize electronic consent forms '
-            .'with reusable templates, structured questions, in-person '
-            .'signing and completed consent records.';
+            'Collect consent online with reusable forms, structured '
+            .'questions and electronic signatures, then keep completed '
+            .'consent records organized with eConsent.';
 
         $seoHomeUrl =
             'https://econsent.site/';
 
         $seoCanonicalUrl =
-            'https://econsent.site/electronic-consent-forms';
+            'https://econsent.site/online-consent-forms';
 
         $seoStructuredData = [
             '@context' => 'https://schema.org',
@@ -68,7 +68,7 @@
                         [
                             '@type' => 'ListItem',
                             'position' => 2,
-                            'name' => 'Electronic Consent Forms',
+                            'name' => 'Online Consent Forms',
                             'item' => $seoCanonicalUrl,
                         ],
                     ],
@@ -93,18 +93,22 @@
         property="og:type"
         content="website"
     >
+
     <meta
         property="og:site_name"
         content="{{ $seoName }}"
     >
+
     <meta
         property="og:title"
         content="{{ $seoTitle }}"
     >
+
     <meta
         property="og:description"
         content="{{ $seoDescription }}"
     >
+
     <meta
         property="og:url"
         content="{{ $seoCanonicalUrl }}"
@@ -114,10 +118,12 @@
         name="twitter:card"
         content="summary"
     >
+
     <meta
         name="twitter:title"
         content="{{ $seoTitle }}"
     >
+
     <meta
         name="twitter:description"
         content="{{ $seoDescription }}"
@@ -174,10 +180,7 @@
                     Digital consent
                 </a>
 
-                <a
-                    href="{{ route('electronic-consent-forms') }}"
-                    aria-current="page"
-                >
+                <a href="{{ route('electronic-consent-forms') }}">
                     Consent forms
                 </a>
 
@@ -234,19 +237,19 @@
             <div class="ec-container ec-hero-grid">
                 <div>
                     <span class="ec-kicker">
-                        Electronic consent forms
+                        Online consent forms
                     </span>
 
                     <h1>
-                        Electronic consent forms for
-                        <span>clear, paperless workflows.</span>
+                        Online consent forms for
+                        <span>simple, paperless signing.</span>
                     </h1>
 
                     <p>
-                        Create reusable consent forms, present them digitally,
-                        collect the information and signature you need, and
-                        keep the completed consent record organized without
-                        relying on repeated paper preparation.
+                        Give people a digital way to review consent
+                        information, provide the details you need and sign
+                        without requiring the consent process to happen on
+                        paper or at the same physical location.
                     </p>
 
                     <div class="ec-hero-actions">
@@ -265,15 +268,15 @@
                                     href="{{ route('register') }}"
                                     class="ec-button ec-button-primary ec-button-large"
                                 >
-                                    Create an electronic consent form
+                                    Start collecting consent online
                                 </a>
                             @endif
 
                             <a
-                                href="{{ route('digital-consent-management') }}"
+                                href="{{ route('electronic-consent-forms') }}"
                                 class="ec-button ec-button-secondary ec-button-large"
                             >
-                                Learn about digital consent
+                                Explore electronic consent forms
                             </a>
                         @endauth
                     </div>
@@ -283,56 +286,57 @@
                     <div class="space-y-5">
                         <div>
                             <span class="ec-kicker">
-                                One connected form
+                                Online signer journey
                             </span>
 
                             <h2 class="mt-3 text-2xl font-bold text-slate-900">
-                                What an electronic consent form can include
+                                From consent form to completed record
                             </h2>
                         </div>
 
                         <div class="grid gap-3">
                             <div class="rounded-xl border border-slate-200 bg-white p-4">
                                 <strong class="block text-slate-900">
-                                    Consent information
+                                    1. Access
                                 </strong>
 
                                 <span class="mt-1 block text-sm text-slate-600">
-                                    Present the information the signer needs to
-                                    review before giving consent.
+                                    The signer opens the consent process
+                                    digitally rather than receiving a paper
+                                    document.
                                 </span>
                             </div>
 
                             <div class="rounded-xl border border-slate-200 bg-white p-4">
                                 <strong class="block text-slate-900">
-                                    Signer details
+                                    2. Review
                                 </strong>
 
                                 <span class="mt-1 block text-sm text-slate-600">
-                                    Collect names, contact details and other
-                                    structured information required by the form.
+                                    Consent information and required questions
+                                    are presented as part of the same workflow.
                                 </span>
                             </div>
 
                             <div class="rounded-xl border border-slate-200 bg-white p-4">
                                 <strong class="block text-slate-900">
-                                    Additional questions
+                                    3. Sign
                                 </strong>
 
                                 <span class="mt-1 block text-sm text-slate-600">
-                                    Add reusable questions that match the
-                                    organization's consent workflow.
+                                    The signer provides the required details
+                                    and electronic signature.
                                 </span>
                             </div>
 
                             <div class="rounded-xl border border-slate-200 bg-white p-4">
                                 <strong class="block text-slate-900">
-                                    Signature and completed record
+                                    4. Record
                                 </strong>
 
                                 <span class="mt-1 block text-sm text-slate-600">
-                                    Connect the completed signature with the
-                                    information collected in the consent record.
+                                    The completed information stays connected
+                                    to the resulting consent record.
                                 </span>
                             </div>
                         </div>
@@ -345,56 +349,55 @@
             <div class="ec-container">
                 <div class="ec-section-heading">
                     <span class="ec-kicker">
-                        Inside the form
+                        Remote consent collection
                     </span>
 
                     <h2>
-                        A consent form should keep the important parts
-                        together.
+                        Collect consent when the signer is not standing in
+                        front of you.
                     </h2>
 
                     <p>
-                        Electronic consent forms bring the information being
-                        presented, the signer's responses and the resulting
-                        record into one workflow rather than spreading them
-                        across paper, email and separate files.
+                        Online consent forms make it possible to move the
+                        review and signing process onto the web while keeping
+                        the information collected through the form connected
+                        to the completed consent record.
                     </p>
                 </div>
 
                 <div class="mt-10 grid gap-6 lg:grid-cols-3">
                     <article class="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
                         <h3 class="text-xl font-bold text-slate-900">
-                            Information to review
+                            Digital access
                         </h3>
 
                         <p class="mt-3 leading-7 text-slate-600">
-                            Reusable templates help present the same consent
-                            information consistently whenever that workflow is
-                            used again.
+                            Signers can work through the consent process
+                            digitally instead of waiting for a paper form to
+                            be handed to them.
                         </p>
                     </article>
 
                     <article class="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
                         <h3 class="text-xl font-bold text-slate-900">
-                            Structured responses
+                            Structured completion
                         </h3>
 
                         <p class="mt-3 leading-7 text-slate-600">
-                            Forms can collect the signer details and additional
-                            questions needed for the particular consent
-                            process.
+                            Required signer details and consent questions can
+                            be collected as part of the same online workflow.
                         </p>
                     </article>
 
                     <article class="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
                         <h3 class="text-xl font-bold text-slate-900">
-                            Signature and record
+                            Organized records
                         </h3>
 
                         <p class="mt-3 leading-7 text-slate-600">
-                            The signature and completed information remain
-                            connected to the resulting consent record for
-                            later review.
+                            Completed information can remain available with
+                            the consent record instead of becoming a separate
+                            file that needs to be organized manually.
                         </p>
                     </article>
                 </div>
@@ -404,61 +407,62 @@
         <section class="ec-dark-section">
             <div class="ec-container">
                 <span class="ec-kicker light">
-                    From form to record
+                    From invitation to record
                 </span>
 
                 <h2>
-                    Move from a reusable form to a completed consent record.
+                    Keep the online signing journey connected.
                 </h2>
 
                 <p>
-                    eConsent keeps the main stages of the electronic consent
-                    form workflow connected so organizations can avoid
-                    repeatedly preparing and filing the same paperwork.
+                    The goal is not simply to put a paper form on a screen.
+                    A useful online consent workflow connects the information
+                    being presented with the person completing it and the
+                    record created afterward.
                 </p>
 
                 <div class="mt-10 grid gap-5 md:grid-cols-2">
                     <article class="rounded-2xl border border-white/10 bg-white/5 p-6">
                         <h3 class="text-lg font-bold text-white">
-                            1. Create
+                            Present the consent
                         </h3>
 
                         <p class="mt-2">
-                            Build a reusable consent template with the content
-                            and questions required for the workflow.
+                            Use a prepared consent template so the signer sees
+                            the information intended for that workflow.
                         </p>
                     </article>
 
                     <article class="rounded-2xl border border-white/10 bg-white/5 p-6">
                         <h3 class="text-lg font-bold text-white">
-                            2. Present
+                            Collect the answers
                         </h3>
 
                         <p class="mt-2">
-                            Present the form to an individual or make it
-                            available through an in-person signing station.
+                            Ask for signer details and any additional
+                            structured information needed before completion.
                         </p>
                     </article>
 
                     <article class="rounded-2xl border border-white/10 bg-white/5 p-6">
                         <h3 class="text-lg font-bold text-white">
-                            3. Sign
+                            Capture the signature
                         </h3>
 
                         <p class="mt-2">
-                            Let the signer review the consent, answer the
-                            required questions and provide a signature.
+                            Keep the electronic signature within the same
+                            consent process instead of handling it separately.
                         </p>
                     </article>
 
                     <article class="rounded-2xl border border-white/10 bg-white/5 p-6">
                         <h3 class="text-lg font-bold text-white">
-                            4. Keep the record
+                            Keep the result
                         </h3>
 
                         <p class="mt-2">
-                            Store the completed consent record so it can be
-                            reviewed, downloaded or included in an export.
+                            Store the completed consent so it can be reviewed
+                            again when the organization needs the record.
                         </p>
                     </article>
                 </div>
@@ -469,54 +473,64 @@
             <div class="ec-container">
                 <div class="ec-section-heading">
                     <span class="ec-kicker">
-                        Paper vs electronic
+                        Online or in person
                     </span>
 
                     <h2>
-                        The same consent process without repeated paper
-                        handling.
+                        Use the signing method that fits the situation.
                     </h2>
 
                     <p>
-                        Paper consent can work, but recurring workflows often
-                        require forms to be prepared, signed, filed and found
-                        again manually. Electronic consent keeps those stages
-                        in a connected digital process.
+                        Some consent happens remotely and some happens at a
+                        physical location. Digital workflows can support both
+                        without forcing every signer through the same setting.
                     </p>
                 </div>
 
                 <div class="mx-auto mt-10 grid max-w-5xl gap-6 md:grid-cols-2">
-                    <article class="rounded-2xl border border-slate-200 bg-white p-7">
+                    <article class="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
                         <span class="ec-kicker">
-                            Paper workflow
+                            Online consent
                         </span>
 
                         <h3 class="mt-4 text-xl font-bold text-slate-900">
-                            Repeated manual handling
+                            For a signer completing consent remotely
                         </h3>
 
+                        <p class="mt-4 leading-7 text-slate-600">
+                            Use an online workflow when the person needs to
+                            review and complete their consent away from your
+                            physical location.
+                        </p>
+
                         <ul class="mt-5 space-y-3 leading-7 text-slate-600">
-                            <li>Prepare or print the form again.</li>
-                            <li>Collect handwritten information and signatures.</li>
-                            <li>File completed documents manually.</li>
-                            <li>Find and organize records when needed later.</li>
+                            <li>Digital review of consent information.</li>
+                            <li>Structured signer details and questions.</li>
+                            <li>Electronic signature.</li>
+                            <li>Completed digital consent record.</li>
                         </ul>
                     </article>
 
-                    <article class="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
+                    <article class="rounded-2xl border border-slate-200 bg-white p-7">
                         <span class="ec-kicker">
-                            Electronic workflow
+                            In-person consent
                         </span>
 
                         <h3 class="mt-4 text-xl font-bold text-slate-900">
-                            Reusable and organized
+                            For consent collected at your location
                         </h3>
 
+                        <p class="mt-4 leading-7 text-slate-600">
+                            Signing stations support situations where people
+                            arrive at a shared location and need to complete
+                            the consent process there.
+                        </p>
+
                         <ul class="mt-5 space-y-3 leading-7 text-slate-600">
-                            <li>Reuse a prepared consent template.</li>
-                            <li>Collect structured information digitally.</li>
-                            <li>Connect the signature to the completed record.</li>
-                            <li>Review or export records from one workflow.</li>
+                            <li>Shared physical signing location.</li>
+                            <li>Digital consent review.</li>
+                            <li>Signer questions and signature.</li>
+                            <li>Completed consent record.</li>
                         </ul>
                     </article>
                 </div>
@@ -527,18 +541,18 @@
             <div class="ec-container">
                 <div class="ec-section-heading">
                     <span class="ec-kicker">
-                        Ways to collect consent
+                        Where online consent helps
                     </span>
 
                     <h2>
-                        Use the form in the way the consent process happens.
+                        Useful when consent needs to happen before, between or
+                        away from in-person interactions.
                     </h2>
 
                     <p>
-                        Electronic forms can support one-person consent,
-                        in-person collection and recurring organizational
-                        workflows without requiring a different paper process
-                        for each situation.
+                        Online forms are particularly useful when the signer
+                        and the organization do not need to be in the same
+                        place for the consent process to be completed.
                     </p>
                 </div>
 
@@ -549,30 +563,32 @@
                         </h3>
 
                         <p class="mt-3 leading-7 text-slate-600">
-                            Prepare a consent record for one person and give
-                            them a focused digital path to review and sign it.
+                            Give one person a focused consent process without
+                            preparing a separate paper packet.
                         </p>
                     </article>
 
                     <article class="rounded-2xl border border-slate-200 bg-white p-7">
                         <h3 class="text-xl font-bold text-slate-900">
-                            In-person signing
+                            Before an in-person visit
                         </h3>
 
                         <p class="mt-3 leading-7 text-slate-600">
-                            Signing stations support locations where people
-                            need to review and complete consent on site.
+                            Where the workflow allows it, consent can be
+                            completed digitally before the signer arrives at
+                            the physical location.
                         </p>
                     </article>
 
                     <article class="rounded-2xl border border-slate-200 bg-white p-7">
                         <h3 class="text-xl font-bold text-slate-900">
-                            Recurring forms
+                            Repeated workflows
                         </h3>
 
                         <p class="mt-3 leading-7 text-slate-600">
-                            Reuse consent templates instead of rebuilding the
-                            same document and questions for every signer.
+                            Reuse prepared consent templates instead of
+                            rebuilding the same information whenever the same
+                            type of consent is collected.
                         </p>
                     </article>
                 </div>
@@ -583,30 +599,29 @@
             <div class="ec-container">
                 <div class="ec-section-heading">
                     <span class="ec-kicker">
-                        After signing
+                        After submission
                     </span>
 
                     <h2>
-                        A completed form becomes an organized consent record.
+                        Keep more than just the signature.
                     </h2>
 
                     <p>
-                        The workflow continues after the signature. Completed
-                        information can remain available as a consent record,
-                        signed PDF and structured export when those formats are
-                        needed.
+                        A completed online consent workflow can preserve the
+                        form information, signer responses and signature as
+                        part of the resulting consent record.
                     </p>
                 </div>
 
                 <div class="mt-10 grid gap-6 lg:grid-cols-3">
                     <article class="rounded-2xl border border-slate-200 bg-white p-7">
                         <h3 class="text-xl font-bold text-slate-900">
-                            Consent record
+                            Completed record
                         </h3>
 
                         <p class="mt-3 leading-7 text-slate-600">
-                            Review the completed consent and the information
-                            captured through its original form.
+                            Review the consent record together with the
+                            information captured during completion.
                         </p>
                     </article>
 
@@ -616,42 +631,45 @@
                         </h3>
 
                         <p class="mt-3 leading-7 text-slate-600">
-                            Generate a consistent PDF representation of the
-                            completed consent record.
+                            Create a PDF representation of the completed
+                            consent when a portable document is needed.
                         </p>
                     </article>
 
                     <article class="rounded-2xl border border-slate-200 bg-white p-7">
                         <h3 class="text-xl font-bold text-slate-900">
-                            Data exports
+                            Structured exports
                         </h3>
 
                         <p class="mt-3 leading-7 text-slate-600">
-                            Export selected consent information when the
-                            organization needs to use collected data elsewhere.
+                            Use available export workflows when selected
+                            consent information needs to be reviewed outside
+                            the individual record.
                         </p>
                     </article>
                 </div>
 
-                <p class="mx-auto mt-8 max-w-3xl text-center leading-7 text-slate-600">
-                    Want the broader workflow explanation?
-                    <a
-                        href="{{ route('digital-consent-management') }}"
-                        class="font-semibold text-teal-700 underline"
-                    >
-                        Read the digital consent management guide.
-                    </a>
-                </p>
+                <div class="mx-auto mt-8 max-w-3xl space-y-3 text-center leading-7 text-slate-600">
+                    <p>
+                        Looking for the form itself?
+                        <a
+                            href="{{ route('electronic-consent-forms') }}"
+                            class="font-semibold text-teal-700 underline"
+                        >
+                            Read about electronic consent forms.
+                        </a>
+                    </p>
 
-                <p class="mx-auto mt-4 max-w-3xl text-center leading-7 text-slate-600">
-                    Collecting consent from people remotely?
-                    <a
-                        href="{{ route('online-consent-forms') }}"
-                        class="font-semibold text-teal-700 underline"
-                    >
-                        Explore online consent forms.
-                    </a>
-                </p>
+                    <p>
+                        Looking for the broader management process?
+                        <a
+                            href="{{ route('digital-consent-management') }}"
+                            class="font-semibold text-teal-700 underline"
+                        >
+                            Read the digital consent management guide.
+                        </a>
+                    </p>
+                </div>
             </div>
         </section>
 
@@ -663,60 +681,58 @@
                     </span>
 
                     <h2>
-                        Electronic consent forms FAQ
+                        Online consent forms FAQ
                     </h2>
                 </div>
 
                 <div class="mx-auto mt-10 max-w-4xl space-y-4">
                     <details class="rounded-2xl border border-slate-200 bg-white p-6">
                         <summary class="cursor-pointer font-bold text-slate-900">
-                            What is an electronic consent form?
+                            What is an online consent form?
                         </summary>
 
                         <p class="mt-4 leading-7 text-slate-600">
-                            An electronic consent form presents consent
-                            information digitally and lets the signer provide
-                            the required details and signature without using a
-                            paper form.
+                            An online consent form lets a person review consent
+                            information, provide required details and complete
+                            the signing process digitally rather than using a
+                            paper document.
                         </p>
                     </details>
 
                     <details class="rounded-2xl border border-slate-200 bg-white p-6">
                         <summary class="cursor-pointer font-bold text-slate-900">
-                            How is an electronic consent form different from a
-                            paper form?
+                            Can consent be collected remotely?
                         </summary>
 
                         <p class="mt-4 leading-7 text-slate-600">
-                            The information being presented may serve the same
-                            purpose, but the electronic workflow can connect
-                            the form, responses, signature and completed record
-                            without manual printing and filing.
+                            eConsent supports digital workflows that allow
+                            consent to be completed without requiring every
+                            signer to use an in-person signing station.
                         </p>
                     </details>
 
                     <details class="rounded-2xl border border-slate-200 bg-white p-6">
                         <summary class="cursor-pointer font-bold text-slate-900">
-                            Can electronic consent forms be used in person?
+                            Can I still collect consent in person?
                         </summary>
 
                         <p class="mt-4 leading-7 text-slate-600">
-                            Yes. eConsent includes signing-station workflows
-                            for situations where consent is being collected at
-                            a shared physical location.
+                            Yes. Signing stations support in-person workflows,
+                            while online consent can be used when the signer is
+                            completing the process remotely.
                         </p>
                     </details>
 
                     <details class="rounded-2xl border border-slate-200 bg-white p-6">
                         <summary class="cursor-pointer font-bold text-slate-900">
-                            What happens after an electronic consent form is
-                            signed?
+                            What happens after the online form is signed?
                         </summary>
 
                         <p class="mt-4 leading-7 text-slate-600">
-                            The completed information becomes part of the
-                            consent record and can be reviewed through the
-                            available record, PDF and export workflows.
+                            The submitted information becomes part of the
+                            completed consent record and can be used through
+                            the platform's available record, PDF and export
+                            workflows.
                         </p>
                     </details>
                 </div>
@@ -727,16 +743,18 @@
             <div class="ec-container ec-cta-card">
                 <div>
                     <span class="ec-kicker light">
-                        Ready to replace repeated paper forms?
+                        Ready to collect consent online?
                     </span>
 
                     <h2>
-                        Create reusable electronic consent forms with eConsent.
+                        Give signers a clear digital path from review to
+                        completed consent.
                     </h2>
 
                     <p>
-                        Build the form once, collect consent digitally and keep
-                        completed records organized in the same platform.
+                        Reuse your consent forms, collect information and
+                        signatures digitally, and keep the resulting records
+                        organized with eConsent.
                     </p>
                 </div>
 
