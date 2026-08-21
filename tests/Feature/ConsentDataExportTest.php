@@ -7,6 +7,7 @@ use App\Models\ConsentTemplate;
 use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -1234,6 +1235,60 @@ class ConsentDataExportTest extends TestCase
         }
     }
 
+    public function test_export_data_defaults_to_pdf_register_and_lists_pdf_first(): void
+    {
+        $view =
+            file_get_contents(
+                resource_path(
+                    'views/consent-sessions/export-data.blade.php'
+                )
+            );
+
+        $this->assertIsString(
+            $view
+        );
+
+        $this->assertStringContainsString(
+            "format: 'pdf'",
+            $view
+        );
+
+        $pdfPosition =
+            strpos(
+                $view,
+                'value="pdf"'
+            );
+
+        $xlsxPosition =
+            strpos(
+                $view,
+                'value="xlsx"'
+            );
+
+        $csvPosition =
+            strpos(
+                $view,
+                'value="csv"'
+            );
+
+        $this->assertIsInt(
+            $pdfPosition
+        );
+
+        $this->assertIsInt(
+            $xlsxPosition
+        );
+
+        $this->assertIsInt(
+            $csvPosition
+        );
+
+        $this->assertTrue(
+            $pdfPosition < $xlsxPosition
+            && $xlsxPosition < $csvPosition
+        );
+    }
+
     public function test_pdf_register_download_generates_a_real_pdf(): void
     {
         [$organization, $user] =
@@ -1455,10 +1510,50 @@ class ConsentDataExportTest extends TestCase
 
     public function test_pdf_register_view_renders_selected_register_information(): void
     {
+        config([
+            'organization-branding.disk' =>
+                'organization-branding-test',
+        ]);
+
+        Storage::fake(
+            'organization-branding-test'
+        );
+
+        $logoPath =
+            'organization-logos/register-brand.png';
+
+        Storage::disk(
+            'organization-branding-test'
+        )->put(
+            $logoPath,
+            base64_decode(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC'
+                .'AAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+            )
+        );
+
+        $organization =
+            new Organization([
+                'name' =>
+                    'Branded Example Organization',
+
+                'logo' =>
+                    $logoPath,
+
+                'pdf_primary_color' =>
+                    '#123456',
+
+                'pdf_accent_color' =>
+                    '#ABCDEF',
+            ]);
+
         $html =
             view(
                 'pdfs.consent-register',
                 [
+                    'organization' =>
+                        $organization,
+
                     'title' =>
                         'Employee Consent',
 
@@ -1497,6 +1592,46 @@ class ConsentDataExportTest extends TestCase
 
         $this->assertStringContainsString(
             'Consent Register',
+            $html
+        );
+
+        $this->assertStringContainsString(
+            'Branded Example Organization',
+            $html
+        );
+
+        $this->assertStringContainsString(
+            '#123456',
+            $html
+        );
+
+        $this->assertStringContainsString(
+            '#ABCDEF',
+            $html
+        );
+
+        $this->assertStringContainsString(
+            'data:image/png;base64,',
+            $html
+        );
+
+        $this->assertStringContainsString(
+            'Branded Example Organization logo',
+            $html
+        );
+
+        $this->assertStringContainsString(
+            'Securely created with eConsent',
+            $html
+        );
+
+        $this->assertStringContainsString(
+            'https://econsent.site',
+            $html
+        );
+
+        $this->assertStringContainsString(
+            'separate from the exported',
             $html
         );
 

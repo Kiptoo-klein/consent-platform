@@ -5,6 +5,214 @@
 
     <title>{{ $title }} - Consent Register</title>
 
+    @php
+        $pdfColorPattern = '/^#[0-9A-Fa-f]{6}$/';
+
+        $configuredPdfPrimaryColor =
+            $organization->pdf_primary_color
+            ?? null;
+
+        $configuredPdfAccentColor =
+            $organization->pdf_accent_color
+            ?? null;
+
+        $pdfPrimaryColor = is_string($configuredPdfPrimaryColor)
+            && preg_match($pdfColorPattern, $configuredPdfPrimaryColor)
+                ? strtoupper($configuredPdfPrimaryColor)
+                : '#17324D';
+
+        $pdfAccentColor = is_string($configuredPdfAccentColor)
+            && preg_match($pdfColorPattern, $configuredPdfAccentColor)
+                ? strtoupper($configuredPdfAccentColor)
+                : '#0F766E';
+
+        $organizationName =
+            $organization->name
+            ?? 'Organization';
+
+        $organizationInitial = strtoupper(
+            mb_substr($organizationName, 0, 1)
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Embedded organization logo
+        |--------------------------------------------------------------------------
+        |
+        | Use the same PDF-safe organization logo behavior as individual
+        | consent records. The storage object is read directly and embedded
+        | so Dompdf does not depend on a browser-facing asset URL.
+        |
+        */
+
+        $organizationLogoDataUri = null;
+        $organizationLogoPath =
+            $organization?->logo;
+
+        if (filled($organizationLogoPath)) {
+            try {
+                $logoDisk =
+                    \Illuminate\Support\Facades\Storage::disk(
+                        (string) config(
+                            'organization-branding.disk',
+                            'public'
+                        )
+                    );
+
+                if ($logoDisk->exists($organizationLogoPath)) {
+                    $logoBytes = $logoDisk->get(
+                        $organizationLogoPath
+                    );
+
+                    $logoExtension = strtolower(
+                        pathinfo(
+                            $organizationLogoPath,
+                            PATHINFO_EXTENSION
+                        )
+                    );
+
+                    $logoMime = match ($logoExtension) {
+                        'jpg', 'jpeg' => 'image/jpeg',
+                        'png' => 'image/png',
+                        'webp' => 'image/webp',
+                        default => null,
+                    };
+
+                    if (
+                        $logoMime === 'image/webp'
+                        && function_exists('imagecreatefromstring')
+                    ) {
+                        $logoImage = @imagecreatefromstring(
+                            $logoBytes
+                        );
+
+                        if ($logoImage !== false) {
+                            ob_start();
+                            imagepng($logoImage);
+                            $convertedLogoBytes = ob_get_clean();
+                            imagedestroy($logoImage);
+
+                            if (
+                                is_string($convertedLogoBytes)
+                                && $convertedLogoBytes !== ''
+                            ) {
+                                $logoBytes = $convertedLogoBytes;
+                                $logoMime = 'image/png';
+                            }
+                        }
+                    }
+
+                    if (
+                        $logoMime !== null
+                        && is_string($logoBytes)
+                        && $logoBytes !== ''
+                        && function_exists('imagecreatefromstring')
+                        && function_exists('imagecreatetruecolor')
+                    ) {
+                        $sourceLogo = @imagecreatefromstring(
+                            $logoBytes
+                        );
+
+                        if ($sourceLogo !== false) {
+                            $sourceWidth = imagesx($sourceLogo);
+                            $sourceHeight = imagesy($sourceLogo);
+                            $cropSize = min(
+                                $sourceWidth,
+                                $sourceHeight
+                            );
+
+                            $sourceX = (int) floor(
+                                ($sourceWidth - $cropSize) / 2
+                            );
+
+                            $sourceY = (int) floor(
+                                ($sourceHeight - $cropSize) / 2
+                            );
+
+                            $squareLogo =
+                                imagecreatetruecolor(
+                                    160,
+                                    160
+                                );
+
+                            imagealphablending(
+                                $squareLogo,
+                                false
+                            );
+
+                            imagesavealpha(
+                                $squareLogo,
+                                true
+                            );
+
+                            $transparent =
+                                imagecolorallocatealpha(
+                                    $squareLogo,
+                                    255,
+                                    255,
+                                    255,
+                                    127
+                                );
+
+                            imagefilledrectangle(
+                                $squareLogo,
+                                0,
+                                0,
+                                159,
+                                159,
+                                $transparent
+                            );
+
+                            imagecopyresampled(
+                                $squareLogo,
+                                $sourceLogo,
+                                0,
+                                0,
+                                $sourceX,
+                                $sourceY,
+                                160,
+                                160,
+                                $cropSize,
+                                $cropSize
+                            );
+
+                            ob_start();
+                            imagepng($squareLogo);
+                            $squareLogoBytes =
+                                ob_get_clean();
+
+                            imagedestroy($squareLogo);
+                            imagedestroy($sourceLogo);
+
+                            if (
+                                is_string($squareLogoBytes)
+                                && $squareLogoBytes !== ''
+                            ) {
+                                $logoBytes =
+                                    $squareLogoBytes;
+
+                                $logoMime =
+                                    'image/png';
+                            }
+                        }
+                    }
+
+                    if (
+                        $logoMime !== null
+                        && is_string($logoBytes)
+                        && $logoBytes !== ''
+                    ) {
+                        $organizationLogoDataUri =
+                            'data:'.$logoMime.';base64,'
+                            .base64_encode($logoBytes);
+                    }
+                }
+            } catch (\Throwable $exception) {
+                $organizationLogoDataUri = null;
+            }
+        }
+    @endphp
+
     <style>
         @page {
             margin: 28px 30px 44px;
@@ -50,18 +258,68 @@
             vertical-align: top;
         }
 
-        .brand {
-            margin: 0 0 6px;
-            color: #0f766e;
-            font-size: 8px;
+        .brand-row {
+            margin-bottom: 8px;
+        }
+
+        .brand-mark {
+            display: inline-block;
+            width: 38px;
+            height: 38px;
+            margin-right: 9px;
+            border-radius: 4px;
+            background: {{ $pdfPrimaryColor }};
+            color: #ffffff;
+            font-size: 18px;
             font-weight: bold;
-            letter-spacing: 0.14em;
+            line-height: 38px;
+            text-align: center;
+            vertical-align: top;
+        }
+
+        .brand-logo-wrap {
+            display: inline-block;
+            overflow: hidden;
+            width: 44px;
+            height: 44px;
+            margin-right: 9px;
+            border-radius: 4px;
+            vertical-align: top;
+        }
+
+        .brand-logo {
+            display: block;
+            width: 44px;
+            height: 44px;
+        }
+
+        .brand-copy {
+            display: inline-block;
+            padding-top: 3px;
+            vertical-align: top;
+        }
+
+        .organization-name {
+            display: block;
+            color: {{ $pdfPrimaryColor }};
+            font-size: 14px;
+            font-weight: bold;
+            line-height: 1.2;
+        }
+
+        .organization-label {
+            display: block;
+            margin-top: 3px;
+            color: #64748b;
+            font-size: 7px;
+            font-weight: bold;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
         }
 
         h1 {
             margin: 0;
-            color: #0f172a;
+            color: {{ $pdfPrimaryColor }};
             font-size: 21px;
             line-height: 1.15;
         }
@@ -74,10 +332,10 @@
 
         .register-badge {
             display: inline-block;
-            border: 1px solid #99f6e4;
-            background: #f0fdfa;
+            border: 1px solid {{ $pdfAccentColor }};
+            background: #f8fafc;
             padding: 6px 10px;
-            color: #0f766e;
+            color: {{ $pdfAccentColor }};
             font-size: 7px;
             font-weight: bold;
             letter-spacing: 0.08em;
@@ -86,7 +344,7 @@
 
         .header-rule {
             margin-top: 14px;
-            border-top: 2px solid #0f766e;
+            border-top: 2px solid {{ $pdfAccentColor }};
         }
 
         .meta-strip {
@@ -150,7 +408,7 @@
         }
 
         .register-table th {
-            background: #0f766e;
+            background: {{ $pdfPrimaryColor }};
             color: #ffffff;
             font-weight: bold;
             text-align: left;
@@ -172,6 +430,37 @@
             text-align: center;
         }
 
+        .platform-notice {
+            margin-top: 24px;
+            border-top: 2px solid {{ $pdfAccentColor }};
+            background: #f8fafc;
+            padding: 12px 16px;
+            color: #374151;
+            font-size: 8px;
+            line-height: 1.5;
+            text-align: center;
+        }
+
+        .platform-notice strong {
+            color: {{ $pdfPrimaryColor }};
+        }
+
+        .platform-notice a {
+            color: {{ $pdfAccentColor }};
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .platform-notice-separator {
+            margin: 0 5px;
+        }
+
+        .platform-notice-copy {
+            margin-top: 3px;
+            color: #6b7280;
+            font-size: 7px;
+        }
+
         .footer-note {
             position: fixed;
             right: 120px;
@@ -188,9 +477,31 @@
         <table class="header-table">
             <tr>
                 <td class="header-main">
-                    <p class="brand">
-                        eConsent
-                    </p>
+                    <div class="brand-row">
+                        @if ($organizationLogoDataUri)
+                            <span class="brand-logo-wrap">
+                                <img
+                                    src="{{ $organizationLogoDataUri }}"
+                                    alt="{{ $organizationName }} logo"
+                                    class="brand-logo"
+                                >
+                            </span>
+                        @else
+                            <span class="brand-mark">
+                                {{ $organizationInitial }}
+                            </span>
+                        @endif
+
+                        <span class="brand-copy">
+                            <span class="organization-name">
+                                {{ $organizationName }}
+                            </span>
+
+                            <span class="organization-label">
+                                Issuing organization
+                            </span>
+                        </span>
+                    </div>
 
                     <h1>
                         {{ $title }}
@@ -276,8 +587,31 @@
         </table>
     @endif
 
+    <div
+        class="platform-notice"
+    >
+        <strong>
+            Securely created with eConsent
+        </strong>
+
+        <span class="platform-notice-separator">
+            —
+        </span>
+
+        <a href="https://econsent.site">
+            econsent.site
+        </a>
+
+        <div class="platform-notice-copy">
+            This platform notice is separate from the exported
+            consent records above.
+        </div>
+    </div>
+
     <div class="footer-note">
-        eConsent &nbsp;·&nbsp; Consent Register
+        {{ $organizationName }}
+        &nbsp;·&nbsp;
+        Consent Register
         &nbsp;·&nbsp;
         {{ $generatedAt->format('d M Y') }}
     </div>

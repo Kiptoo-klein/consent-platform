@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ConsentSession;
 use App\Models\ConsentTemplate;
+use App\Models\Organization;
 use App\Models\SigningStation;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
@@ -598,6 +599,11 @@ class ConsentDataExportController extends Controller
                 ]);
             }
 
+            $organization =
+                $request->user()
+                    ->organization()
+                    ->firstOrFail();
+
             return $this->pdfRegisterDownload(
                 query: $exportQuery,
                 columns: $selectedColumns,
@@ -606,7 +612,9 @@ class ConsentDataExportController extends Controller
                 singleTemplate:
                     $singleTemplate,
                 template:
-                    $template
+                    $template,
+                organization:
+                    $organization
             );
         }
 
@@ -984,7 +992,8 @@ class ConsentDataExportController extends Controller
         string $filename,
         string $sort,
         bool $singleTemplate,
-        ?ConsentTemplate $template
+        ?ConsentTemplate $template,
+        Organization $organization
     ): Response {
         $headings =
             $columns
@@ -1063,6 +1072,9 @@ class ConsentDataExportController extends Controller
             Pdf::loadView(
                 'pdfs.consent-register',
                 [
+                    'organization' =>
+                        $organization,
+
                     'title' =>
                         $title,
 

@@ -90,7 +90,7 @@
                     class="overflow-hidden rounded-xl bg-white shadow"
                     x-data="{
                         selected: @js($defaultColumns),
-                        format: 'xlsx',
+                        format: 'pdf',
 
                         toggleAll(keys) {
                             const allSelected =
@@ -257,6 +257,35 @@
                                         <input
                                             type="radio"
                                             name="format"
+                                            value="pdf"
+                                            x-model="format"
+                                            class="mt-0.5 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        >
+
+                                        <span>
+                                            <span class="flex items-center justify-between gap-3">
+                                                <span class="font-semibold text-gray-900">
+                                                    PDF Register
+                                                </span>
+
+                                                <span
+                                                    x-show="format === 'pdf'"
+                                                    x-cloak
+                                                    class="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white"
+                                                >
+                                                    Selected
+                                                </span>
+                                            </span>
+
+                                            <span class="mt-1 block text-sm text-gray-500">
+                                                Printable table · up to 12 columns
+                                            </span>
+                                        </span>
+                                    </label>
+                                    <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-4 hover:bg-gray-50">
+                                        <input
+                                            type="radio"
+                                            name="format"
                                             value="xlsx"
                                             x-model="format"
                                             class="mt-0.5 border-gray-300 text-indigo-600 focus:ring-indigo-500"
@@ -282,7 +311,6 @@
                                             </span>
                                         </span>
                                     </label>
-
                                     <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-4 hover:bg-gray-50">
                                         <input
                                             type="radio"
@@ -309,36 +337,6 @@
 
                                             <span class="mt-1 block text-sm text-gray-500">
                                                 .csv spreadsheet
-                                            </span>
-                                        </span>
-                                    </label>
-
-                                    <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-4 hover:bg-gray-50">
-                                        <input
-                                            type="radio"
-                                            name="format"
-                                            value="pdf"
-                                            x-model="format"
-                                            class="mt-0.5 border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                        >
-
-                                        <span>
-                                            <span class="flex items-center justify-between gap-3">
-                                                <span class="font-semibold text-gray-900">
-                                                    PDF Register
-                                                </span>
-
-                                                <span
-                                                    x-show="format === 'pdf'"
-                                                    x-cloak
-                                                    class="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white"
-                                                >
-                                                    Selected
-                                                </span>
-                                            </span>
-
-                                            <span class="mt-1 block text-sm text-gray-500">
-                                                Printable table · up to 12 columns
                                             </span>
                                         </span>
                                     </label>
