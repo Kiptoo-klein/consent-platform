@@ -154,17 +154,36 @@ class EnsureSigningStationDeviceLease
             is_string($stationToken)
             && $stationToken !== ''
         ) {
-            return SigningStation::query()
-                ->with('organization')
-                ->where(
-                    'station_token',
-                    $stationToken
-                )
-                ->where(
-                    'active',
-                    true
-                )
-                ->first();
+            $station =
+                SigningStation::query()
+                    ->with([
+                        'organization',
+                        'consentTemplate',
+                    ])
+                    ->where(
+                        'station_token',
+                        $stationToken
+                    )
+                    ->where(
+                        'active',
+                        true
+                    )
+                    ->first();
+
+            /*
+             * A stale active flag must not consume a kiosk device
+             * slot when the assigned template is no longer live.
+             * The public controller remains responsible for the
+             * user-facing unavailable response.
+             */
+            if (
+                $station === null
+                || ! $station->isAvailable()
+            ) {
+                return null;
+            }
+
+            return $station;
         }
 
         $accessToken = $request->route(
@@ -180,9 +199,10 @@ class EnsureSigningStationDeviceLease
 
         $consentSession =
             ConsentSession::query()
-                ->with(
-                    'signingStation.organization'
-                )
+                ->with([
+                    'signingStation.organization',
+                    'signingStation.consentTemplate',
+                ])
                 ->where(
                     'access_token',
                     $accessToken
@@ -195,7 +215,7 @@ class EnsureSigningStationDeviceLease
 
         if (
             $station === null
-            || ! $station->active
+            || ! $station->isAvailable()
         ) {
             return null;
         }

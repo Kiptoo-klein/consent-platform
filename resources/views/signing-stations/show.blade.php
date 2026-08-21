@@ -7,9 +7,13 @@
                         {{ $signingStation->name }}
                     </h2>
 
-                    @if ($signingStation->active)
+                    @if ($signingStation->isAvailable())
                         <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700 dark:bg-green-900/40 dark:text-green-300">
                             Active
+                        </span>
+                    @elseif ($signingStation->active)
+                        <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                            Unavailable
                         </span>
                     @else
                         <span class="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-semibold text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
@@ -24,7 +28,7 @@
             </div>
 
             <div class="flex flex-wrap gap-2">
-                @if ($signingStation->active)
+                @if ($signingStation->isAvailable())
                     <a
                         href="{{ route(
                             'public-signing-stations.show',
@@ -57,6 +61,42 @@
 
     <div class="py-8">
         <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
+            @if ($errors->any())
+                <div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800 shadow-sm dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
+                    <p class="font-semibold">
+                        Signing station action could not be completed
+                    </p>
+
+                    <ul class="mt-2 list-disc space-y-1 pl-5">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            @if (! $signingStation->consentTemplate)
+                <div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800 shadow-sm dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
+                    <p class="font-semibold">
+                        Signing station unavailable
+                    </p>
+
+                    <p class="mt-1">
+                        This signing station has no available consent template.
+                        Assign a published template before activating it.
+                    </p>
+                </div>
+            @elseif (! $signingStation->consentTemplate->isLive())
+                <div class="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 shadow-sm dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                    <p class="font-semibold">
+                        Consent template offline
+                    </p>
+
+                    <p class="mt-1">
+                        This signing station is unavailable because its assigned consent template is offline.
+                    </p>
+                </div>
+            @endif
             @if (session('success'))
                 <div class="rounded-lg border border-green-200 bg-green-50 p-4 text-sm font-medium text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300">
                     {{ session('success') }}
@@ -167,7 +207,7 @@
                             </div>
 
                             <div class="flex flex-wrap gap-3">
-                                @if ($signingStation->active)
+                                @if ($signingStation->isAvailable())
                                     <a
                                         href="{{ route(
                                             'public-signing-stations.show',
@@ -410,6 +450,15 @@
                                             No QR deadline is currently scheduled.
                                         @endif
                                     </p>
+
+                                    @if (! $qrWindowActive)
+                                        <p class="mt-2 text-xs leading-5 text-amber-700 dark:text-amber-400">
+                                            QR signing window has expired. Renew it to allow new QR scans.
+                                            @if ($signingStation->isAvailable())
+                                                The shared kiosk can still be launched.
+                                            @endif
+                                        </p>
+                                    @endif
                                 </div>
 
                                 <span

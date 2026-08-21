@@ -28,7 +28,7 @@ class SigningStationController extends Controller
         $signingStations = SigningStation::query()
             ->where('organization_id', $organizationId)
             ->with([
-                'consentTemplate:id,title',
+                'consentTemplate:id,title,active_version_id,status',
             ])
             ->withCount([
                 'consentSessions',
@@ -509,6 +509,37 @@ class SigningStationController extends Controller
         SigningStationDeviceLeaseService $deviceLeaseService
     ): RedirectResponse {
         $this->authorizeStation($request, $signingStation);
+
+        if (! $signingStation->active) {
+            $signingStation->loadMissing(
+                'consentTemplate'
+            );
+
+            if (
+                $signingStation->consentTemplate
+                === null
+            ) {
+                return back()->withErrors([
+                    'station' =>
+                        'This signing station cannot be activated '
+                        .'because its consent template is unavailable. '
+                        .'Assign a published template first.',
+                ]);
+            }
+
+            if (
+                ! $signingStation
+                    ->consentTemplate
+                    ->isLive()
+            ) {
+                return back()->withErrors([
+                    'station' =>
+                        'This signing station cannot be activated '
+                        .'because its consent template is offline. '
+                        .'Publish the template first.',
+                ]);
+            }
+        }
 
         if (
             ! $signingStation->active

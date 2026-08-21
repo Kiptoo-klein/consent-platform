@@ -149,9 +149,13 @@
                                         </p>
                                     </div>
 
-                                    @if ($signingStation->active)
+                                    @if ($signingStation->isAvailable())
                                         <span class="inline-flex shrink-0 items-center rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700 dark:bg-green-900/40 dark:text-green-300">
                                             Active
+                                        </span>
+                                    @elseif ($signingStation->active)
+                                        <span class="inline-flex shrink-0 items-center rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                                            Unavailable
                                         </span>
                                     @else
                                         <span class="inline-flex shrink-0 items-center rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-semibold text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
@@ -226,7 +230,7 @@
                                     Manage
                                 </a>
 
-                                @if ($signingStation->active)
+                                @if ($signingStation->isAvailable())
                                     <a
                                         href="{{ route(
                                             'public-signing-stations.show',

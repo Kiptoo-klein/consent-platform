@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ConsentTemplate;
 use App\Services\DynamicFormFieldService;
 use App\Services\EvaluationOnboardingService;
+use App\Services\SigningStationDeviceLeaseService;
 use App\Services\SubscriptionUsageLimitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -688,14 +689,21 @@ class ConsentTemplateController extends Controller
      * Take the active published version offline without deleting history.
      */
     public function unpublish(
-        ConsentTemplate $consentTemplate
+        ConsentTemplate $consentTemplate,
+        SigningStationDeviceLeaseService $deviceLeaseService
     ): RedirectResponse {
         $this->ensureTemplateBelongsToOrganization(
             $consentTemplate
         );
 
+        $pausedStationCount = 0;
+
         DB::transaction(
-            function () use ($consentTemplate): void {
+            function () use (
+                $consentTemplate,
+                $deviceLeaseService,
+                &$pausedStationCount
+            ): void {
                 $lockedTemplate = ConsentTemplate::query()
                     ->whereKey($consentTemplate->id)
                     ->lockForUpdate()
@@ -719,19 +727,59 @@ class ConsentTemplateController extends Controller
                     ]);
                 }
 
+                $activeStations =
+                    $lockedTemplate
+                        ->signingStations()
+                        ->where('active', true)
+                        ->lockForUpdate()
+                        ->get();
+
                 $lockedTemplate->update([
                     'active_version_id' => null,
                     'status' => 'draft',
                 ]);
+
+                foreach ($activeStations as $station) {
+                    $station->update([
+                        'active' => false,
+                    ]);
+
+                    $deviceLeaseService
+                        ->releaseForStation(
+                            $station
+                        );
+                }
+
+                $pausedStationCount =
+                    $activeStations->count();
             },
             3
         );
+
+        $message =
+            'The consent template is now offline.';
+
+        if ($pausedStationCount > 0) {
+            $stationNoun =
+                $pausedStationCount === 1
+                    ? 'station'
+                    : 'stations';
+
+            $verb =
+                $pausedStationCount === 1
+                    ? 'was'
+                    : 'were';
+
+            $message .=
+                " {$pausedStationCount} signing {$stationNoun} "
+                ."using this template {$verb} automatically paused.";
+        }
 
         return redirect()
             ->route('consent-templates.manage')
             ->with(
                 'success',
-                'The consent template is now offline.'
+                $message
             );
     }
 
