@@ -446,6 +446,14 @@
                             method="POST"
                             action="{{ route('support-request.store') }}"
                             class="mt-4 space-y-4"
+                            x-data="{
+                                supportType: @js(
+                                    old(
+                                        'support_type',
+                                        'question'
+                                    )
+                                )
+                            }"
                         >
                             @csrf
 
@@ -478,13 +486,19 @@
                                     class="mt-2 grid gap-2 sm:grid-cols-2"
                                 >
                                     <label
-                                        class="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-3 text-sm transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-gray-700 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/30"
+                                        class="flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm transition"
+                                        :class="
+                                            supportType === 'question'
+                                                ? 'border-indigo-400 ring-2 ring-indigo-400/60'
+                                                : 'border-gray-700 hover:border-gray-500'
+                                        "
                                     >
                                         <input
                                             type="radio"
                                             name="support_type"
                                             value="question"
-                                            class="mt-0.5 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                            class="sr-only"
+                                            x-model="supportType"
                                             @checked(
                                                 old(
                                                     'support_type',
@@ -492,6 +506,21 @@
                                                 ) === 'question'
                                             )
                                         >
+
+                                        <span
+                                            class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2"
+                                            :style="
+                                                supportType === 'question'
+                                                    ? 'border-color:#818cf8;background-color:#818cf8;'
+                                                    : 'border-color:#d1d5db;background-color:#ffffff;'
+                                            "
+                                            aria-hidden="true"
+                                        >
+                                            <span
+                                                class="h-2 w-2 rounded-full bg-white"
+                                                x-show="supportType === 'question'"
+                                            ></span>
+                                        </span>
 
                                         <span>
                                             <span
@@ -510,19 +539,40 @@
                                     </label>
 
                                     <label
-                                        class="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-3 text-sm transition hover:border-red-300 hover:bg-red-50 dark:border-gray-700 dark:hover:border-red-800 dark:hover:bg-red-950/20"
+                                        class="flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm transition"
+                                        :class="
+                                            supportType === 'problem'
+                                                ? 'border-red-400 ring-2 ring-red-400/60'
+                                                : 'border-gray-700 hover:border-gray-500'
+                                        "
                                     >
                                         <input
                                             type="radio"
                                             name="support_type"
                                             value="problem"
-                                            class="mt-0.5 border-gray-300 text-red-600 focus:ring-red-500"
+                                            class="sr-only"
+                                            x-model="supportType"
                                             @checked(
                                                 old(
                                                     'support_type'
                                                 ) === 'problem'
                                             )
                                         >
+
+                                        <span
+                                            class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2"
+                                            :style="
+                                                supportType === 'problem'
+                                                    ? 'border-color:#f87171;background-color:#f87171;'
+                                                    : 'border-color:#d1d5db;background-color:#ffffff;'
+                                            "
+                                            aria-hidden="true"
+                                        >
+                                            <span
+                                                class="h-2 w-2 rounded-full bg-white"
+                                                x-show="supportType === 'problem'"
+                                            ></span>
+                                        </span>
 
                                         <span>
                                             <span
@@ -569,7 +619,13 @@
                                     maxlength="5000"
                                     required
                                     placeholder="Describe your question or what happened. Include what you expected to happen if you are reporting a problem."
-                                    class="mt-2 block w-full rounded-xl border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                    class="mt-2 block w-full rounded-xl border-gray-300 bg-white text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-300 dark:bg-white dark:text-gray-900 dark:placeholder:text-gray-400"
+                                    style="
+                                        background-color:#ffffff !important;
+                                        color:#111827 !important;
+                                        -webkit-text-fill-color:#111827 !important;
+                                        caret-color:#111827 !important;
+                                    "
                                 >{{ old('support_message') }}</textarea>
 
                                 @error(
