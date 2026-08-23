@@ -151,21 +151,13 @@ test('invitation email contains account details but never exposes password value
 
     $mail = $notification->toMail($user);
 
-    $content = implode(
-        "\n",
-        array_filter(
-            [
-                $mail->subject,
-                $mail->greeting,
-                ...$mail->introLines,
-                $mail->actionText,
-                $mail->actionUrl,
-                ...$mail->outroLines,
-            ],
-            static fn (mixed $value): bool =>
-                is_string($value)
-        )
-    );
+    $content =
+        $mail->subject
+        ."\n"
+        .view(
+            $mail->view,
+            $mail->viewData
+        )->render();
 
     expect($content)
         ->toContain(

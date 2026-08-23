@@ -35,34 +35,15 @@ class OrganizationWelcome extends Notification implements ShouldQueue
     ): MailMessage {
         return (new MailMessage())
             ->subject('Welcome to eConsent')
-            ->greeting(
-                'Welcome to eConsent, '
-                .$notifiable->name
-                .'!'
-            )
-            ->line(
-                'Your '
-                .$this->organizationName
-                .' Free Evaluation workspace is ready.'
-            )
-            ->line(
-                'The email you registered with is your initial '
-                .'organization contact email and the default '
-                .'reply-to address for new signing stations. '
-                .'You can edit these settings later.'
-            )
-            ->line(
-                'Use the Getting Started checklist to review '
-                .'your starter templates, publish a template, '
-                .'test a consent workflow and create a signing '
-                .'station.'
-            )
-            ->action(
-                'Open your eConsent dashboard',
-                route('dashboard')
-            )
-            ->line(
-                'There is no time limit on your Free Evaluation.'
+            ->view(
+                'emails.organization-welcome',
+                [
+                    'userName' => $notifiable->name,
+                    'organizationName' =>
+                        $this->organizationName,
+                    'dashboardUrl' =>
+                        route('dashboard'),
+                ]
             );
     }
 

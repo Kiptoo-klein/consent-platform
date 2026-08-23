@@ -50,33 +50,16 @@ class OrganizationUserInvitation extends Notification implements ShouldQueue
                 .$this->organizationName
                 .' on eConsent'
             )
-            ->greeting(
-                'Hello '.$notifiable->name
-            )
-            ->line(
-                'You have been invited to join '
-                .$this->organizationName
-                .' on eConsent.'
-            )
-            ->line(
-                'Name: '.$notifiable->name
-            )
-            ->line(
-                'Role: '.$this->roleName
-            )
-            ->line(
-                'Email: '.$notifiable->email
-            )
-            ->line(
-                'Complete your account setup by choosing '
-                .'your own password.'
-            )
-            ->action(
-                'Complete account setup',
-                $url
-            )
-            ->line(
-                'This invitation expires after seven days.'
+            ->view(
+                'emails.organization-user-invitation',
+                [
+                    'userName' => $notifiable->name,
+                    'email' => $notifiable->email,
+                    'organizationName' =>
+                        $this->organizationName,
+                    'roleName' => $this->roleName,
+                    'invitationUrl' => $url,
+                ]
             );
     }
 

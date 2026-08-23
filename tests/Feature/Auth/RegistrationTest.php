@@ -247,12 +247,54 @@ test('founder receives welcome exactly once after verifying email', function () 
         $user->fresh()->hasVerifiedEmail()
     )->toBeTrue();
 
-    expect(
+    $welcomeNotifications =
         \Illuminate\Support\Facades\Notification::sent(
             $user,
             \App\Notifications\OrganizationWelcome::class
-        )
+        );
+
+    expect(
+        $welcomeNotifications
     )->toHaveCount(1);
+
+    $welcomeMail =
+        $welcomeNotifications
+            ->first()
+            ->toMail($user);
+
+    $welcomeContent =
+        $welcomeMail->subject
+        ."\n"
+        .view(
+            $welcomeMail->view,
+            $welcomeMail->viewData
+        )->render();
+
+    expect($welcomeContent)
+        ->toContain(
+            'Welcome to eConsent'
+        )
+        ->toContain(
+            'Verified Welcome Administrator'
+        )
+        ->toContain(
+            'Verified Welcome Clinic'
+        )
+        ->toContain(
+            'Free Evaluation'
+        )
+        ->toContain(
+            'Open your eConsent dashboard'
+        )
+        ->toContain(
+            'No time limit'
+        )
+        ->toContain(
+            route('dashboard')
+        )
+        ->not->toContain(
+            'StrongPass1!'
+        );
 
     /*
      * A repeated click on the same still-valid signed URL must not
