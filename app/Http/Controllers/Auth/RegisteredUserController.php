@@ -2,26 +2,16 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Enums\OrganizationRole;
-use App\Enums\OrganizationSubscriptionStatus;
-use App\Enums\SubscriptionPaymentStatus;
 use App\Http\Controllers\Controller;
-use App\Models\Organization;
-use App\Models\SubscriptionPlan;
 use App\Models\User;
-use App\Services\EvaluationStarterTemplateService;
+use App\Services\OrganizationRegistrationService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 
 class RegisteredUserController extends Controller
 {
@@ -38,7 +28,10 @@ class RegisteredUserController extends Controller
      *
      * @throws ValidationException
      */
-    public function store(Request $request): RedirectResponse
+    public function store(
+        Request $request,
+        OrganizationRegistrationService $registration
+    ): RedirectResponse
     {
         $validated = $request->validate([
             'organization_name' => [
@@ -66,98 +59,19 @@ class RegisteredUserController extends Controller
             ],
         ]);
 
-        $permissionRegistrar = app(PermissionRegistrar::class);
-        $previousTeamId = $permissionRegistrar->getPermissionsTeamId();
+        $user = $registration->registerFounder(
+            organizationName:
+                $validated['organization_name'],
 
-        try {
-            $user = DB::transaction(function () use (
-                $validated,
-                $permissionRegistrar
-            ): User {
-                $basicPlan = SubscriptionPlan::query()
-                    ->where('slug', 'basic')
-                    ->where('is_active', true)
-                    ->first();
+            name:
+                $validated['name'],
 
-                if ($basicPlan === null) {
-                    throw new \RuntimeException(
-                        'The active Basic subscription plan is unavailable.'
-                    );
-                }
+            email:
+                $validated['email'],
 
-                $organization = Organization::create([
-                    'name' => $validated['organization_name'],
-                    'slug' => Str::slug(
-                        $validated['organization_name']
-                    ).'-'.uniqid(),
-                    'email' => $validated['email'],
-                ]);
-
-                $administratorRole = null;
-
-                foreach (OrganizationRole::cases() as $roleDetails) {
-                    $role = Role::query()->firstOrCreate([
-                        'organization_id' => $organization->id,
-                        'name' => $roleDetails->label(),
-                        'guard_name' => 'web',
-                    ]);
-
-                    if (
-                        $roleDetails
-                        === OrganizationRole::ORGANIZATION_ADMINISTRATOR
-                    ) {
-                        $administratorRole = $role;
-                    }
-                }
-
-                if ($administratorRole === null) {
-                    throw new \RuntimeException(
-                        'Organization Admin role could not be created.'
-                    );
-                }
-
-                $user = User::create([
-                    'organization_id' => $organization->id,
-                    'platform_role_id' => null,
-                    'name' => $validated['name'],
-                    'email' => $validated['email'],
-                    'password' => Hash::make(
-                        $validated['password']
-                    ),
-                    'is_active' => true,
-                ]);
-
-                $permissionRegistrar
-                    ->setPermissionsTeamId($organization->id);
-
-                $user->assignRole($administratorRole);
-
-                $organization->subscription()->create([
-                    'subscription_plan_id' => $basicPlan->id,
-                    'billing_owner_user_id' => $user->id,
-                    'requires_plan_selection' => true,
-                    'plan_selected_at' => null,
-                    'status' =>
-                        OrganizationSubscriptionStatus::EVALUATION,
-                    'payment_status' =>
-                        SubscriptionPaymentStatus::UNPAID,
-                    'starts_at' => now(),
-                ]);
-
-                app(
-                    EvaluationStarterTemplateService::class
-                )->provision(
-                    $organization
-                );
-
-                $permissionRegistrar->forgetCachedPermissions();
-
-                return $user;
-            });
-        } finally {
-            $permissionRegistrar
-                ->setPermissionsTeamId($previousTeamId);
-        }
+            password:
+                $validated['password']
+        );
 
         try {
             event(new Registered($user));
