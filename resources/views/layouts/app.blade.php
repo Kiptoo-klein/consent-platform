@@ -149,6 +149,8 @@
                 <main>
                     {{ $slot }}
                 </main>
+
+                <x-contextual-help />
             </div>
         </div>
 </body>

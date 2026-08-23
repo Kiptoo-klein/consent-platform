@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\OrganizationRole;
+use App\Services\EvaluationOnboardingService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Spatie\Permission\PermissionRegistrar;
@@ -12,8 +13,10 @@ class OrganizationSettingsController extends Controller
     /**
      * Display organization settings available to the current user.
      */
-    public function index(Request $request): View
-    {
+    public function index(
+        Request $request,
+        EvaluationOnboardingService $evaluationOnboardingService
+    ): View {
         $user = $request->user();
 
         abort_if(
@@ -65,6 +68,12 @@ class OrganizationSettingsController extends Controller
         $requiresSubscriptionRecovery =
             ! $hasOrganizationAccess;
 
+        $evaluationOnboarding =
+            $evaluationOnboardingService
+                ->dashboardState(
+                    (int) $organization->id
+                );
+
         return view(
             'organization-settings.index',
             [
@@ -85,6 +94,9 @@ class OrganizationSettingsController extends Controller
 
                 'requiresSubscriptionRecovery' =>
                     $requiresSubscriptionRecovery,
+
+                'evaluationOnboarding' =>
+                    $evaluationOnboarding,
             ]
         );
     }

@@ -162,6 +162,7 @@
 </section>
 
 <details
+    id="evaluation-getting-started"
     data-evaluation-checklist
     data-evaluation-checklist-progress="{{ $evaluationOnboarding['completed_steps'] }}/{{ $evaluationOnboarding['total_steps'] }}"
     data-evaluation-checklist-complete="{{ $evaluationOnboarding['complete'] ? '1' : '0' }}"
