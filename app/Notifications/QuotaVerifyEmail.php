@@ -5,11 +5,10 @@ namespace App\Notifications;
 use App\Jobs\Middleware\EnforceEmailQuota;
 use App\Models\EmailQuotaAttempt;
 use DateTimeInterface;
-use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
-class QuotaVerifyEmail extends VerifyEmail implements ShouldQueue
+class QuotaVerifyEmail extends BrandedVerifyEmail implements ShouldQueue
 {
     use Queueable;
 

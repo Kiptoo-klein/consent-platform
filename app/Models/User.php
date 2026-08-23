@@ -6,8 +6,8 @@ use App\Notifications\QuotaResetPassword;
 use App\Notifications\QuotaVerifyEmail;
 use App\Services\EmailQuotaService;
 use Database\Factories\UserFactory;
-use Illuminate\Auth\Notifications\ResetPassword;
-use Illuminate\Auth\Notifications\VerifyEmail;
+use App\Notifications\BrandedResetPassword;
+use App\Notifications\BrandedVerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -118,7 +118,7 @@ class User extends Authenticatable implements MustVerifyEmail
             app(EmailQuotaService::class)
                 ->shouldQueue()
                     ? new QuotaVerifyEmail()
-                    : new VerifyEmail();
+                    : new BrandedVerifyEmail();
 
         $this->notify($notification);
     }
@@ -130,7 +130,7 @@ class User extends Authenticatable implements MustVerifyEmail
             app(EmailQuotaService::class)
                 ->shouldQueue()
                     ? new QuotaResetPassword($token)
-                    : new ResetPassword($token);
+                    : new BrandedResetPassword($token);
 
         $this->notify($notification);
     }

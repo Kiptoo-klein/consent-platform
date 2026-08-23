@@ -39,7 +39,7 @@ test('new organizations register into the free evaluation', function () {
 
     \Illuminate\Support\Facades\Notification::assertSentTo(
         $user,
-        \Illuminate\Auth\Notifications\VerifyEmail::class
+        \App\Notifications\BrandedVerifyEmail::class
     );
 
     \Illuminate\Support\Facades\Notification::assertNotSentTo(
