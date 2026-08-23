@@ -95,6 +95,89 @@
                 </div>
             @endif
 
+            @if (
+                ! $isArchived
+                && $isPlatformSuperAdmin
+            )
+                <section
+                    class="rounded-2xl border border-red-200 bg-red-50 p-6 shadow-sm"
+                    data-organization-archive-control
+                >
+                    <div
+                        class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between"
+                    >
+                        <div class="max-w-3xl">
+                            <p
+                                class="text-xs font-bold uppercase tracking-[0.16em] text-red-700"
+                            >
+                                Organization access control
+                            </p>
+
+                            <h2
+                                class="mt-2 text-lg font-bold text-red-950"
+                            >
+                                Archive this organization
+                            </h2>
+
+                            <p
+                                class="mt-2 text-sm leading-6 text-red-900"
+                            >
+                                Archiving blocks the entire organization
+                                from eConsent and makes its public signing
+                                stations and consent links unavailable.
+                                Existing users, roles, billing ownership,
+                                subscriptions, templates and consent
+                                records remain preserved.
+                            </p>
+
+                            <p
+                                class="mt-3 text-sm font-semibold leading-6 text-red-900"
+                            >
+                                You do not need to transfer the Billing
+                                Owner or Organization Administrator roles
+                                before archiving the whole organization.
+                                Individual user accounts are not archived.
+                            </p>
+                        </div>
+
+                        <form
+                            method="POST"
+                            action="{{ route(
+                                'platform.organizations.archive',
+                                $organization
+                            ) }}"
+                            x-data
+                            class="shrink-0"
+                            data-organization-archive
+                        >
+                            @csrf
+                            @method('PATCH')
+
+                            <button
+                                type="button"
+                                class="inline-flex items-center rounded-xl bg-red-700 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2"
+                                x-on:click="
+                                    $dispatch(
+                                        'open-modal',
+                                        'archive-organization-{{ $organization->id }}'
+                                    )
+                                "
+                            >
+                                Archive Organization
+                            </button>
+
+                            <x-action-confirmation-modal
+                                name="archive-organization-{{ $organization->id }}"
+                                title="Archive {{ $organization->name }}?"
+                                message="This immediately blocks organization access, public signing stations and consent signing links. Users, roles, billing ownership and existing records remain preserved. No administrator or Billing Owner transfer is required."
+                                confirm-text="Archive organization"
+                                variant="danger"
+                            />
+                        </form>
+                    </div>
+                </section>
+            @endif
+
             @if ($isArchived)
                 <section
                     class="rounded-2xl border border-red-300 bg-red-50 p-6 shadow-sm"

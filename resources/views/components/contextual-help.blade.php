@@ -13,11 +13,29 @@
     $helpIntro = $help['intro'];
     $helpSections = $help['sections'];
     $helpLinks = $help['links'];
+
+    $supportRequestAvailable =
+        Route::has(
+            'support-request.store'
+        );
+
+    $supportRequestErrors =
+        isset($errors)
+            ? $errors->getBag(
+                'supportRequest'
+            )
+            : new \Illuminate\Support\MessageBag();
+
+    $openHelpForSupport =
+        $supportRequestErrors->any()
+        || session()->has(
+            'support_request_status'
+        );
 @endphp
 
 @if ($helpUser?->organization_id !== null)
     <div
-        x-data="{ helpOpen: false }"
+        x-data="{ helpOpen: @js($openHelpForSupport) }"
         data-contextual-help
         data-help-context="{{ $helpContext }}"
         @keydown.escape.window="helpOpen = false"
@@ -395,6 +413,212 @@
                         </div>
                     </section>
                 @endif
+
+                {{-- Ask a question / Report a problem --}}
+                <section
+                    class="mt-8 border-t border-gray-200 pt-6 dark:border-gray-700"
+                    data-support-request
+                >
+                    <h3
+                        class="text-sm font-bold text-gray-900 dark:text-white"
+                    >
+                        Still need help?
+                    </h3>
+
+                    <p
+                        class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400"
+                    >
+                        Ask eConsent Support a question or report a
+                        problem without leaving this page.
+                    </p>
+
+                    @if (session('support_request_status'))
+                        <div
+                            class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"
+                            role="status"
+                        >
+                            {{ session('support_request_status') }}
+                        </div>
+                    @endif
+
+                    @if ($supportRequestAvailable)
+                        <form
+                            method="POST"
+                            action="{{ route('support-request.store') }}"
+                            class="mt-4 space-y-4"
+                        >
+                            @csrf
+
+                            <input
+                                type="hidden"
+                                name="support_context_route"
+                                value="{{ request()->route()?->getName() }}"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="support_context_path"
+                                value="/{{ request()->path() }}"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="support_help_context"
+                                value="{{ $helpContext }}"
+                            >
+
+                            <fieldset>
+                                <legend
+                                    class="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300"
+                                >
+                                    What do you need?
+                                </legend>
+
+                                <div
+                                    class="mt-2 grid gap-2 sm:grid-cols-2"
+                                >
+                                    <label
+                                        class="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-3 text-sm transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-gray-700 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/30"
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="support_type"
+                                            value="question"
+                                            class="mt-0.5 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                            @checked(
+                                                old(
+                                                    'support_type',
+                                                    'question'
+                                                ) === 'question'
+                                            )
+                                        >
+
+                                        <span>
+                                            <span
+                                                class="block font-semibold text-gray-900 dark:text-white"
+                                            >
+                                                Ask a question
+                                            </span>
+
+                                            <span
+                                                class="mt-0.5 block text-xs leading-5 text-gray-500 dark:text-gray-400"
+                                            >
+                                                Get help understanding
+                                                or using eConsent.
+                                            </span>
+                                        </span>
+                                    </label>
+
+                                    <label
+                                        class="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-3 text-sm transition hover:border-red-300 hover:bg-red-50 dark:border-gray-700 dark:hover:border-red-800 dark:hover:bg-red-950/20"
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="support_type"
+                                            value="problem"
+                                            class="mt-0.5 border-gray-300 text-red-600 focus:ring-red-500"
+                                            @checked(
+                                                old(
+                                                    'support_type'
+                                                ) === 'problem'
+                                            )
+                                        >
+
+                                        <span>
+                                            <span
+                                                class="block font-semibold text-gray-900 dark:text-white"
+                                            >
+                                                Report a problem
+                                            </span>
+
+                                            <span
+                                                class="mt-0.5 block text-xs leading-5 text-gray-500 dark:text-gray-400"
+                                            >
+                                                Tell support what is not
+                                                working as expected.
+                                            </span>
+                                        </span>
+                                    </label>
+                                </div>
+
+                                @error(
+                                    'support_type',
+                                    'supportRequest'
+                                )
+                                    <p
+                                        class="mt-2 text-xs font-medium text-red-700 dark:text-red-300"
+                                    >
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            </fieldset>
+
+                            <div>
+                                <label
+                                    for="support_message"
+                                    class="block text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300"
+                                >
+                                    Message
+                                </label>
+
+                                <textarea
+                                    id="support_message"
+                                    name="support_message"
+                                    rows="5"
+                                    minlength="10"
+                                    maxlength="5000"
+                                    required
+                                    placeholder="Describe your question or what happened. Include what you expected to happen if you are reporting a problem."
+                                    class="mt-2 block w-full rounded-xl border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                >{{ old('support_message') }}</textarea>
+
+                                @error(
+                                    'support_message',
+                                    'supportRequest'
+                                )
+                                    <p
+                                        class="mt-2 text-xs font-medium text-red-700 dark:text-red-300"
+                                    >
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+
+                                @error(
+                                    'support',
+                                    'supportRequest'
+                                )
+                                    <p
+                                        class="mt-2 text-xs font-medium text-red-700 dark:text-red-300"
+                                    >
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
+
+                            <button
+                                type="submit"
+                                class="inline-flex items-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                            >
+                                Send to eConsent Support
+                            </button>
+
+                            <p
+                                class="text-xs leading-5 text-gray-500 dark:text-gray-400"
+                            >
+                                Your account, organization and current
+                                page context are included automatically
+                                so support can investigate efficiently.
+                            </p>
+                        </form>
+                    @else
+                        <div
+                            class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
+                        >
+                            Support messaging is temporarily
+                            unavailable. Please try again later.
+                        </div>
+                    @endif
+                </section>
             </div>
 
             {{-- Footer --}}

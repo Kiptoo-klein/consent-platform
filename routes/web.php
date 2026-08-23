@@ -258,6 +258,11 @@ Route::middleware([
         'index',
     ])->name('organization-settings.index');
 
+    Route::post('/support/request', [
+        \App\Http\Controllers\SupportRequestController::class,
+        'store',
+    ])->name('support-request.store');
+
     Route::get('/subscription/plans', [
         OrganizationSubscriptionPlanController::class,
         'index',
@@ -1084,6 +1089,11 @@ Route::prefix('platform')
             'update',
         ])->name('organizations.update');
 
+        Route::patch('/organizations/{organization}/archive', [
+            OrganizationController::class,
+            'archive',
+        ])->name('organizations.archive');
+
         Route::patch('/organizations/{organization}/restore', [
             OrganizationController::class,
             'restore',
@@ -1505,6 +1515,7 @@ $platformRouteRolePolicies = [
 
         'platform.organizations.edit',
         'platform.organizations.update',
+        'platform.organizations.archive',
         'platform.organizations.restore',
 
         'platform.organizations.subscription-bypass.approve',

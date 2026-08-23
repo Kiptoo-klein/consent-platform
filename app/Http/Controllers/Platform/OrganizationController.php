@@ -165,6 +165,81 @@ class OrganizationController extends Controller
     }
 
     /**
+     * Archive an organization from Platform Administration.
+     *
+     * This is an organization-wide access lock. It intentionally does not
+     * archive, disable, or otherwise alter individual organization users,
+     * their roles, billing ownership, subscriptions, templates, consent
+     * records, or signing stations.
+     */
+    public function archive(
+        Organization $organization
+    ): RedirectResponse {
+        DB::transaction(function () use (
+            $organization
+        ): void {
+            $lockedOrganization =
+                Organization::query()
+                    ->whereKey(
+                        $organization->id
+                    )
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+            if (
+                $lockedOrganization
+                    ->archived_at !== null
+            ) {
+                return;
+            }
+
+            $archivedAt =
+                now();
+
+            $lockedOrganization
+                ->forceFill([
+                    'archived_at' =>
+                        $archivedAt,
+                ])
+                ->save();
+
+            $this->activityLogger->log(
+                action: 'organization.archived',
+                description:
+                    "Archived organization "
+                    ."{$lockedOrganization->name} "
+                    ."from Platform Administration.",
+                subject:
+                    $lockedOrganization,
+                organizationId:
+                    $lockedOrganization->id,
+                properties: [
+                    'old' => [
+                        'archived_at' =>
+                            null,
+                    ],
+
+                    'new' => [
+                        'archived_at' =>
+                            $archivedAt
+                                ->toDateTimeString(),
+                    ],
+                ],
+            );
+        });
+
+        return redirect()
+            ->route(
+                'platform.organizations.show',
+                $organization
+            )
+            ->with(
+                'success',
+                'Organization archived successfully.'
+            );
+    }
+
+    /**
      * Restore an archived organization.
      *
      * Organization restoration clears only the organization-wide access
