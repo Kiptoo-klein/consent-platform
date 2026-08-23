@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers\Platform;
+use App\Enums\OrganizationRole;
 use App\Enums\OrganizationSubscriptionStatus;
 use App\Enums\SubscriptionPaymentStatus;
 
@@ -10,11 +11,13 @@ use App\Models\OrganizationSubscription;
 use App\Models\SigningStation;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
+use App\Notifications\OrganizationAccessStatusChanged;
 use App\Services\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -173,10 +176,34 @@ class OrganizationController extends Controller
      * records, or signing stations.
      */
     public function archive(
+        Request $request,
         Organization $organization
     ): RedirectResponse {
+        $validated =
+            $request->validate([
+                'archive_reason' => [
+                    'required',
+                    'string',
+                    'min:10',
+                    'max:1000',
+                ],
+            ]);
+
+        $archiveReason =
+            trim(
+                $validated[
+                    'archive_reason'
+                ]
+            );
+
+        $archived = false;
+        $archivedAt = null;
+
         DB::transaction(function () use (
-            $organization
+            $organization,
+            $archiveReason,
+            &$archived,
+            &$archivedAt
         ): void {
             $lockedOrganization =
                 Organization::query()
@@ -214,6 +241,9 @@ class OrganizationController extends Controller
                 organizationId:
                     $lockedOrganization->id,
                 properties: [
+                    'reason' =>
+                        $archiveReason,
+
                     'old' => [
                         'archived_at' =>
                             null,
@@ -226,7 +256,25 @@ class OrganizationController extends Controller
                     ],
                 ],
             );
+
+            $archived = true;
         });
+
+        if (
+            $archived
+            && $archivedAt !== null
+        ) {
+            $this->notifyOrganizationAdmins(
+                organization:
+                    $organization,
+                status:
+                    'archived',
+                archiveReason:
+                    $archiveReason,
+                changedAt:
+                    $archivedAt
+            );
+        }
 
         return redirect()
             ->route(
@@ -249,8 +297,13 @@ class OrganizationController extends Controller
     public function restore(
         Organization $organization
     ): RedirectResponse {
+        $restored = false;
+        $restoredAt = null;
+
         DB::transaction(function () use (
-            $organization
+            $organization,
+            &$restored,
+            &$restoredAt
         ): void {
             $lockedOrganization =
                 Organization::query()
@@ -272,9 +325,13 @@ class OrganizationController extends Controller
                     ->archived_at
                     ?->toDateTimeString();
 
+            $restoredAt =
+                now();
+
             $lockedOrganization
                 ->forceFill([
-                    'archived_at' => null,
+                    'archived_at' =>
+                        null,
                 ])
                 ->save();
 
@@ -299,7 +356,25 @@ class OrganizationController extends Controller
                     ],
                 ],
             );
+
+            $restored = true;
         });
+
+        if (
+            $restored
+            && $restoredAt !== null
+        ) {
+            $this->notifyOrganizationAdmins(
+                organization:
+                    $organization,
+                status:
+                    'restored',
+                archiveReason:
+                    null,
+                changedAt:
+                    $restoredAt
+            );
+        }
 
         return redirect()
             ->route(
@@ -310,6 +385,102 @@ class OrganizationController extends Controller
                 'success',
                 'Organization restored successfully.'
             );
+    }
+
+    /**
+     * Notify active verified Organization Administrators when the
+     * organization-wide access state changes.
+     */
+    private function notifyOrganizationAdmins(
+        Organization $organization,
+        string $status,
+        ?string $archiveReason,
+        Carbon $changedAt
+    ): void {
+        app(PermissionRegistrar::class)
+            ->setPermissionsTeamId(
+                $organization->id
+            );
+
+        $organizationAdmins =
+            $organization
+                ->users()
+                ->where(
+                    'users.is_active',
+                    true
+                )
+                ->whereNotNull(
+                    'users.email_verified_at'
+                )
+                ->whereHas(
+                    'roles',
+                    function ($query) use (
+                        $organization
+                    ): void {
+                        $query
+                            ->where(
+                                'roles.organization_id',
+                                $organization->id
+                            )
+                            ->where(
+                                'roles.guard_name',
+                                'web'
+                            )
+                            ->where(
+                                'roles.name',
+                                OrganizationRole::
+                                    ORGANIZATION_ADMINISTRATOR
+                                    ->label()
+                            );
+                    }
+                )
+                ->get();
+
+        if ($organizationAdmins->isEmpty()) {
+            return;
+        }
+
+        $performedByName =
+            request()->user()?->name
+            ?? 'Platform Super Admin';
+
+        $timezone =
+            (string) config(
+                'app.display_timezone',
+                config(
+                    'app.timezone',
+                    'UTC'
+                )
+            );
+
+        try {
+            Notification::send(
+                $organizationAdmins,
+                new OrganizationAccessStatusChanged(
+                    status:
+                        $status,
+                    organizationName:
+                        $organization->name,
+                    performedByName:
+                        $performedByName,
+                    archiveReason:
+                        $archiveReason,
+                    changedAt:
+                        $changedAt
+                            ->copy()
+                            ->timezone($timezone)
+                            ->format(
+                                'M d, Y H:i T'
+                            )
+                )
+            );
+        } catch (\Throwable $exception) {
+            /*
+             * An email transport/queue problem must not undo a completed
+             * organization archive or restoration.
+             */
+            report($exception);
+        }
     }
 
     /**

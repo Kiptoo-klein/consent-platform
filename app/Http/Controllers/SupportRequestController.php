@@ -4,13 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Notifications\SupportRequestSubmitted;
+use App\Services\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 
 class SupportRequestController extends Controller
 {
+    public function __construct(
+        protected ActivityLogger $activityLogger
+    ) {
+    }
+
     public function store(
         Request $request
     ): RedirectResponse {
@@ -143,9 +150,79 @@ class SupportRequestController extends Controller
                 ->withInput();
         }
 
+        $pageRoute =
+            $this->contextValue(
+                $validated[
+                    'support_context_route'
+                ] ?? null
+            );
+
+        $pagePath =
+            $this->contextValue(
+                $validated[
+                    'support_context_path'
+                ] ?? null
+            );
+
+        $helpContext =
+            $this->contextValue(
+                $validated[
+                    'support_help_context'
+                ] ?? null
+            );
+
+        $supportReference =
+            $this->supportReference();
+
+        /*
+         * Deliberately audit metadata only.
+         *
+         * The user's support message is NOT written to the activity log.
+         * Support messages may contain personal or otherwise sensitive
+         * information and should remain confined to the support email.
+         */
+        $this->activityLogger->log(
+            action:
+                'support.requested',
+            description:
+                "Submitted support request "
+                ."{$supportReference}.",
+            subject:
+                $user,
+            organizationId:
+                $organization->id,
+            properties: [
+                'reference' =>
+                    $supportReference,
+
+                'request_type' =>
+                    $validated[
+                        'support_type'
+                    ],
+
+                'requester_user_id' =>
+                    (int) $user->id,
+
+                'organization_id' =>
+                    (int) $organization->id,
+
+                'page_route' =>
+                    $pageRoute,
+
+                'page_path' =>
+                    $pagePath,
+
+                'help_context' =>
+                    $helpContext,
+            ]
+        );
+
         Notification::send(
             $superAdmins,
             new SupportRequestSubmitted(
+                supportReference:
+                    $supportReference,
+
                 requestType:
                     $validated[
                         'support_type'
@@ -168,25 +245,13 @@ class SupportRequestController extends Controller
                     ),
 
                 pageRoute:
-                    $this->contextValue(
-                        $validated[
-                            'support_context_route'
-                        ] ?? null
-                    ),
+                    $pageRoute,
 
                 pagePath:
-                    $this->contextValue(
-                        $validated[
-                            'support_context_path'
-                        ] ?? null
-                    ),
+                    $pagePath,
 
                 helpContext:
-                    $this->contextValue(
-                        $validated[
-                            'support_help_context'
-                        ] ?? null
-                    ),
+                    $helpContext,
 
                 submittedAt:
                     $this->submittedAt()
@@ -201,7 +266,10 @@ class SupportRequestController extends Controller
         return back()
             ->with(
                 'support_request_status',
-                'Your message was sent to eConsent Support.'
+                'Your message was sent to eConsent Support. '
+                .'Reference: '
+                .$supportReference
+                .'.'
             );
     }
 
@@ -218,6 +286,27 @@ class SupportRequestController extends Controller
         return $value === ''
             ? null
             : $value;
+    }
+
+    private function supportReference(): string
+    {
+        $timezone =
+            (string) config(
+                'app.display_timezone',
+                config(
+                    'app.timezone',
+                    'UTC'
+                )
+            );
+
+        return 'SUP-'
+            .now()
+                ->timezone($timezone)
+                ->format('Ymd')
+            .'-'
+            .Str::upper(
+                Str::random(8)
+            );
     }
 
     private function submittedAt(): string

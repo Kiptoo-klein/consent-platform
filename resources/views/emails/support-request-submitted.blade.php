@@ -38,6 +38,18 @@
         contextual Help panel.
     </p>
 
+    <p
+        style="
+            margin:0 0 18px;
+            font-size:14px;
+            line-height:1.7;
+            color:#374151;
+        "
+    >
+        <strong>Support reference:</strong>
+        {{ $supportReference }}
+    </p>
+
     <table
         role="presentation"
         width="100%"

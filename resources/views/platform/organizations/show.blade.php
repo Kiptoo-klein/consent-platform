@@ -147,15 +147,51 @@
                                 $organization
                             ) }}"
                             x-data
-                            class="shrink-0"
+                            class="w-full lg:w-96"
                             data-organization-archive
                         >
                             @csrf
                             @method('PATCH')
 
+                            <div>
+                                <label
+                                    for="archive_reason"
+                                    class="block text-xs font-bold uppercase tracking-wide text-red-900"
+                                >
+                                    Archive reason
+                                </label>
+
+                                <textarea
+                                    id="archive_reason"
+                                    name="archive_reason"
+                                    rows="3"
+                                    minlength="10"
+                                    maxlength="1000"
+                                    required
+                                    placeholder="Explain why this organization is being archived."
+                                    class="mt-2 block w-full rounded-xl border-red-300 bg-white text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-red-500 focus:ring-red-500"
+                                >{{ old('archive_reason') }}</textarea>
+
+                                <p
+                                    class="mt-1 text-xs leading-5 text-red-800"
+                                >
+                                    This reason is recorded in the audit
+                                    trail and included in the notification
+                                    sent to Organization Administrators.
+                                </p>
+
+                                @error('archive_reason')
+                                    <p
+                                        class="mt-2 text-xs font-semibold text-red-700"
+                                    >
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
+
                             <button
                                 type="button"
-                                class="inline-flex items-center rounded-xl bg-red-700 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2"
+                                class="mt-3 inline-flex items-center rounded-xl bg-red-700 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2"
                                 x-on:click="
                                     $dispatch(
                                         'open-modal',

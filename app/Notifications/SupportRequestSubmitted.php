@@ -19,6 +19,7 @@ class SupportRequestSubmitted extends Notification implements ShouldQueue
     public int $maxExceptions = 3;
 
     public function __construct(
+        public readonly string $supportReference,
         public readonly string $requestType,
         public readonly string $requesterName,
         public readonly string $requesterEmail,
@@ -43,17 +44,19 @@ class SupportRequestSubmitted extends Notification implements ShouldQueue
     public function toMail(
         object $notifiable
     ): MailMessage {
-        $problem =
-            $this->requestType
-            === 'problem';
+        $subject =
+            $this->requestType === 'problem'
+                ? 'Problem report: '
+                    .$this->organizationName
+                : 'Support question: '
+                    .$this->organizationName;
 
         return (new MailMessage())
             ->subject(
-                $problem
-                    ? 'Problem report: '
-                        .$this->organizationName
-                    : 'Support question: '
-                        .$this->organizationName
+                '['
+                .$this->supportReference
+                .'] '
+                .$subject
             )
             ->replyTo(
                 $this->requesterEmail,
@@ -62,6 +65,9 @@ class SupportRequestSubmitted extends Notification implements ShouldQueue
             ->view(
                 'emails.support-request-submitted',
                 [
+                    'supportReference' =>
+                        $this->supportReference,
+
                     'requestType' =>
                         $this->requestType,
 
