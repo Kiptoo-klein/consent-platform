@@ -53,6 +53,8 @@ class OrganizationSubscriptionPlanSelectionTest extends TestCase
                 'Password123!',
         ]);
 
+        $this->verifyAuthenticatedUser();
+
         $this->organization =
             Organization::query()
                 ->where(

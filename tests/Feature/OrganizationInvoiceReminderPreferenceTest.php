@@ -96,6 +96,8 @@ class OrganizationInvoiceReminderPreferenceTest extends TestCase
                 'StrongPass1!',
         ]);
 
+        $this->verifyAuthenticatedUser();
+
         $this->organization =
             Organization::query()
                 ->where(

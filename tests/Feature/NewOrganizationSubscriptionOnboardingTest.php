@@ -43,8 +43,10 @@ class NewOrganizationSubscriptionOnboardingTest extends TestCase
                 'Password123!',
         ]);
 
+        $this->verifyAuthenticatedUser();
+
         $response->assertRedirect(
-            route('dashboard')
+            route('verification.notice')
         );
 
         $organization =
@@ -362,6 +364,8 @@ class NewOrganizationSubscriptionOnboardingTest extends TestCase
                 'Password123!',
         ]);
 
+        $this->verifyAuthenticatedUser();
+
         $administrator =
             User::query()
                 ->where(
@@ -446,6 +450,8 @@ class NewOrganizationSubscriptionOnboardingTest extends TestCase
             'password_confirmation' =>
                 'Password123!',
         ]);
+
+        $this->verifyAuthenticatedUser();
 
         $organization =
             Organization::query()

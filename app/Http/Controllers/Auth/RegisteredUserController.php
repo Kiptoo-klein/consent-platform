@@ -90,6 +90,7 @@ class RegisteredUserController extends Controller
                     'slug' => Str::slug(
                         $validated['organization_name']
                     ).'-'.uniqid(),
+                    'email' => $validated['email'],
                 ]);
 
                 $administratorRole = null;
@@ -158,16 +159,24 @@ class RegisteredUserController extends Controller
                 ->setPermissionsTeamId($previousTeamId);
         }
 
-        event(new Registered($user));
+        try {
+            event(new Registered($user));
+        } catch (\Throwable $exception) {
+            /*
+             * The account and organization have already committed.
+             * A temporary verification-email dispatch failure must not
+             * destroy the registration. The user can resend the link.
+             */
+            report($exception);
+        }
 
         Auth::login($user);
 
         return redirect()
-            ->route('dashboard')
+            ->route('verification.notice')
             ->with(
-                'success',
-                'Welcome to eConsent. Your free evaluation '
-                .'workspace is ready.'
+                'status',
+                'verification-link-sent'
             );
     }
 }

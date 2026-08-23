@@ -59,6 +59,8 @@ class SubscriptionInvoiceReminderHistoryTest extends TestCase
                 'StrongPass1!',
         ]);
 
+        $this->verifyAuthenticatedUser();
+
         $this->organization = Organization::query()
             ->where(
                 'name',

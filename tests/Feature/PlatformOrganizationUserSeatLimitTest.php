@@ -267,7 +267,7 @@ test('archived users do not count toward the total user seat limit', function ()
 
     $response->assertSessionHas(
         'success',
-        'Organization user created successfully.'
+        'Organization user invited successfully.'
     );
 
     $this->assertDatabaseHas('users', [

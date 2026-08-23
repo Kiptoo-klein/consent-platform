@@ -45,6 +45,8 @@ class EvaluationBulkCampaignPaywallTest extends TestCase
                 'StrongPass1!',
         ]);
 
+        $this->verifyAuthenticatedUser();
+
         $this->organization =
             Organization::query()
                 ->where(

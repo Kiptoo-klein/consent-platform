@@ -16,7 +16,7 @@
             </h1>
 
             <p class="mt-1 text-sm text-gray-500">
-                Create a user for {{ $organization->name }}.
+                Invite a user to {{ $organization->name }}.
             </p>
         </div>
     </x-slot>
@@ -247,49 +247,18 @@
                         @endif
                     </div>
 
-                    <div class="grid gap-6 sm:grid-cols-2">
-                        <div>
-                            <label
-                                for="password"
-                                class="block text-sm font-semibold text-gray-700"
-                            >
-                                Password
-                            </label>
+                    <div class="rounded-xl border border-teal-200 bg-teal-50 p-4">
+                        <p class="text-sm font-semibold text-teal-900">
+                            The user will create their own password
+                        </p>
 
-                            <input
-                                id="password"
-                                type="password"
-                                name="password"
-                                required
-                                autocomplete="new-password"
-                                class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-700 focus:ring-teal-700"
-                            >
-                        </div>
-
-                        <div>
-                            <label
-                                for="password_confirmation"
-                                class="block text-sm font-semibold text-gray-700"
-                            >
-                                Confirm Password
-                            </label>
-
-                            <input
-                                id="password_confirmation"
-                                type="password"
-                                name="password_confirmation"
-                                required
-                                autocomplete="new-password"
-                                class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-700 focus:ring-teal-700"
-                            >
-                        </div>
+                        <p class="mt-1 text-sm leading-6 text-teal-800">
+                            eConsent will email this person their name,
+                            role, email address, and a secure account-setup
+                            link. Administrators never create or receive
+                            the user's password.
+                        </p>
                     </div>
-
-                    <p class="text-sm text-gray-500">
-                        Passwords require at least eight characters,
-                        uppercase and lowercase letters, a number, and a
-                        symbol.
-                    </p>
 
                     <div class="flex flex-wrap justify-end gap-3 border-t border-gray-200 pt-6">
                         <a
@@ -307,7 +276,7 @@
                             @disabled($roles->isEmpty())
                             class="inline-flex items-center rounded-lg border border-teal-700 bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            Create User
+                            Send Invitation
                         </button>
                     </div>
                 </form>

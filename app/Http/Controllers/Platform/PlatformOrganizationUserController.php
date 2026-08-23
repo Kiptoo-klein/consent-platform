@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Platform;
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
 use App\Models\User;
+use App\Notifications\OrganizationUserInvitation;
 use App\Services\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Password as PasswordBroker;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rules\Password;
@@ -53,9 +56,22 @@ class PlatformOrganizationUserController extends Controller
             ->orderBy('name')
             ->paginate(15);
 
+        /*
+         * Management display count only.
+         * Subscription capacity keeps its existing seat rules.
+         */
+        $activeUserCount = $organization
+            ->users()
+            ->where('is_active', true)
+            ->count();
+
         return view(
             'platform.organizations.users.index',
-            compact('organization', 'users')
+            compact(
+                'organization',
+                'users',
+                'activeUserCount'
+            )
         );
     }
 
@@ -116,15 +132,6 @@ class PlatformOrganizationUserController extends Controller
                 'max:255',
                 Rule::unique('users', 'email'),
             ],
-            'password' => [
-                'required',
-                'string',
-                'confirmed',
-                Password::min(8)
-                    ->mixedCase()
-                    ->numbers()
-                    ->symbols(),
-            ],
             'role_id' => [
                 'required',
                 'integer',
@@ -136,10 +143,10 @@ class PlatformOrganizationUserController extends Controller
             ],
         ]);
 
-        DB::transaction(function () use (
+        [$user, $roleName] = DB::transaction(function () use (
             $validated,
             $organization
-        ): void {
+        ): array {
             /*
              * Serialize user creation for this organization so concurrent
              * requests cannot exceed the subscription seat limit.
@@ -331,7 +338,11 @@ class PlatformOrganizationUserController extends Controller
                 'platform_role_id' => null,
                 'name' => $validated['name'],
                 'email' => $validated['email'],
-                'password' => $validated['password'],
+                /*
+                 * The administrator never chooses this password.
+                 * The invitee replaces it during account setup.
+                 */
+                'password' => Str::random(64),
                 'is_active' => true,
             ]);
 
@@ -355,7 +366,36 @@ class PlatformOrganizationUserController extends Controller
                     ],
                 ],
             );
+
+            return [
+                $user,
+                $role->name,
+            ];
         });
+
+        /*
+         * Generate the invitation only after the database transaction
+         * has committed successfully.
+         */
+        $token = PasswordBroker::broker(
+            'organization_invitations'
+        )->createToken($user);
+
+        try {
+            $user->notify(
+                new OrganizationUserInvitation(
+                    token: $token,
+                    organizationName: $organization->name,
+                    roleName: $roleName
+                )
+            );
+        } catch (\Throwable $exception) {
+            /*
+             * Account creation remains successful if initial dispatch
+             * temporarily fails.
+             */
+            report($exception);
+        }
 
         return redirect()
             ->route(
@@ -364,7 +404,7 @@ class PlatformOrganizationUserController extends Controller
             )
             ->with(
                 'success',
-                'Organization user created successfully.'
+                'Organization user invited successfully.'
             );
     }
 
@@ -807,6 +847,39 @@ class PlatformOrganizationUserController extends Controller
 
         $user->is_active = $newStatus;
         $user->save();
+
+        if (! $newStatus) {
+            /*
+             * Disabled pending accounts must not retain a usable
+             * invitation.
+             */
+            PasswordBroker::broker(
+                'organization_invitations'
+            )->deleteToken($user);
+        } elseif (! $user->hasVerifiedEmail()) {
+            /*
+             * Re-enabling an unfinished account creates a fresh invite.
+             */
+            $user->load('roles');
+
+            $token = PasswordBroker::broker(
+                'organization_invitations'
+            )->createToken($user);
+
+            try {
+                $user->notify(
+                    new OrganizationUserInvitation(
+                        token: $token,
+                        organizationName: $organization->name,
+                        roleName:
+                            $user->roles->first()?->name
+                            ?? 'Organization User'
+                    )
+                );
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
 
         $message = $newStatus
             ? 'Organization user enabled successfully.'

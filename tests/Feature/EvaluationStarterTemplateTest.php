@@ -45,8 +45,10 @@ class EvaluationStarterTemplateTest extends TestCase
             'password_confirmation' =>
                 'StrongPass1!',
         ])->assertRedirect(
-            route('dashboard')
+            route('verification.notice')
         );
+
+        $this->verifyAuthenticatedUser();
 
         $this->organization =
             Organization::query()

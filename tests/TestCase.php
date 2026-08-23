@@ -38,4 +38,31 @@ abstract class TestCase extends BaseTestCase
             ]
         );
     }
+
+    /**
+     * Mark the currently authenticated fixture user as email verified.
+     *
+     * Use this only when a test is about another application concern
+     * such as billing, evaluation limits, permissions, or subscriptions.
+     * Verification-specific tests must exercise the real unverified flow.
+     */
+    protected function verifyAuthenticatedUser(): User
+    {
+        $user = auth()->user();
+
+        if (! $user instanceof User) {
+            throw new \LogicException(
+                'Expected an authenticated user before verification.'
+            );
+        }
+
+        if (! $user->hasVerifiedEmail()) {
+            $user->forceFill([
+                'email_verified_at' => now(),
+            ])->save();
+        }
+
+        return $user->refresh();
+    }
+
 }

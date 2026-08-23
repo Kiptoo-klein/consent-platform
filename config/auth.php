@@ -99,6 +99,20 @@ return [
             'expire' => 60,
             'throttle' => 60,
         ],
+
+        /*
+         * Organization-user invitations use their own token repository
+         * so invitation setup and normal password resets cannot
+         * invalidate one another.
+         *
+         * Invitations remain valid for seven days.
+         */
+        'organization_invitations' => [
+            'provider' => 'users',
+            'table' => 'organization_user_invitation_tokens',
+            'expire' => 10080,
+            'throttle' => 60,
+        ],
     ],
 
     /*

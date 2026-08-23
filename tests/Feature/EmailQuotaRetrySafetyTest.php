@@ -9,6 +9,8 @@ use App\Jobs\SendSignedConsentPdfJob;
 use App\Jobs\SendSubscriptionInvoiceNotificationJob;
 use App\Jobs\SendSubscriptionWorkflowNotificationJob;
 use App\Mail\EmailConfigurationTestMail;
+use App\Notifications\OrganizationUserInvitation;
+use App\Notifications\OrganizationWelcome;
 use App\Notifications\QuotaResetPassword;
 use App\Notifications\QuotaVerifyEmail;
 use Tests\TestCase;
@@ -39,6 +41,16 @@ class EmailQuotaRetrySafetyTest extends TestCase
             new QuotaResetPassword('token'),
 
             new QuotaVerifyEmail(),
+
+            new OrganizationWelcome(
+                'Example Organization'
+            ),
+
+            new OrganizationUserInvitation(
+                token: 'example-token',
+                organizationName: 'Example Organization',
+                roleName: 'Staff'
+            ),
         ];
 
         foreach ($jobs as $job) {

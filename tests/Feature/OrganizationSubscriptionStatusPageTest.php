@@ -21,6 +21,8 @@ test('organization users can view their subscription status', function () {
         'password_confirmation' => 'password',
     ]);
 
+    $this->verifyAuthenticatedUser();
+
     $this->assertAuthenticated();
 
     $response = $this->get('/organization/subscription');
@@ -47,6 +49,8 @@ test(
             'password' => 'StrongPass1!',
             'password_confirmation' => 'StrongPass1!',
         ]);
+
+        $this->verifyAuthenticatedUser();
 
         $this->assertAuthenticated();
 
@@ -210,6 +214,8 @@ test(
             'password_confirmation' =>
                 'StrongPass1!',
         ]);
+
+        $this->verifyAuthenticatedUser();
 
         $organization =
             Organization::query()

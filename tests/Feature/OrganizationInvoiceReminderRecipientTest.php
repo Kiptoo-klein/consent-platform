@@ -60,6 +60,8 @@ class OrganizationInvoiceReminderRecipientTest extends TestCase
             'password_confirmation' => 'StrongPass1!',
         ]);
 
+        $this->verifyAuthenticatedUser();
+
         $this->organization = Organization::query()
             ->where('name', 'Reminder Recipient Clinic')
             ->firstOrFail();

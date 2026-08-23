@@ -57,6 +57,8 @@ class PlatformOrganizationPlanDowngradeTest extends TestCase
             'password_confirmation' => 'StrongPass1!',
         ]);
 
+        $this->verifyAuthenticatedUser();
+
         $this->organization = Organization::query()
             ->where('name', 'Downgrade Test Clinic')
             ->firstOrFail();

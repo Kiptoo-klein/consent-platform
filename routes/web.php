@@ -246,6 +246,7 @@ Route::middleware([
     'auth',
     'active.user',
     'organization.user',
+    'verified',
 ])->group(function () {
     Route::get('/organization/subscription', [
         OrganizationSubscriptionController::class,
@@ -477,6 +478,7 @@ Route::middleware([
     'auth',
     'active.user',
     'organization.user',
+    'verified',
     'organization.subscription',
 ])->group(function () {
 

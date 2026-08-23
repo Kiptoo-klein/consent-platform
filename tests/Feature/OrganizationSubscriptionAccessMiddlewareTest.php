@@ -16,6 +16,8 @@ test('evaluation organizations may access workflows', function () {
         'password_confirmation' => 'password',
     ]);
 
+    $this->verifyAuthenticatedUser();
+
     $this->assertAuthenticated();
 
     $organization = Organization::query()
@@ -43,6 +45,8 @@ test('unpaid non-evaluation organizations are redirected away from workflows', f
         'password' => 'password',
         'password_confirmation' => 'password',
     ]);
+
+    $this->verifyAuthenticatedUser();
 
     $this->assertAuthenticated();
 
@@ -75,6 +79,8 @@ test('paid organizations may access workflows', function () {
         'password_confirmation' => 'password',
     ]);
 
+    $this->verifyAuthenticatedUser();
+
     $organization = Organization::query()
         ->where('name', 'Paid Clinic')
         ->firstOrFail();
@@ -105,6 +111,8 @@ test('an unexpired trial may access organization workflows', function () {
         'password_confirmation' => 'password',
     ]);
 
+    $this->verifyAuthenticatedUser();
+
     $organization = Organization::query()
         ->where('name', 'Trial Clinic')
         ->firstOrFail();
@@ -130,6 +138,8 @@ test('an expired paid period is redirected from workflows', function () {
         'password' => 'password',
         'password_confirmation' => 'password',
     ]);
+
+    $this->verifyAuthenticatedUser();
 
     $organization = Organization::query()
         ->where('name', 'Expired Clinic')

@@ -63,11 +63,6 @@
 
     @php
         $userList = $users ?? collect();
-
-        $totalUsers = is_object($userList)
-            && method_exists($userList, 'total')
-                ? $userList->total()
-                : count($userList);
     @endphp
 
     <div class="py-8">
@@ -99,13 +94,16 @@
                     </p>
                 </section>
 
-                <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <section
+                    data-active-user-count="{{ $activeUserCount }}"
+                    class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
+                >
                     <p class="text-sm font-medium text-gray-500">
-                        Total Users
+                        Active Users
                     </p>
 
                     <p class="mt-2 text-3xl font-bold text-teal-700">
-                        {{ number_format($totalUsers) }}
+                        {{ number_format($activeUserCount) }}
                     </p>
                 </section>
 
@@ -198,13 +196,17 @@
                                     </td>
 
                                     <td class="whitespace-nowrap px-5 py-4">
-                                        @if ($user->is_active)
-                                            <span class="inline-flex rounded-full border border-green-200 bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
-                                                Active
-                                            </span>
-                                        @else
+                                        @if (! $user->is_active)
                                             <span class="inline-flex rounded-full border border-red-200 bg-red-100 px-3 py-1 text-xs font-semibold text-red-800">
                                                 Disabled
+                                            </span>
+                                        @elseif (! $user->hasVerifiedEmail())
+                                            <span class="inline-flex rounded-full border border-amber-200 bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                                                Pending setup
+                                            </span>
+                                        @else
+                                            <span class="inline-flex rounded-full border border-green-200 bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+                                                Active
                                             </span>
                                         @endif
                                     </td>

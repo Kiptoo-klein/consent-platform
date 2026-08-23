@@ -47,6 +47,17 @@ class OrganizationAdminManagementAccessTest extends TestCase
             )
             ->firstOrFail();
 
+        /*
+         * This suite tests organization-management authorization,
+         * not the email-verification onboarding flow.
+         *
+         * Production registration correctly leaves the founder
+         * unverified until they prove mailbox ownership.
+         */
+        $this->organizationAdmin->forceFill([
+            'email_verified_at' => now(),
+        ])->save();
+
         $this->organization = $this
             ->organizationAdmin
             ->organization()

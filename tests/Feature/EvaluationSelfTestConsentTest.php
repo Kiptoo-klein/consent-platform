@@ -56,8 +56,10 @@ class EvaluationSelfTestConsentTest extends TestCase
                     'StrongPass1!',
             ])
             ->assertRedirect(
-                route('dashboard')
+                route('verification.notice')
             );
+
+        $this->verifyAuthenticatedUser();
 
         $this->organization =
             Organization::query()
