@@ -443,6 +443,95 @@
                     </button>
                 </form>
 
+                @if (
+                    is_array(
+                        session(
+                            'account_restoration'
+                        )
+                    )
+                    && (int) data_get(
+                        session(
+                            'account_restoration'
+                        ),
+                        'expires_at',
+                        0
+                    ) >= now()->timestamp
+                    && Route::has(
+                        'account-restoration.request'
+                    )
+                )
+                    @php
+                        $restorationType =
+                            data_get(
+                                session(
+                                    'account_restoration'
+                                ),
+                                'type'
+                            );
+                    @endphp
+
+                    <div
+                        class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5"
+                        data-account-restoration
+                    >
+                        <h2
+                            class="font-bold text-amber-950"
+                        >
+                            @if (
+                                $restorationType
+                                === 'organization'
+                            )
+                                Organization restoration available
+                            @else
+                                Account restoration available
+                            @endif
+                        </h2>
+
+                        <p
+                            class="mt-2 text-sm leading-6 text-amber-900"
+                        >
+                            @if (
+                                $restorationType
+                                === 'organization'
+                            )
+                                Your identity was verified, but this
+                                organization is archived. You can send a
+                                restoration request to the Platform Super
+                                Admin.
+                            @else
+                                Your credentials were verified, but this
+                                account is archived. You can send a
+                                restoration request to your Organization
+                                Administrator.
+                            @endif
+                        </p>
+
+                        <form
+                            method="POST"
+                            action="{{ route(
+                                'account-restoration.request'
+                            ) }}"
+                            class="mt-4"
+                        >
+                            @csrf
+
+                            <button
+                                type="submit"
+                                class="inline-flex w-full items-center justify-center rounded-xl border border-amber-700 bg-white px-5 py-3 text-sm font-bold text-amber-900 shadow-sm transition hover:bg-amber-100 focus:outline-none focus:ring-4 focus:ring-amber-200"
+                            >
+                                @if (
+                                    $restorationType
+                                    === 'organization'
+                                )
+                                    Request organization restoration
+                                @else
+                                    Request account restoration
+                                @endif
+                            </button>
+                        </form>
+                    </div>
+                @endif
+
                 @if (Route::has('register'))
                     <div class="mt-8 text-center">
                         <p class="text-sm text-gray-500">

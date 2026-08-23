@@ -276,6 +276,294 @@ test('google login authenticates an already linked verified account', function (
     );
 });
 
+
+test(
+    'google login for archived organization exposes restoration request',
+    function () {
+        $organization =
+            googleAuthenticationOrganization(
+                'Archived Google Organization'
+            );
+
+        $organization
+            ->forceFill([
+                'archived_at' => now(),
+            ])
+            ->save();
+
+        $user =
+            User::factory()
+                ->create([
+                    'organization_id' =>
+                        $organization->id,
+
+                    'google_id' =>
+                        'google-archived-org-001',
+
+                    'email' =>
+                        'archived-google@example.com',
+
+                    'is_active' =>
+                        true,
+
+                    'email_verified_at' =>
+                        now(),
+                ]);
+
+        Socialite::fake(
+            'google',
+            googleAuthenticationFakeUser([
+                'id' =>
+                    'google-archived-org-001',
+
+                'email' =>
+                    'archived-google@example.com',
+
+                'email_verified' =>
+                    true,
+            ])
+        );
+
+        $response =
+            $this
+                ->withSession([
+                    'google_auth.intent' =>
+                        'login',
+                ])
+                ->get(
+                    route(
+                        'google.callback',
+                        absolute: false
+                    )
+                );
+
+        $this->assertGuest();
+
+        $response
+            ->assertRedirect(
+                route(
+                    'login',
+                    absolute: false
+                )
+            )
+            ->assertSessionHasErrors(
+                'email'
+            )
+            ->assertSessionHas(
+                'account_restoration',
+                function ($context) use (
+                    $user
+                ): bool {
+                    return
+                        is_array($context)
+                        && $context['type']
+                            === 'organization'
+                        && $context['user_id']
+                            === $user->id;
+                }
+            );
+
+        $this
+            ->get(
+                route(
+                    'login',
+                    absolute: false
+                )
+            )
+            ->assertOk()
+            ->assertSeeText(
+                'Organization restoration available'
+            )
+            ->assertSeeText(
+                'Request organization restoration'
+            );
+    }
+);
+
+
+test(
+    'google login for linked archived account exposes account restoration',
+    function () {
+        $organization =
+            googleAuthenticationOrganization(
+                'Archived Linked Google Account Organization'
+            );
+
+        $user =
+            User::factory()
+                ->create([
+                    'organization_id' =>
+                        $organization->id,
+
+                    'google_id' =>
+                        'google-linked-archived-001',
+
+                    'email' =>
+                        'linked-archived-google@example.com',
+
+                    'is_active' =>
+                        false,
+
+                    'email_verified_at' =>
+                        now(),
+                ]);
+
+        $user->delete();
+
+        Socialite::fake(
+            'google',
+            googleAuthenticationFakeUser([
+                'id' =>
+                    'google-linked-archived-001',
+
+                'email' =>
+                    'linked-archived-google@example.com',
+
+                'email_verified' =>
+                    true,
+            ])
+        );
+
+        $response =
+            $this
+                ->withSession([
+                    'google_auth.intent' =>
+                        'login',
+                ])
+                ->get(
+                    route(
+                        'google.callback',
+                        absolute: false
+                    )
+                );
+
+        $this->assertGuest();
+
+        $response
+            ->assertRedirect(
+                route(
+                    'login',
+                    absolute: false
+                )
+            )
+            ->assertSessionHasErrors(
+                'email'
+            )
+            ->assertSessionHas(
+                'account_restoration',
+                function ($context) use (
+                    $user
+                ): bool {
+                    return
+                        is_array($context)
+                        && $context['type']
+                            === 'user'
+                        && $context['user_id']
+                            === $user->id
+                        && ($context['expires_at'] ?? 0)
+                            > now()->timestamp;
+                }
+            );
+
+        $this
+            ->get(
+                route(
+                    'login',
+                    absolute: false
+                )
+            )
+            ->assertOk()
+            ->assertSeeText(
+                'Account restoration available'
+            )
+            ->assertSeeText(
+                'Request account restoration'
+            );
+    }
+);
+
+test(
+    'google login does not link an archived account by email alone',
+    function () {
+        $organization =
+            googleAuthenticationOrganization(
+                'Unlinked Archived Google Organization'
+            );
+
+        $user =
+            User::factory()
+                ->create([
+                    'organization_id' =>
+                        $organization->id,
+
+                    'google_id' =>
+                        null,
+
+                    'email' =>
+                        'unlinked-archived@example.com',
+
+                    'is_active' =>
+                        false,
+
+                    'email_verified_at' =>
+                        now(),
+                ]);
+
+        $user->delete();
+
+        Socialite::fake(
+            'google',
+            googleAuthenticationFakeUser([
+                'id' =>
+                    'google-must-not-link-001',
+
+                'email' =>
+                    'unlinked-archived@example.com',
+
+                'email_verified' =>
+                    true,
+            ])
+        );
+
+        $response =
+            $this
+                ->withSession([
+                    'google_auth.intent' =>
+                        'login',
+                ])
+                ->get(
+                    route(
+                        'google.callback',
+                        absolute: false
+                    )
+                );
+
+        $this->assertGuest();
+
+        $response
+            ->assertRedirect(
+                route(
+                    'login',
+                    absolute: false
+                )
+            )
+            ->assertSessionHasErrors(
+                'email'
+            )
+            ->assertSessionMissing(
+                'account_restoration'
+            );
+
+        expect(
+            User::withTrashed()
+                ->findOrFail(
+                    $user->id
+                )
+                ->google_id
+        )->toBeNull();
+    }
+);
+
 test('google login safely links an existing verified account with the same email', function () {
     $organization =
         googleAuthenticationOrganization(

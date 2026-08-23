@@ -181,14 +181,70 @@
             </section>
 
             <section class="rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
-                <h2 class="text-lg font-semibold text-red-800">
-                    Delete Account
-                </h2>
+                @if (
+                    $isOrganizationAdministrator
+                    && $organization !== null
+                )
+                    <h2 class="text-lg font-semibold text-red-800">
+                        Archive Organization
+                    </h2>
 
-                <p class="mt-2 text-sm text-gray-600">
-                    Your account will be archived and you will be logged
-                    out.
-                </p>
+                    <p class="mt-2 text-sm text-gray-600">
+                        As an Organization Admin, archiving from your
+                        profile archives the entire organization rather
+                        than only your personal account.
+                    </p>
+
+                    <div class="mt-4 rounded-xl border border-red-300 bg-red-50 p-4">
+                        <p class="text-sm font-semibold text-red-900">
+                            This affects every user in
+                            {{ $organization->name }}.
+                        </p>
+
+                        <p class="mt-2 text-sm text-red-800">
+                            All organization users will lose access.
+                            Public signing stations and consent signing
+                            workflows will become unavailable. Existing
+                            records and historical data will remain
+                            preserved.
+                        </p>
+
+                        <p class="mt-2 text-sm font-semibold text-red-900">
+                            Only a Platform Super Admin will be able to
+                            restore the organization.
+                        </p>
+                    </div>
+                @else
+                    <h2 class="text-lg font-semibold text-red-800">
+                        Archive Account
+                    </h2>
+
+                    <p class="mt-2 text-sm text-gray-600">
+                        Your account will be archived and you will be
+                        logged out. Your organization's records and
+                        other users will not be affected.
+                    </p>
+
+                    @if ($organization !== null)
+                        <p class="mt-2 text-sm text-gray-600">
+                            An Organization Admin can restore your
+                            account later from Archived Users.
+                        </p>
+                    @endif
+
+                    @if ($isBillingOwner)
+                        <div class="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
+                            <p class="text-sm font-semibold text-amber-900">
+                                Billing ownership must be transferred first.
+                            </p>
+
+                            <p class="mt-1 text-sm text-amber-800">
+                                Ask an Organization Admin to assign another
+                                Billing Owner before archiving this account.
+                            </p>
+                        </div>
+                    @endif
+                @endif
 
                 <form
                     method="POST"
@@ -199,6 +255,12 @@
                 >
                     @csrf
                     @method('DELETE')
+
+                    @error('archive', 'userDeletion')
+                        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+                            {{ $message }}
+                        </div>
+                    @enderror
 
                     <div>
                         <label
@@ -225,13 +287,65 @@
                         @enderror
                     </div>
 
+                    @if (
+                        $isOrganizationAdministrator
+                        && $organization !== null
+                    )
+                        <div>
+                            <label
+                                for="organization_name"
+                                class="block text-sm font-semibold text-gray-700"
+                            >
+                                Type the organization name to confirm
+                            </label>
+
+                            <p class="mt-1 text-sm text-gray-500">
+                                Enter
+                                <span class="font-semibold text-gray-800">
+                                    {{ $organization->name }}
+                                </span>
+                                exactly as shown.
+                            </p>
+
+                            <input
+                                id="organization_name"
+                                type="text"
+                                name="organization_name"
+                                value="{{ old('organization_name') }}"
+                                required
+                                autocomplete="off"
+                                class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-red-600 focus:ring-red-600"
+                                x-ref="archiveOrganizationName"
+                            >
+
+                            @error(
+                                'organization_name',
+                                'userDeletion'
+                            )
+                                <p class="mt-2 text-sm text-red-700">
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
+                    @endif
+
                     <button
                         type="button"
-                        class="inline-flex items-center rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-800"
+                        @disabled(
+                            $isBillingOwner
+                            && ! $isOrganizationAdministrator
+                        )
+                        class="inline-flex items-center rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
                         x-on:click="
                             if (
-                                $refs.archivePassword
-                                    .reportValidity()
+                                $refs.archivePassword.reportValidity()
+                                @if (
+                                    $isOrganizationAdministrator
+                                    && $organization !== null
+                                )
+                                    && $refs.archiveOrganizationName
+                                        .reportValidity()
+                                @endif
                             ) {
                                 $dispatch(
                                     'open-modal',
@@ -240,18 +354,41 @@
                             }
                         "
                     >
-                        Archive Account
+                        @if (
+                            $isOrganizationAdministrator
+                            && $organization !== null
+                        )
+                            Archive Organization
+                        @else
+                            Archive Account
+                        @endif
                     </button>
 
                     <x-action-confirmation-modal
                         name="archive-profile-{{ auth()->id() }}"
-                        title="Archive your account?"
-                        message="Your account will be archived immediately and you will be logged out. Your organization records will remain preserved."
-                        confirm-text="Archive my account"
+                        :title="
+                            $isOrganizationAdministrator
+                            && $organization !== null
+                                ? 'Archive '.$organization->name.'?'
+                                : 'Archive your account?'
+                        "
+                        :message="
+                            $isOrganizationAdministrator
+                            && $organization !== null
+                                ? 'Every user in this organization will lose access and public signing workflows will become unavailable. Existing records will remain preserved.'
+                                : 'Your account will be archived immediately and you will be logged out. Your organization records will remain preserved.'
+                        "
+                        :confirm-text="
+                            $isOrganizationAdministrator
+                            && $organization !== null
+                                ? 'Archive organization'
+                                : 'Archive my account'
+                        "
                         variant="danger"
                     />
                 </form>
             </section>
+
         </div>
     </div>
 </x-app-layout>

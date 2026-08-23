@@ -165,6 +165,79 @@ class OrganizationController extends Controller
     }
 
     /**
+     * Restore an archived organization.
+     *
+     * Organization restoration clears only the organization-wide access
+     * lock. Existing users, roles, subscriptions, templates, consent
+     * records, and signing stations remain unchanged.
+     */
+    public function restore(
+        Organization $organization
+    ): RedirectResponse {
+        DB::transaction(function () use (
+            $organization
+        ): void {
+            $lockedOrganization =
+                Organization::query()
+                    ->whereKey(
+                        $organization->id
+                    )
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+            if (
+                $lockedOrganization
+                    ->archived_at === null
+            ) {
+                return;
+            }
+
+            $archivedAt =
+                $lockedOrganization
+                    ->archived_at
+                    ?->toDateTimeString();
+
+            $lockedOrganization
+                ->forceFill([
+                    'archived_at' => null,
+                ])
+                ->save();
+
+            $this->activityLogger->log(
+                action: 'organization.restored',
+                description:
+                    "Restored organization "
+                    ."{$lockedOrganization->name}.",
+                subject:
+                    $lockedOrganization,
+                organizationId:
+                    $lockedOrganization->id,
+                properties: [
+                    'old' => [
+                        'archived_at' =>
+                            $archivedAt,
+                    ],
+
+                    'new' => [
+                        'archived_at' =>
+                            null,
+                    ],
+                ],
+            );
+        });
+
+        return redirect()
+            ->route(
+                'platform.organizations.show',
+                $organization
+            )
+            ->with(
+                'success',
+                'Organization restored successfully.'
+            );
+    }
+
+    /**
      * Display the organization edit form.
      */
     public function edit(Organization $organization): View

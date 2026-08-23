@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\AccountRestorationRequestController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
@@ -23,6 +24,14 @@ Route::middleware('guest')->group(function () {
         ->name('login');
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+
+    Route::post(
+        'account-restoration/request',
+        [
+            AccountRestorationRequestController::class,
+            'store',
+        ]
+    )->name('account-restoration.request');
 
     Route::post(
         'auth/google/register',

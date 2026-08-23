@@ -113,7 +113,9 @@ class BillingAccountStyledConfirmationTest extends TestCase
             'x-ref="archivePassword"',
             '.reportValidity()',
             'Archive your account?',
-            'confirm-text="Archive my account"',
+            ':confirm-text="',
+            "'Archive my account'",
+            "'Archive organization'",
         ] as $expected) {
             $this->assertStringContainsString(
                 $expected,

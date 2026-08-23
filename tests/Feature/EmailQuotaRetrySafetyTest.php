@@ -9,6 +9,7 @@ use App\Jobs\SendSignedConsentPdfJob;
 use App\Jobs\SendSubscriptionInvoiceNotificationJob;
 use App\Jobs\SendSubscriptionWorkflowNotificationJob;
 use App\Mail\EmailConfigurationTestMail;
+use App\Notifications\AccountRestorationRequested;
 use App\Notifications\OrganizationUserInvitation;
 use App\Notifications\OrganizationWelcome;
 use App\Notifications\QuotaResetPassword;
@@ -50,6 +51,15 @@ class EmailQuotaRetrySafetyTest extends TestCase
                 token: 'example-token',
                 organizationName: 'Example Organization',
                 roleName: 'Staff'
+            ),
+
+            new AccountRestorationRequested(
+                requestType: 'user',
+                requesterName: 'Example User',
+                requesterEmail: 'user@example.com',
+                organizationName: 'Example Organization',
+                reviewUrl: 'https://example.com/review',
+                requestedAt: 'Aug 23, 2026 19:43 EAT'
             ),
         ];
 

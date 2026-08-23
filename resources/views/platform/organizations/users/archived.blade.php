@@ -63,8 +63,9 @@
                     </h2>
 
                     <p class="mt-1 text-sm text-gray-500">
-                        Restored accounts remain disabled until they are
-                        reviewed and enabled.
+                        Restoring an account also enables it immediately,
+                        allowing the user to sign in again according to their
+                        assigned role.
                     </p>
                 </div>
 
@@ -145,14 +146,14 @@
                                                     'restore-user-{{ $organization->id }}-{{ $user->id }}'
                                                 )"
                                             >
-                                                Restore
+                                                Restore &amp; Enable
                                             </button>
 
                                             <x-action-confirmation-modal
                                                 name="restore-user-{{ $organization->id }}-{{ $user->id }}"
-                                                title="Restore user account?"
-                                                message="The account will return to the active users list and regain access according to its assigned role."
-                                                confirm-text="Restore user"
+                                                title="Restore and enable user?"
+                                                message="The account will be restored, enabled immediately, and will regain access according to its assigned role."
+                                                confirm-text="Restore & Enable"
                                                 variant="success"
                                             />
                                         </form>

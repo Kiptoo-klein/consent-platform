@@ -535,6 +535,12 @@ class PublicSigningStationController extends Controller
             ->firstOrFail();
 
         abort_if(
+            $station->organization?->isArchived(),
+            404,
+            'This signing station is currently unavailable.'
+        );
+
+        abort_if(
             ! $station->active,
             404,
             'This signing station is currently unavailable.'

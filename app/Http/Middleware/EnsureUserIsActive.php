@@ -9,10 +9,8 @@ use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Prevent disabled users from accessing authenticated areas.
- *
- * Any authenticated user whose is_active value is false will be logged out,
- * their session invalidated, and their CSRF token regenerated.
+ * Prevent disabled users and users of archived organizations from
+ * accessing authenticated areas.
  */
 class EnsureUserIsActive
 {
@@ -27,37 +25,83 @@ class EnsureUserIsActive
     ): Response|RedirectResponse {
         $user = $request->user();
 
-        /*
-         * Allow unauthenticated requests to continue.
-         *
-         * The normal "auth" middleware is responsible for redirecting guests
-         * away from protected routes.
-         */
         if ($user === null) {
             return $next($request);
         }
 
         /*
-         * Refresh the user so a newly disabled account is detected even when
-         * the authenticated user instance was loaded earlier in the request.
+         * Refresh account state so changes made by another administrator are
+         * enforced on the user's very next authenticated request.
          */
         $user->refresh();
 
         if (! $user->is_active) {
-            Auth::guard('web')->logout();
+            return $this->logoutWithError(
+                $request,
+                'Your account has been disabled. '
+                .'Contact an administrator for assistance.'
+            );
+        }
 
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+        /*
+         * Organization archival is an organization-wide access lock.
+         * Platform users have no organization_id and are unaffected.
+         */
+        if ($user->organization_id !== null) {
+            $user->load('organization');
 
-            return redirect()
-                ->route('login')
-                ->withErrors([
-                    'email' =>
-                        'Your account has been disabled. '
-                        .'Contact an administrator for assistance.',
-                ]);
+            if ($user->organization?->isArchived()) {
+                return $this->logoutWithError(
+                    $request,
+                    'This organization has been archived. '
+                    .'You can request organization restoration.',
+                    [
+                        'type' =>
+                            'organization',
+
+                        'user_id' =>
+                            $user->id,
+
+                        'expires_at' =>
+                            now()
+                                ->addMinutes(10)
+                                ->timestamp,
+                    ]
+                );
+            }
         }
 
         return $next($request);
+    }
+
+    /**
+     * @param array{
+     *     type: string,
+     *     user_id: int,
+     *     expires_at: int
+     * }|null $restorationContext
+     */
+    private function logoutWithError(
+        Request $request,
+        string $message,
+        ?array $restorationContext = null
+    ): RedirectResponse {
+        Auth::guard('web')->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        if ($restorationContext !== null) {
+            $request->session()->put(
+                'account_restoration',
+                $restorationContext
+            );
+        }
+
+        return redirect()
+            ->route('login')
+            ->withErrors([
+                'email' => $message,
+            ]);
     }
 }

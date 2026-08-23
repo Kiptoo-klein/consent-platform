@@ -357,15 +357,14 @@ test(
 
         $response->assertSessionHas(
             'success',
-            'Organization user restored successfully. '
-            .'The account remains disabled until you enable it.'
+            'Organization user restored and enabled successfully.'
         );
 
         $restoredState = User::withTrashed()
             ->findOrFail($archivedUser->id);
 
         $this->assertFalse($restoredState->trashed());
-        $this->assertFalse($restoredState->is_active);
+        $this->assertTrue($restoredState->is_active);
     }
 );
 

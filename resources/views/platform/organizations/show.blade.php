@@ -63,6 +63,14 @@
             true
         );
 
+        $isArchived =
+            $organization->isArchived();
+
+        $isPlatformSuperAdmin =
+            auth()->user()
+                ?->platformRole
+                ?->slug === 'super-admin';
+
         $userCount = data_get(
             $organization,
             'users_count'
@@ -85,6 +93,103 @@
                 <div class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
                     {{ session('success') }}
                 </div>
+            @endif
+
+            @if ($isArchived)
+                <section
+                    class="rounded-2xl border border-red-300 bg-red-50 p-6 shadow-sm"
+                    data-organization-archived
+                >
+                    <div
+                        class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between"
+                    >
+                        <div class="max-w-3xl">
+                            <p
+                                class="text-xs font-bold uppercase tracking-[0.16em] text-red-700"
+                            >
+                                Organization archived
+                            </p>
+
+                            <h2
+                                class="mt-2 text-lg font-bold text-red-950"
+                            >
+                                Organization access is currently blocked
+                            </h2>
+
+                            <p
+                                class="mt-2 text-sm leading-6 text-red-900"
+                            >
+                                Organization users cannot access their
+                                workspace while this organization is
+                                archived. Public signing stations and
+                                consent signing links are also unavailable.
+                                Existing records and account data remain
+                                preserved.
+                            </p>
+
+                            @if ($organization->archived_at)
+                                <p
+                                    class="mt-3 text-sm text-red-800"
+                                >
+                                    Archived
+                                    {{ $organization->archived_at
+                                        ->timezone(
+                                            config(
+                                                'app.display_timezone'
+                                            )
+                                        )
+                                        ->format(
+                                            'j M Y, g:i A'
+                                        ) }}.
+                                </p>
+                            @endif
+                        </div>
+
+                        @if ($isPlatformSuperAdmin)
+                            <form
+                                method="POST"
+                                action="{{ route(
+                                    'platform.organizations.restore',
+                                    $organization
+                                ) }}"
+                                x-data
+                                class="shrink-0"
+                                data-organization-restore
+                            >
+                                @csrf
+                                @method('PATCH')
+
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2"
+                                    x-on:click="
+                                        $dispatch(
+                                            'open-modal',
+                                            'restore-organization-{{ $organization->id }}'
+                                        )
+                                    "
+                                >
+                                    Restore Organization
+                                </button>
+
+                                <x-action-confirmation-modal
+                                    name="restore-organization-{{ $organization->id }}"
+                                    title="Restore {{ $organization->name }}?"
+                                    message="Organization users will be able to access the workspace again, and existing public signing stations and consent links may become available again according to their existing status."
+                                    confirm-text="Restore organization"
+                                    variant="success"
+                                />
+                            </form>
+                        @else
+                            <div
+                                class="rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium text-red-800"
+                            >
+                                Only a Platform Super Admin can restore
+                                this organization.
+                            </div>
+                        @endif
+                    </div>
+                </section>
             @endif
 
             <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -114,7 +219,11 @@
                     </p>
 
                     <div class="mt-3">
-                        @if ($active)
+                        @if ($isArchived)
+                            <span class="inline-flex rounded-full border border-red-200 bg-red-100 px-3 py-1 text-sm font-semibold text-red-800">
+                                Archived
+                            </span>
+                        @elseif ($active)
                             <span class="inline-flex rounded-full border border-green-200 bg-green-100 px-3 py-1 text-sm font-semibold text-green-800">
                                 Active
                             </span>

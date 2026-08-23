@@ -5,7 +5,9 @@ namespace App\Http\Requests\Auth;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -40,10 +42,96 @@ class LoginRequest extends FormRequest
      */
     public function authenticate(): void
     {
+        /*
+         * A new authentication attempt supersedes any restoration
+         * challenge previously established in this browser session.
+         */
+        $this->session()->forget(
+            'account_restoration'
+        );
+
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
-            RateLimiter::hit($this->throttleKey());
+        if (
+            ! Auth::attempt(
+                $this->only(
+                    'email',
+                    'password'
+                ),
+                $this->boolean('remember')
+            )
+        ) {
+            $archivedUser =
+                User::withTrashed()
+                    ->where(
+                        'email',
+                        Str::lower(
+                            trim(
+                                (string) $this->input(
+                                    'email'
+                                )
+                            )
+                        )
+                    )
+                    ->first();
+
+            if (
+                $archivedUser?->trashed()
+                && $archivedUser->organization_id !== null
+                && Hash::check(
+                    (string) $this->input(
+                        'password'
+                    ),
+                    $archivedUser->password
+                )
+            ) {
+                $archivedUser->loadMissing(
+                    'organization'
+                );
+
+                if ($archivedUser->organization !== null) {
+                    RateLimiter::clear(
+                        $this->throttleKey()
+                    );
+
+                    $organizationArchived =
+                        $archivedUser
+                            ->organization
+                            ->isArchived();
+
+                    $this->session()->put(
+                        'account_restoration',
+                        [
+                            'type' =>
+                                $organizationArchived
+                                    ? 'organization'
+                                    : 'user',
+
+                            'user_id' =>
+                                $archivedUser->id,
+
+                            'expires_at' =>
+                                now()
+                                    ->addMinutes(10)
+                                    ->timestamp,
+                        ]
+                    );
+
+                    throw ValidationException::withMessages([
+                        'email' =>
+                            $organizationArchived
+                                ? 'This organization has been archived. '
+                                    .'You can request organization restoration.'
+                                : 'This account has been archived. '
+                                    .'You can request restoration from your '
+                                    .'Organization Administrator.',
+                    ]);
+                }
+            }
+
+            RateLimiter::hit(
+                $this->throttleKey()
+            );
 
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),

@@ -63,6 +63,14 @@ class GoogleAuthController extends Controller
     public function redirectFromLogin(
         Request $request
     ): RedirectResponse {
+        /*
+         * A fresh Google authentication attempt supersedes any
+         * restoration challenge previously established in this session.
+         */
+        $request->session()->forget(
+            'account_restoration'
+        );
+
         $request->session()->put(
             self::SESSION_INTENT,
             self::INTENT_LOGIN
@@ -394,10 +402,95 @@ class GoogleAuthController extends Controller
                     $identity['id'],
             ])->save();
         } else {
-            if (
-                $user->trashed()
-                || ! $user->is_active
-            ) {
+            /*
+             * Reaching this branch means the stable Google subject ID
+             * already belongs to this eConsent account. Google has
+             * therefore established ownership strongly enough to offer
+             * restoration without authenticating the archived account.
+             */
+            if ($user->trashed()) {
+                /*
+                 * Archival must not bypass an unfinished verification or
+                 * invitation setup flow.
+                 */
+                if (! $user->hasVerifiedEmail()) {
+                    return $this->rejectLogin(
+                        request: $request,
+                        message:
+                            'This account has not completed setup yet. '
+                            .'Use your verification or invitation email first.'
+                    );
+                }
+
+                if ($user->organization_id === null) {
+                    return $this->rejectLogin(
+                        request: $request,
+                        message:
+                            'This account is not currently active. '
+                            .'Contact an administrator for assistance.'
+                    );
+                }
+
+                $user->loadMissing(
+                    'organization'
+                );
+
+                if ($user->organization === null) {
+                    return $this->rejectLogin(
+                        request: $request,
+                        message:
+                            'This account is not currently active. '
+                            .'Contact an administrator for assistance.'
+                    );
+                }
+
+                $organizationArchived =
+                    $user
+                        ->organization
+                        ->isArchived();
+
+                $this->clearGoogleSession(
+                    $request
+                );
+
+                Auth::guard('web')->logout();
+
+                $request->session()->put(
+                    'account_restoration',
+                    [
+                        'type' =>
+                            $organizationArchived
+                                ? 'organization'
+                                : 'user',
+
+                        'user_id' =>
+                            $user->id,
+
+                        'expires_at' =>
+                            now()
+                                ->addMinutes(10)
+                                ->timestamp,
+                    ]
+                );
+
+                return redirect()
+                    ->route('login')
+                    ->withErrors([
+                        'email' =>
+                            $organizationArchived
+                                ? 'This organization has been archived. '
+                                    .'You can request organization restoration.'
+                                : 'This account has been archived. '
+                                    .'You can request restoration from your '
+                                    .'Organization Administrator.',
+                    ]);
+            }
+
+            /*
+             * Disabled accounts are different from archived accounts and
+             * do not receive the self-service restoration workflow.
+             */
+            if (! $user->is_active) {
                 return $this->rejectLogin(
                     request: $request,
                     message:
@@ -413,6 +506,49 @@ class GoogleAuthController extends Controller
                         'This account has not completed setup yet. '
                         .'Use your verification or invitation email first.'
                 );
+            }
+        }
+
+        /*
+         * Google has verified this user's identity, but an archived
+         * organization must remain locked. Preserve only the minimum
+         * restoration context needed by the guest request endpoint.
+         */
+        if ($user->organization_id !== null) {
+            $user->loadMissing(
+                'organization'
+            );
+
+            if ($user->organization?->isArchived()) {
+                $this->clearGoogleSession(
+                    $request
+                );
+
+                Auth::guard('web')->logout();
+
+                $request->session()->put(
+                    'account_restoration',
+                    [
+                        'type' =>
+                            'organization',
+
+                        'user_id' =>
+                            $user->id,
+
+                        'expires_at' =>
+                            now()
+                                ->addMinutes(10)
+                                ->timestamp,
+                    ]
+                );
+
+                return redirect()
+                    ->route('login')
+                    ->withErrors([
+                        'email' =>
+                            'This organization has been archived. '
+                            .'You can request organization restoration.',
+                    ]);
             }
         }
 

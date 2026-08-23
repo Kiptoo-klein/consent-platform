@@ -42,8 +42,8 @@ class AuthenticatedSessionController extends Controller
         | Platform user redirect
         |--------------------------------------------------------------------------
         |
-        | A user with a platform role belongs to the central administration
-        | area. Platform users do not need an organization_id.
+        | Platform users are not attached to an organization and therefore
+        | are not affected by organization archival.
         |
         */
         if ($request->user()->platform_role_id !== null) {
@@ -55,11 +55,47 @@ class AuthenticatedSessionController extends Controller
         | Organization user redirect
         |--------------------------------------------------------------------------
         |
-        | A normal organization user must belong to an organization before
-        | they can access the organization workspace.
+        | An archived organization is an organization-wide access lock.
+        | Reject the login even when the individual user account is active.
         |
         */
         if ($request->user()->organization_id !== null) {
+            $request->user()->load('organization');
+
+            if ($request->user()->organization?->isArchived()) {
+                $verifiedUserId =
+                    $request->user()->id;
+
+                Auth::guard('web')->logout();
+
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                $request->session()->put(
+                    'account_restoration',
+                    [
+                        'type' =>
+                            'organization',
+
+                        'user_id' =>
+                            $verifiedUserId,
+
+                        'expires_at' =>
+                            now()
+                                ->addMinutes(10)
+                                ->timestamp,
+                    ]
+                );
+
+                return redirect()
+                    ->route('login')
+                    ->withErrors([
+                        'email' =>
+                            'This organization has been archived. '
+                            .'You can request organization restoration.',
+                    ]);
+            }
+
             return redirect()->route('dashboard');
         }
 
@@ -67,11 +103,6 @@ class AuthenticatedSessionController extends Controller
         |--------------------------------------------------------------------------
         | Invalid account state
         |--------------------------------------------------------------------------
-        |
-        | This account has neither a platform role nor an organization. Log it
-        | out immediately so it cannot remain in an unusable authenticated
-        | state.
-        |
         */
         Auth::guard('web')->logout();
 
@@ -81,7 +112,9 @@ class AuthenticatedSessionController extends Controller
         return redirect()
             ->route('login')
             ->withErrors([
-                'email' => 'This account is not assigned to the platform or an organization.',
+                'email' =>
+                    'This account is not assigned to the platform '
+                    .'or an organization.',
             ]);
     }
 
@@ -93,7 +126,6 @@ class AuthenticatedSessionController extends Controller
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
 
         return redirect('/');

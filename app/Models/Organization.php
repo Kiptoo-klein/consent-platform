@@ -26,7 +26,15 @@ class Organization extends Model
         'support_email',
         'address',
         'footer_text',
+        'archived_at',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'archived_at' => 'datetime',
+        ];
+    }
 
     /**
      * Organization users.
@@ -51,5 +59,12 @@ class Organization extends Model
     {
         return $this->hasOne(OrganizationSubscription::class);
     }
-}
 
+    /**
+     * Determine whether organization access is currently archived.
+     */
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
+}

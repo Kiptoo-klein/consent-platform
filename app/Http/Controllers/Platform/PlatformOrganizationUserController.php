@@ -1007,10 +1007,10 @@ class PlatformOrganizationUserController extends Controller
     }
 
     /**
-     * Restore a previously soft-deleted organization user.
+     * Restore and enable a previously archived organization user.
      *
-     * Restored users remain disabled for security. A platform administrator
-     * must explicitly enable the account after reviewing it.
+     * Restoration is intentionally a single action so an Organization Admin
+     * does not need to restore the account and enable it separately.
      */
     public function restore(
         Organization $organization,
@@ -1227,21 +1227,20 @@ class PlatformOrganizationUserController extends Controller
             $user->restore();
 
             /*
-             * Restored accounts remain disabled until a platform
-             * administrator explicitly enables them.
+             * Restoring an archived account also re-enables it immediately.
              */
-            $user->is_active = false;
+            $user->is_active = true;
             $user->save();
 
             $this->activityLogger->log(
                 action: 'user.restored',
-                description: "Restored user {$user->name}.",
+                description: "Restored and enabled user {$user->name}.",
                 subject: $user,
                 organizationId: $organization->id,
                 properties: [
                     'old' => $oldValues,
                     'new' => [
-                        'is_active' => false,
+                        'is_active' => true,
                         'deleted_at' => null,
                     ],
                 ],
@@ -1255,8 +1254,7 @@ class PlatformOrganizationUserController extends Controller
             )
             ->with(
                 'success',
-                'Organization user restored successfully. '
-                .'The account remains disabled until you enable it.'
+                'Organization user restored and enabled successfully.'
             );
     }
 
@@ -1276,10 +1274,6 @@ class PlatformOrganizationUserController extends Controller
         );
     }
 
-    /**
-     * Determine whether a user has the Organization Admin role in the
-     * specified organization.
-     */
     /**
      * Determine whether the user currently holds the Billing Owner role.
      */

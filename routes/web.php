@@ -1084,6 +1084,11 @@ Route::prefix('platform')
             'update',
         ])->name('organizations.update');
 
+        Route::patch('/organizations/{organization}/restore', [
+            OrganizationController::class,
+            'restore',
+        ])->name('organizations.restore');
+
         Route::post(
             '/organizations/{organization}/subscription',
             [
@@ -1500,6 +1505,7 @@ $platformRouteRolePolicies = [
 
         'platform.organizations.edit',
         'platform.organizations.update',
+        'platform.organizations.restore',
 
         'platform.organizations.subscription-bypass.approve',
         'platform.organizations.subscription-bypass.revoke',

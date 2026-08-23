@@ -53,8 +53,9 @@ class ManageUsersStyledConfirmationTest extends TestCase
         foreach ([
             'data-user-restore-confirmation',
             'restore-user-{{ $organization->id }}-{{ $user->id }}',
-            'Restore user account?',
-            'confirm-text="Restore user"',
+            'Restore &amp; Enable',
+            'Restore and enable user?',
+            'confirm-text="Restore & Enable"',
             'variant="success"',
         ] as $expected) {
             $this->assertStringContainsString(

@@ -806,8 +806,17 @@ class PublicConsentSigningController extends Controller
         string $source = 'public_access'
     ): ConsentSession {
         $consentSession = ConsentSession::query()
+            ->with('organization')
             ->where('access_token', $accessToken)
             ->firstOrFail();
+
+        abort_if(
+            $consentSession
+                ->organization
+                ?->isArchived(),
+            404,
+            'This consent link is currently unavailable.'
+        );
 
         $consentExpiryService->expireIfDue(
             consentSession: $consentSession,
