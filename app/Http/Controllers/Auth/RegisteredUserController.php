@@ -6,6 +6,7 @@ use App\Enums\OrganizationRole;
 use App\Enums\OrganizationSubscriptionStatus;
 use App\Enums\SubscriptionPaymentStatus;
 use App\Http\Controllers\Controller;
+use App\Jobs\SendNewOrganizationNotificationJob;
 use App\Models\Organization;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
@@ -157,6 +158,17 @@ class RegisteredUserController extends Controller
             $permissionRegistrar
                 ->setPermissionsTeamId($previousTeamId);
         }
+
+        /*
+         * Notify the platform Super Admin that a new organization
+         * has been successfully created.
+         *
+         * This is intentionally dispatched after the transaction
+         * has completed successfully.
+         */
+        SendNewOrganizationNotificationJob::dispatch(
+            $user->organization_id
+        );
 
         event(new Registered($user));
 
