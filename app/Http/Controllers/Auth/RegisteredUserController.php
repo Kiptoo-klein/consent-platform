@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendNewOrganizationNotificationJob;
 use App\Models\User;
 use App\Services\OrganizationRegistrationService;
 use Illuminate\Auth\Events\Registered;
@@ -83,6 +84,17 @@ class RegisteredUserController extends Controller
              */
             report($exception);
         }
+
+        /*
+         * Notify the platform Super Admin that a new organization
+         * has been successfully created.
+         *
+         * This is intentionally dispatched after the transaction
+         * has completed successfully.
+         */
+        SendNewOrganizationNotificationJob::dispatch(
+            $user->organization_id
+        );
 
         Auth::login($user);
 
